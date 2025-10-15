@@ -25,3 +25,5 @@ echo Frontend: http://localhost:5173
 echo.
 echo Press any key to close this window...
 pause > nul
+
+
