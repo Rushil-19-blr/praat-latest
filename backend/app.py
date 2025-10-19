@@ -4,6 +4,7 @@ import io
 import numpy as np
 import scipy.signal as signal
 import warnings
+import os
 warnings.filterwarnings('ignore')
 
 
@@ -97,4 +98,8 @@ def extract_features():
 
 
 if __name__ == "__main__":
+	# Disable Flask's automatic .env loading to avoid encoding issues
+	import os
+	os.environ['FLASK_SKIP_DOTENV'] = '1'
+	
 	app.run(host="0.0.0.0", port=8000, debug=True)

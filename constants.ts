@@ -1,46 +1,123 @@
-import type { RawBiomarkerData, Biomarker } from './types';
-
-// Helper to normalize a value within a given range
-const normalize = (value: number, min: number, max: number): number => {
-  return Math.max(0, Math.min(1, (value - min) / (max - min)));
+export const SYSTEM_PROMPT = {
+  parts: [{
+    text: "You are a friendly, warm person meeting someone new. Start a natural conversation by introducing yourself and asking them about their day or how they're feeling. Keep the conversation light and engaging. Respond as if you're talking to a friend."
+  }]
 };
 
-export const formatBiomarkers = (data: RawBiomarkerData): Biomarker[] => [
-  { name: 'Pitch (F0)', value: `${data.f0_mean.toFixed(0)} Hz`, status: data.f0_mean > 150 ? 'orange' : 'green', detail: '↑18 Hz vs. baseline', explanation: 'This measures your average vocal pitch. An elevated F0, like yours, is often associated with increased tension in the vocal cords—a common physiological response to psychological stress.', icon: 'SineWave', normalizedValue: normalize(data.f0_mean, 130, 180) },
-  { name: 'Pitch Range', value: `${data.f0_range.toFixed(0)} Hz`, status: data.f0_range > 75 ? 'red' : 'orange', detail: '↑35% from baseline', explanation: 'This is the span between the lowest and highest pitch in your speech. A wider range can indicate heightened emotional arousal or anxiety, as stress can affect vocal control.', icon: 'Range', normalizedValue: normalize(data.f0_range, 40, 100) },
-  { name: 'Jitter', value: `${data.jitter.toFixed(2)}%`, status: data.jitter > 1.0 ? 'orange' : 'green', detail: 'vs. normal (<1.0%)', explanation: 'Jitter measures the frequency variation between vocal cord vibrations. High jitter can indicate stress, while abnormally low jitter might suggest a strained speech pattern.', icon: 'WavyLine', normalizedValue: normalize(data.jitter, 0, 2) },
-  { name: 'Shimmer', value: `${data.shimmer.toFixed(2)}%`, status: data.shimmer > 3.5 ? 'orange' : 'green', detail: 'vs. normal (<3.5%)', explanation: 'Shimmer relates to the variation in vocal amplitude. Unusually high shimmer can point to vocal instability linked to stress.', icon: 'Amplitude', normalizedValue: normalize(data.shimmer, 0, 6) },
-  { name: 'Voice Quality (HNR)', value: `${data.hnr.toFixed(1)} dB`, status: data.hnr < 18 ? 'red' : data.hnr < 20 ? 'orange' : 'green', detail: 'vs. optimal (>20 dB)', explanation: 'The Harmonics-to-Noise Ratio contrasts clear tonal sound with breathiness. A lower HNR suggests a more "breathy" voice, which can occur when stress affects breathing patterns and vocal stability.', icon: 'Signal', normalizedValue: normalize(data.hnr, 10, 25)},
-  { name: 'Formant F1', value: `${data.f1.toFixed(0)} Hz`, status: data.f1 > 750 ? 'red' : 'orange', detail: '↑12% from baseline', explanation: 'Formants are resonant frequencies of the vocal tract. An elevated F1 is linked to changes in mouth and pharynx shape due to muscle tension, often a subconscious reaction to stress.', icon: 'Curve1', normalizedValue: normalize(data.f1, 650, 850) },
-  { name: 'Formant F2', value: `${data.f2.toFixed(0)} Hz`, status: data.f2 > 1500 ? 'red' : 'orange', detail: '↑22% from baseline', explanation: 'The second formant (F2) is related to tongue position and articulation. Significant deviation from your baseline can indicate less precise speech, a cognitive side-effect of stress.', icon: 'Curve2', normalizedValue: normalize(data.f2, 1200, 1600) },
-  { name: 'Speech Rate', value: `${data.speech_rate.toFixed(0)} WPM`, status: data.speech_rate > 165 ? 'orange' : 'green', detail: 'vs. avg (140-160)', explanation: 'This is the speed of your speech. An increased rate is a classic indicator of anxiety or pressure, as the speaker may be rushing their thoughts or experiencing a flight-or-fight response.', icon: 'Speedometer', normalizedValue: normalize(data.speech_rate, 130, 190) },
-];
-
-export const streaksData = [
-    { month: 'Jul', sessions: 2, weeks: [1, 0, 1, 0] },
-    { month: 'Aug', sessions: 5, weeks: [2, 1, 1, 1] },
-    { month: 'Sep', sessions: 8, weeks: [2, 2, 3, 1] },
-    { month: 'Oct', sessions: 3, weeks: [0, 1, 2, 0] },
-    { month: 'Nov', sessions: 6, weeks: [1, 2, 1, 2] },
-    { month: 'Dec', sessions: 4, weeks: [1, 1, 2, 0] },
-];
-
-export const calendarSessionData = [2, 5, 8, 12, 15, 18, 22, 25];
-
 export const calibrationQuotes = [
-  "Do more things that make you forget to look at your phone.",
-  "The best way to predict the future is to create it.",
-  "Believe you can and you're halfway there.",
-  "The only way to do great work is to love what you do.",
-  "Success is not final, failure is not fatal: it is the courage to continue that counts.",
-  "The future belongs to those who believe in the beauty of their dreams.",
-  "It does not matter how slowly you go as long as you do not stop.",
-  "Everything you’ve ever wanted is on the other side of fear.",
-  "Strive not to be a success, but rather to be of value.",
-  "The journey of a thousand miles begins with a single step.",
-  "What you get by achieving your goals is not as important as what you become by achieving your goals.",
-  "Your limitation is only your imagination.",
-  "Push yourself, because no one else is going to do it for you.",
-  "Great things never come from comfort zones.",
-  "The harder you work for something, the greater you'll feel when you achieve it."
+  "The quick brown fox jumps over the lazy dog.",
+  "A journey of a thousand miles begins with a single step.",
+  "The early bird catches the worm.",
+  "Practice makes perfect.",
+  "Where there's a will, there's a way.",
+  "The pen is mightier than the sword.",
+  "Actions speak louder than words.",
+  "Better late than never.",
+  "Don't count your chickens before they hatch.",
+  "Every cloud has a silver lining.",
+  "Fortune favors the bold.",
+  "Good things come to those who wait.",
+  "Honesty is the best policy.",
+  "It's never too late to learn.",
+  "Knowledge is power.",
+  "Life is what you make it.",
+  "No pain, no gain.",
+  "Opportunity knocks but once.",
+  "Patience is a virtue.",
+  "Quality over quantity.",
+  "Rome wasn't built in a day.",
+  "Slow and steady wins the race.",
+  "The best is yet to come.",
+  "Time heals all wounds.",
+  "United we stand, divided we fall.",
+  "Variety is the spice of life.",
+  "When in Rome, do as the Romans do.",
+  "You can't have your cake and eat it too.",
+  "A picture is worth a thousand words.",
+  "Beauty is in the eye of the beholder."
 ];
+
+export const formatBiomarkers = (data: any) => {
+  // Helper function to safely get numeric values with defaults
+  const getValue = (value: any, defaultValue: number = 0) => {
+    return typeof value === 'number' && !isNaN(value) ? value : defaultValue;
+  };
+
+  // Extract biomarkers from nested structure or root level
+  const biomarkers = data.inferred_biomarkers || data;
+  
+  return [
+    {
+      name: "F0 Mean",
+      value: `${getValue(biomarkers.f0_mean || biomarkers.f0_mean_hz).toFixed(1)} Hz`,
+      status: getValue(biomarkers.f0_mean || biomarkers.f0_mean_hz) > 200 ? 'red' : getValue(biomarkers.f0_mean || biomarkers.f0_mean_hz) > 150 ? 'orange' : 'green',
+      detail: "Average pitch",
+      explanation: "Higher values may indicate stress or tension",
+      icon: 'SineWave' as const,
+      normalizedValue: Math.min(getValue(biomarkers.f0_mean || biomarkers.f0_mean_hz) / 300, 1)
+    },
+    {
+      name: "F0 Range",
+      value: `${getValue(biomarkers.f0_range || biomarkers.f0_range_hz).toFixed(1)} Hz`,
+      status: getValue(biomarkers.f0_range || biomarkers.f0_range_hz) < 50 ? 'red' : getValue(biomarkers.f0_range || biomarkers.f0_range_hz) < 100 ? 'orange' : 'green',
+      detail: "Pitch variability",
+      explanation: "Lower values may indicate monotone speech",
+      icon: 'Range' as const,
+      normalizedValue: Math.min(getValue(biomarkers.f0_range || biomarkers.f0_range_hz) / 200, 1)
+    },
+    {
+      name: "Jitter",
+      value: `${getValue(biomarkers.jitter || biomarkers.jitter_percent).toFixed(2)}%`,
+      status: getValue(biomarkers.jitter || biomarkers.jitter_percent) > 1.0 ? 'red' : getValue(biomarkers.jitter || biomarkers.jitter_percent) > 0.5 ? 'orange' : 'green',
+      detail: "Frequency perturbation",
+      explanation: "Higher values indicate voice instability",
+      icon: 'WavyLine' as const,
+      normalizedValue: Math.min(getValue(biomarkers.jitter || biomarkers.jitter_percent) / 2, 1)
+    },
+    {
+      name: "Shimmer",
+      value: `${getValue(biomarkers.shimmer || biomarkers.shimmer_percent).toFixed(2)}%`,
+      status: getValue(biomarkers.shimmer || biomarkers.shimmer_percent) > 5.0 ? 'red' : getValue(biomarkers.shimmer || biomarkers.shimmer_percent) > 2.5 ? 'orange' : 'green',
+      detail: "Amplitude perturbation",
+      explanation: "Higher values indicate voice instability",
+      icon: 'Amplitude' as const,
+      normalizedValue: Math.min(getValue(biomarkers.shimmer || biomarkers.shimmer_percent) / 10, 1)
+    },
+    {
+      name: "HNR",
+      value: `${getValue(biomarkers.hnr || biomarkers.hnr_db).toFixed(1)} dB`,
+      status: getValue(biomarkers.hnr || biomarkers.hnr_db) < 10 ? 'red' : getValue(biomarkers.hnr || biomarkers.hnr_db) < 15 ? 'orange' : 'green',
+      detail: "Harmonics-to-Noise Ratio",
+      explanation: "Lower values indicate more noise in voice",
+      icon: 'Signal' as const,
+      normalizedValue: Math.min(getValue(biomarkers.hnr || biomarkers.hnr_db) / 30, 1)
+    },
+    {
+      name: "F1",
+      value: `${getValue(biomarkers.f1 || biomarkers.f1_hz).toFixed(0)} Hz`,
+      status: 'green',
+      detail: "First formant",
+      explanation: "Vowel quality indicator",
+      icon: 'Curve1' as const,
+      normalizedValue: Math.min(getValue(biomarkers.f1 || biomarkers.f1_hz) / 1000, 1)
+    },
+    {
+      name: "F2",
+      value: `${getValue(biomarkers.f2 || biomarkers.f2_hz).toFixed(0)} Hz`,
+      status: 'green',
+      detail: "Second formant",
+      explanation: "Vowel quality indicator",
+      icon: 'Curve2' as const,
+      normalizedValue: Math.min(getValue(biomarkers.f2 || biomarkers.f2_hz) / 2000, 1)
+    },
+    {
+      name: "Speech Rate",
+      value: `${getValue(biomarkers.speech_rate || biomarkers.speech_rate_wpm).toFixed(0)} WPM`,
+      status: getValue(biomarkers.speech_rate || biomarkers.speech_rate_wpm) > 200 ? 'red' : getValue(biomarkers.speech_rate || biomarkers.speech_rate_wpm) > 150 ? 'orange' : 'green',
+      detail: "Words per minute",
+      explanation: "Speaking speed indicator",
+      icon: 'Speedometer' as const,
+      normalizedValue: Math.min(getValue(biomarkers.speech_rate || biomarkers.speech_rate_wpm) / 250, 1)
+    }
+  ];
+};

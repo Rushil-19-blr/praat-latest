@@ -145,3 +145,7 @@ gunicorn -w 4 -b 0.0.0.0:5000 app:app
 The application logs errors and debugging information to the console. In production, configure proper logging.
 
 
+
+
+
+

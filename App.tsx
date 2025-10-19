@@ -10,15 +10,17 @@ import EnrollmentNumber from './components/EnrollmentNumber';
 import ScratchCard from './components/ScratchCard';
 import PasswordSetup from './components/PasswordSetup';
 import SuccessPopup from './components/SuccessPopup';
+import SignInScreen from './components/SignInScreen';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { AnalysisData } from './types';
 
-type AppState = 'SIGNUP' | 'CONFIRMATION' | 'ENROLLMENT' | 'SCRATCH_CARD' | 'PASSWORD_SETUP' | 'SUCCESS' | 'DASHBOARD' | 'RECORDING' | 'CALIBRATION_FLOW' | 'RESULTS';
+type AppState = 'SIGNIN' | 'SIGNUP' | 'CONFIRMATION' | 'ENROLLMENT' | 'SCRATCH_CARD' | 'PASSWORD_SETUP' | 'SUCCESS' | 'DASHBOARD' | 'RECORDING' | 'CALIBRATION_FLOW' | 'RESULTS';
 
 const App: React.FC = () => {
-  const [appState, setAppState] = useState<AppState>('SIGNUP');
+  const [appState, setAppState] = useState<AppState>('SIGNIN');
   const [analysisData, setAnalysisData] = useState<AnalysisData | null>(null);
   const [baselineData, setBaselineData] = useState<string | null>(null);
+  const [recordedAudioBlob, setRecordedAudioBlob] = useState<Blob | null>(null);
   
   // Signup flow state
   const [selectedClass, setSelectedClass] = useState<number | null>(null);
@@ -33,8 +35,37 @@ const App: React.FC = () => {
       setBaselineData(storedBaseline);
     }
     
-    // Always start with signup flow (removed localStorage check)
-    // Users will always see the signup flow on reload
+    // Always start with sign-in page - let users choose to sign in or create account
+    // The dashboard will only be accessible after successful sign-in
+  }, []);
+
+  // Sign-in handlers
+  const handleSignIn = useCallback(async (code: string, password: string) => {
+    // Check if user data exists in localStorage
+    const userData = localStorage.getItem('userData');
+    if (!userData) {
+      throw new Error('No account found. Please create an account first.');
+    }
+
+    const parsedUserData = JSON.parse(userData);
+    
+    // Simple validation - in a real app, you'd validate against a backend
+    if (parsedUserData.accountNumber === code && parsedUserData.password === password) {
+      // Set a flag to indicate user is signed in
+      localStorage.setItem('isSignedIn', 'true');
+      setAppState('DASHBOARD');
+    } else {
+      throw new Error('Invalid credentials');
+    }
+  }, []);
+
+  const handleCreateAccount = useCallback(() => {
+    setAppState('SIGNUP');
+  }, []);
+
+  const handleSignOut = useCallback(() => {
+    localStorage.removeItem('isSignedIn');
+    setAppState('SIGNIN');
   }, []);
 
   // Signup flow handlers
@@ -70,6 +101,7 @@ const App: React.FC = () => {
   const handlePasswordSetupComplete = useCallback((password: string) => {
     // Store signup data
     localStorage.setItem('isSignedUp', 'true');
+    localStorage.setItem('isSignedIn', 'true'); // Auto-sign in after successful signup
     localStorage.setItem('userData', JSON.stringify({
       class: selectedClass,
       section: selectedSection,
@@ -88,6 +120,7 @@ const App: React.FC = () => {
   const handleStartCalibration = useCallback(() => setAppState('CALIBRATION_FLOW'), []);
   
   const handleCloseModal = useCallback(() => setAppState('DASHBOARD'), []);
+
 
   const handleAnalysisComplete = useCallback((data: AnalysisData) => {
     const { aiSummary, ...rest } = data;
@@ -121,6 +154,23 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen w-full bg-background-primary overflow-hidden relative">
       <AnimatePresence initial={false}>
+        {/* Sign-in Screen */}
+        {appState === 'SIGNIN' && (
+          <motion.div
+            key="signin"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="w-full h-full"
+          >
+            <SignInScreen 
+              onSignIn={handleSignIn}
+              onCreateAccount={handleCreateAccount}
+            />
+          </motion.div>
+        )}
+
         {/* Signup Flow Components */}
         {appState === 'SIGNUP' && (
           <motion.div
@@ -193,9 +243,8 @@ const App: React.FC = () => {
              className="w-full h-full"
            >
             <Dashboard 
-              onStartVoiceSession={handleStartSession} 
-              onStartCalibration={handleStartCalibration}
-              hasBaseline={!!baselineData}
+              onStartVoiceSession={handleStartSession}
+              onSignOut={handleSignOut}
             />
           </motion.div>
         )}
@@ -222,12 +271,14 @@ const App: React.FC = () => {
         )}
       </AnimatePresence>
       
+
       <AnimatePresence>
         {appState === 'RECORDING' && (
           <VoiceAnalysisModal 
             onClose={handleCloseModal} 
             onAnalysisReady={handleAnalysisComplete}
             baselineData={baselineData}
+            audioBlob={recordedAudioBlob}
           />
         )}
       </AnimatePresence>

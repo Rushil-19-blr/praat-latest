@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { webmBlobToWavMono16k } from '../utils/audio';
 import { extractFeaturesWithPraat } from '../services/praat';
 import type { AnalysisData, RecordingState, RawBiomarkerData } from '../types';
@@ -12,11 +12,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 interface RecordingScreenProps {
   onAnalysisComplete: (data: AnalysisData) => void;
   baselineData: string | null;
+  audioBlob?: Blob | null;
 }
 
 const RecordingScreen: React.FC<RecordingScreenProps> = ({ 
   onAnalysisComplete,
-  baselineData
+  baselineData,
+  audioBlob
 }) => {
   const [recordingState, setRecordingState] = useState<RecordingState>('IDLE');
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -63,6 +65,14 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
     };
   }, [getMicrophonePermission, stream]);
+
+  // Handle pre-recorded audio from Gemini Live session
+  useEffect(() => {
+    if (audioBlob) {
+      setRecordingState('ANALYZING');
+      analyzeAudioWithPraatAndGemini(audioBlob);
+    }
+  }, [audioBlob]);
 
   const drawWaveform = useCallback(() => {
     if (recordingState !== 'RECORDING' || !analyserRef.current || !waveformCanvasRef.current) return;
@@ -163,7 +173,9 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
       
       const baselineString = baselineData ? `The user's personal CALM BASELINE voice features are: ${JSON.stringify(JSON.parse(baselineData), null, 2)}` : "No personal baseline is available. Analyze based on general population data.";
 
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+      const ai = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.API_KEY);
+      const model = ai.getGenerativeModel({ model: 'gemini-2.5-pro' });
+      
       const prompt = `You are a world-class expert in Voice Stress Analysis (VSA). I have two sets of acoustic features from a voice sample: a potential calm baseline, and the current sample. Your task is to compare them to determine the stress level.
 
       ${baselineString}
@@ -186,15 +198,35 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
 
       Your output MUST be a single, valid JSON object with no other text. Use the exact keys from the schema.`;
       
-      const responseSchema = { type: Type.OBJECT, properties: { stress_level: { type: Type.NUMBER }, f0_mean: { type: Type.NUMBER }, f0_range: { type: Type.NUMBER }, jitter: { type: Type.NUMBER }, shimmer: { type: Type.NUMBER }, hnr: { type: Type.NUMBER }, f1: { type: Type.NUMBER }, f2: { type: Type.NUMBER }, speech_rate: { type: Type.NUMBER }, confidence: { type: Type.NUMBER }, snr: { type: Type.NUMBER }, ai_summary: { type: Type.STRING }}};
+      const response = await model.generateContent(prompt);
+      const responseText = response.response.text();
       
-      const response = await ai.models.generateContent({
-          model: 'gemini-2.5-flash',
-          contents: prompt,
-          config: { responseMimeType: 'application/json', responseSchema: responseSchema },
-      });
+      console.log('Gemini response text:', responseText);
+      
+      // Clean the response text to ensure it's valid JSON
+      let cleanedText = responseText.trim();
+      
+      // Remove any markdown code blocks if present
+      if (cleanedText.startsWith('```json')) {
+        cleanedText = cleanedText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      } else if (cleanedText.startsWith('```')) {
+        cleanedText = cleanedText.replace(/^```\s*/, '').replace(/\s*```$/, '');
+      }
+      
+      console.log('Cleaned response text:', cleanedText);
+      
+      if (!cleanedText || cleanedText === '') {
+        throw new Error('Empty response from Gemini API');
+      }
 
-      const resultJson: RawBiomarkerData = JSON.parse(response.text);
+      let resultJson: RawBiomarkerData;
+      try {
+        resultJson = JSON.parse(cleanedText);
+      } catch (parseError) {
+        console.error('JSON parsing error:', parseError);
+        console.error('Failed to parse text:', cleanedText);
+        throw new Error(`Invalid JSON response from Gemini: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+      }
       const analysisResult: AnalysisData = {
           stressLevel: resultJson.stress_level,
           biomarkers: formatBiomarkers(resultJson),
@@ -238,7 +270,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
   };
   
   const statusText = {
-    IDLE: "Hold to record your voice",
+    IDLE: audioBlob ? "Processing recorded conversation..." : "Hold to record your voice",
     RECORDING: "Recording... Speak naturally",
     ANALYZING: "Analyzing voice patterns...",
     COMPLETE: "Analysis complete",
@@ -317,10 +349,10 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
                 onMouseLeave={stopRecording}
                 onTouchStart={startRecording}
                 onTouchEnd={stopRecording}
-                disabled={recordingState === 'ANALYZING' || !!permissionError && recordingState !== 'ERROR'}
+                disabled={recordingState === 'ANALYZING' || !!permissionError && recordingState !== 'ERROR' || (audioBlob && recordingState === 'IDLE')}
                 className={`w-[200px] h-[200px] rounded-full flex items-center justify-center shadow-2xl transition-all duration-300 ${recordingState === 'ANALYZING' ? 'bg-orange-primary/15' : recordingState === 'ERROR' ? 'bg-error-red/15' : recordingState === 'RECORDING' ? 'bg-purple-primary/30' : 'bg-purple-primary/15'} backdrop-blur-xl`}
-                whileHover={(recordingState === 'IDLE' || recordingState === 'ERROR') ? { scale: 1.05, boxShadow: '0 0 40px rgba(139, 92, 246, 0.6)' } : {}}
-                whileTap={(recordingState === 'IDLE' || recordingState === 'ERROR') ? { scale: 0.95 } : {}}
+                whileHover={(recordingState === 'IDLE' || recordingState === 'ERROR') && !audioBlob ? { scale: 1.05, boxShadow: '0 0 40px rgba(139, 92, 246, 0.6)' } : {}}
+                whileTap={(recordingState === 'IDLE' || recordingState === 'ERROR') && !audioBlob ? { scale: 0.95 } : {}}
                 animate={{ 
                     boxShadow: recordingState === 'IDLE' ? '0 0 30px rgba(139, 92, 246, 0.4)' : 
                               recordingState === 'ERROR' ? '0 0 30px rgba(239, 68, 68, 0.4)' : 

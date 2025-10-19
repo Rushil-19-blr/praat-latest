@@ -8,12 +8,14 @@ interface VoiceAnalysisModalProps {
   onClose: () => void;
   onAnalysisReady: (data: AnalysisData) => void;
   baselineData: string | null;
+  audioBlob?: Blob | null;
 }
 
 const VoiceAnalysisModal: React.FC<VoiceAnalysisModalProps> = ({ 
   onClose, 
   onAnalysisReady,
   baselineData,
+  audioBlob,
 }) => {
 
   const handleAnalysisComplete = useCallback((data: AnalysisData) => {
@@ -39,6 +41,7 @@ const VoiceAnalysisModal: React.FC<VoiceAnalysisModalProps> = ({
         <RecordingScreen 
             onAnalysisComplete={handleAnalysisComplete} 
             baselineData={baselineData}
+            audioBlob={audioBlob}
         />
 
     </motion.div>
