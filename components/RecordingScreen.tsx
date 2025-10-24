@@ -1,8 +1,8 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { webmBlobToWavMono16k } from '../utils/audio';
 import { extractFeaturesWithPraat } from '../services/praat';
+import { useGeminiLive } from '../hooks/useGeminiLive';
 import type { AnalysisData, RecordingState, RawBiomarkerData } from '../types';
 import { formatBiomarkers } from '../constants';
 import GlassCard from './GlassCard';
@@ -25,6 +25,10 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
   const [permissionError, setPermissionError] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
+  const [showGeminiOverlay, setShowGeminiOverlay] = useState(false);
+
+  // Gemini Live integration
+  const { isConnected: geminiConnected, transcript: geminiTranscript, error: geminiError } = useGeminiLive(showGeminiOverlay ? stream : null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -61,12 +65,12 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
       }
-      if (timerRef.current) clearTimeout(timerRef.current);
+      if (timerRef.current) clearTimeout(timerRef.current as any);
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
     };
   }, [getMicrophonePermission, stream]);
 
-  // Handle pre-recorded audio from Gemini Live session
+  // Handle pre-recorded audio (if routed from elsewhere)
   useEffect(() => {
     if (audioBlob) {
       setRecordingState('ANALYZING');
@@ -87,12 +91,10 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
     const width = canvas.width;
     const height = canvas.height;
     
-    // Clear with a subtle background
     ctx.clearRect(0, 0, width, height);
     ctx.fillStyle = 'rgba(139, 92, 246, 0.05)';
     ctx.fillRect(0, 0, width, height);
 
-    // Create a more sophisticated waveform visualization
     const numBars = 32;
     const barWidth = width / numBars - 2;
     
@@ -108,20 +110,16 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
         barHeights[i] = (sum / sliceWidth) / 128.0;
     }
 
-    // Create animated gradient
     const gradient = ctx.createLinearGradient(0, 0, 0, height);
     gradient.addColorStop(0, '#A855F7');
     gradient.addColorStop(0.5, '#8B5CF6');
     gradient.addColorStop(1, '#7C3AED');
     ctx.fillStyle = gradient;
 
-    // Draw bars with smooth animation
     for (let i = 0; i < numBars; i++) {
       const x = i * (barWidth + 2);
       const barHeight = Math.max(4, barHeights[i] * (height - 8));
       const centerY = height / 2;
-      
-      // Draw from center outward for better visual effect
       ctx.fillRect(x, centerY - barHeight/2, barWidth, barHeight);
     }
 
@@ -201,21 +199,14 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
       const response = await model.generateContent(prompt);
       const responseText = response.response.text();
       
-      console.log('Gemini response text:', responseText);
-      
-      // Clean the response text to ensure it's valid JSON
-      let cleanedText = responseText.trim();
-      
-      // Remove any markdown code blocks if present
+      // Clean to valid JSON (handles fenced code blocks)
+      let cleanedText = (responseText || '').trim();
       if (cleanedText.startsWith('```json')) {
         cleanedText = cleanedText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
       } else if (cleanedText.startsWith('```')) {
         cleanedText = cleanedText.replace(/^```\s*/, '').replace(/\s*```$/, '');
       }
-      
-      console.log('Cleaned response text:', cleanedText);
-      
-      if (!cleanedText || cleanedText === '') {
+      if (!cleanedText) {
         throw new Error('Empty response from Gemini API');
       }
 
@@ -223,8 +214,6 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
       try {
         resultJson = JSON.parse(cleanedText);
       } catch (parseError) {
-        console.error('JSON parsing error:', parseError);
-        console.error('Failed to parse text:', cleanedText);
         throw new Error(`Invalid JSON response from Gemini: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
       }
       const analysisResult: AnalysisData = {
@@ -239,7 +228,6 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
       setRecordingState('COMPLETE');
       onAnalysisComplete(analysisResult);
     } catch (error) {
-      console.error("Analysis Error:", error);
       setRecordingState('ERROR');
       if (error instanceof Error) {
         if (error.message.includes('Not enough clear speech')) {
@@ -261,9 +249,9 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
     
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       mediaRecorderRef.current.addEventListener("stop", () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         setRecordingState('ANALYZING');
-        analyzeAudioWithPraatAndGemini(audioBlob);
+        analyzeAudioWithPraatAndGemini(blob);
       });
       mediaRecorderRef.current.stop();
     }
@@ -277,7 +265,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
     ERROR: "Analysis failed. Tap to retry.",
   };
 
-  const statusColor = { IDLE: "text-text-muted", RECORDING: "text-purple-light", ANALYZING: "text-orange-light", COMPLETE: "text-success-green", ERROR: "text-error-red" };
+  const statusColor = { IDLE: "text-text-muted", RECORDING: "text-purple-light", ANALYZING: "text-orange-light", COMPLETE: "text-success-green", ERROR: "text-error-red" } as const;
   const headerText = "Voice Stress Analysis";
 
   const Header = () => (
@@ -316,20 +304,6 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
         </GlassCard>
 
         <div className="relative flex items-center justify-center my-10 h-[240px] w-[240px]">
-          <AnimatePresence>
-            {recordingState === 'ANALYZING' && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0" >
-                {Array.from({ length: 10 }).map((_, i) => (
-                  <motion.div key={i} className="absolute inset-0" style={{ transform: `rotate(${i * 36}deg)` }} animate={{ rotate: 360 + i * 36 }} transition={{ duration: 2, repeat: Infinity, ease: 'linear', delay: i * 0.15, }} >
-                    <div className="absolute top-0 left-1/2 -ml-1 h-1/2 w-2 origin-bottom">
-                      <div className="h-6 w-2 rounded bg-gradient-to-b from-orange-primary to-orange-light"></div>
-                    </div>
-                  </motion.div>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
-
             <svg className="absolute inset-0" viewBox="0 0 240 240">
                 <circle cx="120" cy="120" r="117" stroke={recordingState === 'ERROR' ? 'rgba(239, 68, 68, 0.4)' : 'rgba(139, 92, 246, 0.4)'} strokeWidth="3" fill="none" />
                  {recordingState === 'RECORDING' && (
@@ -375,6 +349,59 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
             )}
         </AnimatePresence>
 
+        {/* Gemini Live Overlay */}
+        <div className="w-full max-w-sm mx-auto mt-6">
+          <GlassCard className="p-3">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-medium text-white">AI Assistant</h3>
+              <button
+                onClick={() => setShowGeminiOverlay(!showGeminiOverlay)}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                  showGeminiOverlay 
+                    ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
+                    : 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                }`}
+              >
+                {showGeminiOverlay ? 'ON' : 'OFF'}
+              </button>
+            </div>
+            
+            <AnimatePresence>
+              {showGeminiOverlay && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="space-y-2"
+                >
+                  <div className="flex items-center space-x-2">
+                    <motion.div 
+                      animate={{ scale: geminiConnected ? [1, 1.2, 1] : 1 }} 
+                      transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                      className={`w-2 h-2 rounded-full ${geminiConnected ? 'bg-green-400' : 'bg-yellow-400'}`}
+                    />
+                    <p className="text-xs text-gray-300">
+                      {geminiConnected ? "Listening..." : "Connecting..."}
+                    </p>
+                  </div>
+                  
+                  {geminiTranscript && (
+                    <div className="bg-black/20 rounded-lg p-2">
+                      <p className="text-xs text-gray-300">{geminiTranscript}</p>
+                    </div>
+                  )}
+                  
+                  {geminiError && (
+                    <div className="bg-red-500/20 rounded-lg p-2">
+                      <p className="text-xs text-red-400">{geminiError}</p>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </GlassCard>
+        </div>
+
         <AnimatePresence>
             {showHelp && (
                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowHelp(false)} className="fixed inset-0 bg-black/60 backdrop-blur-md z-40 flex items-center justify-center p-4" >
@@ -402,3 +429,5 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
 };
 
 export default RecordingScreen;
+
+
