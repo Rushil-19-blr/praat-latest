@@ -25,10 +25,13 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
   const [permissionError, setPermissionError] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
-  const [showGeminiOverlay, setShowGeminiOverlay] = useState(false);
+  
+  // Multi-clip recording state
+  const [audioClips, setAudioClips] = useState<Blob[]>([]);
+  const [isSessionActive, setIsSessionActive] = useState(false);
 
-  // Gemini Live integration
-  const { isConnected: geminiConnected, transcript: geminiTranscript, error: geminiError } = useGeminiLive(showGeminiOverlay ? stream : null);
+  // Gemini Live integration - auto-start
+  const { isConnected: geminiConnected, transcript: geminiTranscript, error: geminiError } = useGeminiLive(stream);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -127,12 +130,17 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
   }, [recordingState]);
 
   const startRecording = () => {
-    if (!stream || (recordingState !== 'IDLE' && recordingState !== 'ERROR')) return;
+    if (!stream || recordingState !== 'IDLE') return;
 
     setPermissionError(null);
     setRecordingState('RECORDING');
     setRecordingDuration(0);
     audioChunksRef.current = [];
+
+    // Start session if not already active
+    if (!isSessionActive) {
+      setIsSessionActive(true);
+    }
 
     mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
     mediaRecorderRef.current.addEventListener("dataavailable", event => {
@@ -250,15 +258,202 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       mediaRecorderRef.current.addEventListener("stop", () => {
         const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        setRecordingState('ANALYZING');
-        analyzeAudioWithPraatAndGemini(blob);
+        // Add clip to session instead of analyzing immediately
+        setAudioClips(prev => [...prev, blob]);
+        setRecordingState('IDLE');
       });
       mediaRecorderRef.current.stop();
     }
   };
   
+  const combineAudioClips = async (clips: Blob[]): Promise<Blob> => {
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      
+      // Decode all audio clips
+      const audioBuffers = await Promise.all(
+        clips.map(async (clip) => {
+          const arrayBuffer = await clip.arrayBuffer();
+          return await audioContext.decodeAudioData(arrayBuffer);
+        })
+      );
+      
+      // Calculate total length
+      const totalLength = audioBuffers.reduce((sum, buffer) => sum + buffer.length, 0);
+      
+      // Create a new buffer to hold all audio data
+      const combinedBuffer = audioContext.createBuffer(1, totalLength, audioBuffers[0].sampleRate);
+      const combinedData = combinedBuffer.getChannelData(0);
+      
+      // Copy all audio data into the combined buffer
+      let offset = 0;
+      for (const buffer of audioBuffers) {
+        const data = buffer.getChannelData(0);
+        combinedData.set(data, offset);
+        offset += data.length;
+      }
+      
+      // Convert back to blob
+      const audioBlob = await audioBufferToBlob(combinedBuffer);
+      return audioBlob;
+    } catch (error) {
+      console.error('Error combining audio clips:', error);
+      // Fallback: return the first clip if combination fails
+      return clips[0];
+    }
+  };
+
+  const audioBufferToBlob = async (audioBuffer: AudioBuffer): Promise<Blob> => {
+    const sampleRate = audioBuffer.sampleRate;
+    const numChannels = audioBuffer.numberOfChannels;
+    const length = audioBuffer.length;
+    
+    // Convert to 16-bit PCM
+    const pcm16 = new Int16Array(length);
+    const channelData = audioBuffer.getChannelData(0);
+    
+    for (let i = 0; i < length; i++) {
+      pcm16[i] = Math.max(-32768, Math.min(32767, channelData[i] * 32768));
+    }
+    
+    // Create WAV file
+    const bitsPerSample = 16;
+    const byteRate = sampleRate * numChannels * bitsPerSample / 8;
+    const blockAlign = numChannels * bitsPerSample / 8;
+    const dataSize = pcm16.length * 2;
+    const fileSize = 36 + dataSize;
+    
+    const buffer = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(buffer);
+    
+    // WAV header
+    const writeString = (offset: number, string: string) => {
+      for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i));
+      }
+    };
+    
+    writeString(0, 'RIFF');
+    view.setUint32(4, fileSize, true);
+    writeString(8, 'WAVE');
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, byteRate, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, bitsPerSample, true);
+    writeString(36, 'data');
+    view.setUint32(40, dataSize, true);
+    
+    // Write audio data
+    const pcmView = new DataView(buffer, 44);
+    for (let i = 0; i < pcm16.length; i++) {
+      pcmView.setInt16(i * 2, pcm16[i], true);
+    }
+    
+    return new Blob([buffer], { type: 'audio/wav' });
+  };
+
+  const endSession = async () => {
+    if (audioClips.length === 0) return;
+    
+    setRecordingState('ANALYZING');
+    
+    try {
+      console.log(`Combining ${audioClips.length} audio clips for analysis`);
+      // Properly combine all audio clips by decoding and concatenating the audio data
+      const combinedBlob = await combineAudioClips(audioClips);
+      
+      // Analyze the combined audio
+      const wavBlob = await webmBlobToWavMono16k(combinedBlob);
+      const featuresForAnalysis = await extractFeaturesWithPraat(wavBlob, 'http://localhost:8000');
+      
+      const featuresString = `
+      - RMS (energy/loudness): ${featuresForAnalysis.rms.toFixed(4)}
+      - ZCR (noise/sibilance): ${featuresForAnalysis.zcr.toFixed(4)}
+      - Spectral Centroid (brightness): ${featuresForAnalysis.spectralCentroid.toFixed(2)}
+      - Spectral Flatness (tonality): ${featuresForAnalysis.spectralFlatness.toFixed(4)}
+      - MFCCs (spectral shape): [${featuresForAnalysis.mfcc.map((c: number) => c.toFixed(2)).join(', ')}]
+      `;
+      
+      const baselineString = baselineData ? `The user's personal CALM BASELINE voice features are: ${JSON.stringify(JSON.parse(baselineData), null, 2)}` : "No personal baseline is available. Analyze based on general population data.";
+
+      const ai = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.API_KEY);
+      const model = ai.getGenerativeModel({ model: 'gemini-2.5-pro' });
+      
+      const prompt = `You are a world-class expert in Voice Stress Analysis (VSA). I have two sets of acoustic features from a voice sample: a potential calm baseline, and the current sample. Your task is to compare them to determine the stress level.
+
+      ${baselineString}
+
+      The CURRENT voice sample's features (extracted using Praat phonetics analysis) are:
+      ${featuresString}
+
+      Based on this data, perform these tasks:
+      1.  **Compare and Infer Biomarkers**: Critically compare the CURRENT features to the BASELINE (if available). Based on the *differences*, estimate plausible values for the following VSA biomarkers. Stress often manifests as *deviations* from a baseline (e.g., higher RMS and spectral centroid -> higher F0). If no baseline is available, use general population norms.
+          - f0_mean (Hz): Avg pitch.
+          - f0_range (Hz): Pitch variability.
+          - jitter (%): Frequency perturbation.
+          - shimmer (%): Amplitude perturbation.
+          - hnr (dB): Harmonics-to-Noise Ratio.
+          - f1 (Hz), f2 (Hz): Formants.
+          - speech_rate (WPM): Words per minute.
+      2.  **Determine Stress Level**: Based on the deviation from baseline, provide an overall stress level (0-100). A larger deviation implies higher stress.
+      3.  **Provide Confidence & SNR**: Give a confidence score for your analysis (%) and an estimated Signal-to-Noise Ratio (SNR, in dB).
+      4.  **Write AI Summary**: Write a concise summary (2-3 sentences) explaining the results, referencing the comparison to the baseline if one was used.
+
+      Your output MUST be a single, valid JSON object with no other text. Use the exact keys from the schema.`;
+      
+      const response = await model.generateContent(prompt);
+      const responseText = response.response.text();
+      
+      // Clean to valid JSON (handles fenced code blocks)
+      let cleanedText = (responseText || '').trim();
+      if (cleanedText.startsWith('```json')) {
+        cleanedText = cleanedText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      } else if (cleanedText.startsWith('```')) {
+        cleanedText = cleanedText.replace(/^```\s*/, '').replace(/\s*```$/, '');
+      }
+      if (!cleanedText) {
+        throw new Error('Empty response from Gemini API');
+      }
+
+      let resultJson: RawBiomarkerData;
+      try {
+        resultJson = JSON.parse(cleanedText);
+      } catch (parseError) {
+        throw new Error(`Invalid JSON response from Gemini: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+      }
+      const analysisResult: AnalysisData = {
+          stressLevel: resultJson.stress_level,
+          biomarkers: formatBiomarkers(resultJson),
+          confidence: resultJson.confidence,
+          snr: resultJson.snr,
+          audioUrl: URL.createObjectURL(combinedBlob),
+          aiSummary: resultJson.ai_summary,
+      };
+
+      setRecordingState('COMPLETE');
+      onAnalysisComplete(analysisResult);
+    } catch (error) {
+      setRecordingState('ERROR');
+      if (error instanceof Error) {
+        if (error.message.includes('Not enough clear speech')) {
+          setPermissionError("We couldn't detect clear speech. Please try speaking a bit louder and closer to your device.");
+        } else if (error.message.includes('Backend')) {
+          setPermissionError("Our analysis service is temporarily unavailable. Please try again in a moment.");
+        } else {
+          setPermissionError("Something went wrong during analysis. Please try recording again.");
+        }
+      } else {
+        setPermissionError("An unexpected error occurred. Please try again.");
+      }
+    }
+  };
+  
   const statusText = {
-    IDLE: audioBlob ? "Processing recorded conversation..." : "Hold to record your voice",
+    IDLE: audioBlob ? "Processing recorded conversation..." : isSessionActive ? "Hold to record another clip" : "Hold to record your voice",
     RECORDING: "Recording... Speak naturally",
     ANALYZING: "Analyzing voice patterns...",
     COMPLETE: "Analysis complete",
@@ -354,53 +549,61 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
           <GlassCard className="p-3">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-medium text-white">AI Assistant</h3>
-              <button
-                onClick={() => setShowGeminiOverlay(!showGeminiOverlay)}
-                className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
-                  showGeminiOverlay 
-                    ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
-                    : 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
-                }`}
-              >
-                {showGeminiOverlay ? 'ON' : 'OFF'}
-              </button>
             </div>
             
-            <AnimatePresence>
-              {showGeminiOverlay && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="space-y-2"
-                >
-                  <div className="flex items-center space-x-2">
-                    <motion.div 
-                      animate={{ scale: geminiConnected ? [1, 1.2, 1] : 1 }} 
-                      transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                      className={`w-2 h-2 rounded-full ${geminiConnected ? 'bg-green-400' : 'bg-yellow-400'}`}
-                    />
-                    <p className="text-xs text-gray-300">
-                      {geminiConnected ? "Listening..." : "Connecting..."}
-                    </p>
-                  </div>
-                  
-                  {geminiTranscript && (
-                    <div className="bg-black/20 rounded-lg p-2">
-                      <p className="text-xs text-gray-300">{geminiTranscript}</p>
-                    </div>
-                  )}
-                  
-                  {geminiError && (
-                    <div className="bg-red-500/20 rounded-lg p-2">
-                      <p className="text-xs text-red-400">{geminiError}</p>
-                    </div>
-                  )}
-                </motion.div>
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <motion.div 
+                  animate={{ scale: geminiConnected ? [1, 1.2, 1] : 1 }} 
+                  transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                  className={`w-2 h-2 rounded-full ${geminiConnected ? 'bg-green-400' : 'bg-yellow-400'}`}
+                />
+                <p className="text-xs text-gray-300">
+                  {geminiConnected ? "Listening..." : "Connecting..."}
+                </p>
+              </div>
+              
+              {geminiTranscript && (
+                <div className="bg-black/20 rounded-lg p-2">
+                  <p className="text-xs text-gray-300">{geminiTranscript}</p>
+                </div>
               )}
-            </AnimatePresence>
+              
+              {geminiError && (
+                <div className="bg-red-500/20 rounded-lg p-2">
+                  <p className="text-xs text-red-400">{geminiError}</p>
+                </div>
+              )}
+            </div>
           </GlassCard>
         </div>
+
+        {/* End Session Button */}
+        <AnimatePresence>
+          {isSessionActive && audioClips.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="w-full max-w-sm mx-auto mt-4"
+            >
+              <GlassCard className="p-3">
+                <div className="text-center">
+                  <p className="text-sm text-white mb-3">
+                    {audioClips.length} clip{audioClips.length !== 1 ? 's' : ''} recorded
+                  </p>
+                  <button
+                    onClick={endSession}
+                    disabled={recordingState === 'ANALYZING'}
+                    className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-medium py-3 px-6 rounded-lg transition-all shadow-lg shadow-purple-500/20"
+                  >
+                    {recordingState === 'ANALYZING' ? 'Analyzing...' : 'End Session & Analyze'}
+                  </button>
+                </div>
+              </GlassCard>
+                </motion.div>
+            )}
+        </AnimatePresence>
 
         <AnimatePresence>
             {showHelp && (

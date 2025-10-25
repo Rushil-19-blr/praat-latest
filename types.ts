@@ -19,6 +19,7 @@ export interface AnalysisData {
   snr: number;
   audioUrl: string;
   aiSummary: string;
+  date: string;
 }
 
 export interface RawBiomarkerData {
@@ -34,4 +35,23 @@ export interface RawBiomarkerData {
   confidence: number;
   snr: number;
   ai_summary: string;
+}
+
+export type RiskLevel = 'high' | 'moderate' | 'low';
+
+export interface Student {
+  code: string;
+  name: string;
+  class: number;
+  section: string;
+  riskLevel: RiskLevel;
+  analysisHistory: AnalysisData[];
+}
+
+export interface ClassSummary {
+  id: string;
+  name: string;
+  studentCount: number;
+  averageStress: number;
+  students: Student[];
 }

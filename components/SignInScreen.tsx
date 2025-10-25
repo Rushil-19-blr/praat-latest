@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 
 interface SignInScreenProps {
-  onSignIn: (code: string, password: string) => void;
+  onSignIn: (code: string, password: string, userType: 'student' | 'teacher') => void;
   onCreateAccount: () => void;
 }
 
@@ -10,6 +10,7 @@ const SignInScreen: React.FC<SignInScreenProps> = ({ onSignIn, onCreateAccount }
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [userType, setUserType] = useState<'student' | 'teacher'>('student');
   const codeInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const togglePassword = () => {
@@ -52,7 +53,7 @@ const SignInScreen: React.FC<SignInScreenProps> = ({ onSignIn, onCreateAccount }
 
     setIsLoading(true);
     try {
-      await onSignIn(codeString, password);
+      await onSignIn(codeString, password, userType);
     } catch (error) {
       console.error('Sign in error:', error);
       alert('Sign in failed. Please check your credentials.');
@@ -98,9 +99,54 @@ const SignInScreen: React.FC<SignInScreenProps> = ({ onSignIn, onCreateAccount }
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* User Type Selection */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <label style={{ fontSize: '14px', color: '#a0a0a0', fontWeight: 500 }}>
-              4-Digit Code
+              Login As
+            </label>
+            <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+              <button
+                type="button"
+                onClick={() => setUserType('student')}
+                style={{
+                  flex: 1,
+                  padding: '12px 16px',
+                  backgroundColor: userType === 'student' ? '#a855f7' : '#1a1a1a',
+                  border: `2px solid ${userType === 'student' ? '#a855f7' : '#333333'}`,
+                  borderRadius: '8px',
+                  color: '#ffffff',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                Student
+              </button>
+              <button
+                type="button"
+                onClick={() => setUserType('teacher')}
+                style={{
+                  flex: 1,
+                  padding: '12px 16px',
+                  backgroundColor: userType === 'teacher' ? '#a855f7' : '#1a1a1a',
+                  border: `2px solid ${userType === 'teacher' ? '#a855f7' : '#333333'}`,
+                  borderRadius: '8px',
+                  color: '#ffffff',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                Teacher
+              </button>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ fontSize: '14px', color: '#a0a0a0', fontWeight: 500 }}>
+              {userType === 'teacher' ? 'Admin Code' : '4-Digit Code'}
             </label>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', marginTop: '8px' }}>
               {code.map((digit, index) => (
@@ -141,7 +187,7 @@ const SignInScreen: React.FC<SignInScreenProps> = ({ onSignIn, onCreateAccount }
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative' }}>
             <label style={{ fontSize: '14px', color: '#a0a0a0', fontWeight: 500 }}>
-              Password
+              {userType === 'teacher' ? 'Admin Password' : 'Password'}
             </label>
             <div style={{ position: 'relative' }}>
               <input
@@ -149,7 +195,7 @@ const SignInScreen: React.FC<SignInScreenProps> = ({ onSignIn, onCreateAccount }
                 id="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
+                placeholder={userType === 'teacher' ? 'Enter admin password' : 'Enter your password'}
                 style={{
                   backgroundColor: '#1a1a1a',
                   border: '1px solid #333333',

@@ -89,6 +89,27 @@ export const RefreshIcon: React.FC<{ className?: string }> = ({ className }) => 
   </svg>
 );
 
+export const StopIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
+        <path fillRule="evenodd" d="M4.5 7.5a3 3 0 013-3h9a3 3 0 013 3v9a3 3 0 01-3 3h-9a3 3 0 01-3-3v-9z" clipRule="evenodd" />
+    </svg>
+);
+
+export const ShuffleIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg {...iconProps} className={className}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M18 4l3 3l-3 3" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M18 20l3 -3l-3 -3" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3 7h3a5 5 0 0 1 5 5a5 5 0 0 0 5 5h3" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3 17h3a5 5 0 0 0 5 -5a5 5 0 0 1 5 -5h3" />
+  </svg>
+);
+
+export const FilterIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <svg {...iconProps} className={className}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 4h18M7 12h10m-7 8h4" />
+    </svg>
+);
+
 // New Base Icon for Glowing Dot Matrix style
 const GlowingDotMatrixIcon: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className }) => (
   <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" className={className}>

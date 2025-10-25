@@ -8,6 +8,7 @@ interface AnalysisResultsScreenProps {
   analysisData: AnalysisData;
   onNewRecording: () => void;
   onClose: () => void;
+  isTeacherView?: boolean;
 }
 
 const StressIndicator: React.FC<{ stressLevel: number }> = ({ stressLevel }) => {
@@ -108,6 +109,7 @@ const SpectrogramCard: React.FC<{ audioUrl: string }> = ({ audioUrl }) => {
     const audioRef = useRef<HTMLAudioElement>(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [progress, setProgress] = useState(0);
+    const [duration, setDuration] = useState(0);
 
     useEffect(() => {
         if (!audioUrl || !canvasRef.current) return;
@@ -203,11 +205,14 @@ const SpectrogramCard: React.FC<{ audioUrl: string }> = ({ audioUrl }) => {
         const audio = audioRef.current;
         if (!audio) return;
         const handleTimeUpdate = () => { if (audio.duration > 0) setProgress((audio.currentTime / audio.duration) * 100); };
+        const handleLoadedMetadata = () => { setDuration(audio.duration); };
         const handleEnded = () => { setIsPlaying(false); setProgress(0); };
         audio.addEventListener('timeupdate', handleTimeUpdate);
+        audio.addEventListener('loadedmetadata', handleLoadedMetadata);
         audio.addEventListener('ended', handleEnded);
         return () => {
             audio.removeEventListener('timeupdate', handleTimeUpdate);
+            audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
             audio.removeEventListener('ended', handleEnded);
         };
     }, []);
@@ -229,7 +234,7 @@ const SpectrogramCard: React.FC<{ audioUrl: string }> = ({ audioUrl }) => {
                 <div className="w-full h-2 bg-surface rounded-full overflow-hidden">
                     <div className="h-full bg-gradient-to-r from-purple-dark to-purple-light" style={{ width: `${progress}%` }}></div>
                 </div>
-                <span className="text-xs text-text-muted">10.0s</span>
+                <span className="text-xs text-text-muted">{duration.toFixed(1)}s</span>
             </div>
         </GlassCard>
     );
@@ -385,7 +390,7 @@ const BiomarkerWidget: React.FC<{ biomarker: Biomarker, isExpanded?: boolean, on
 };
 
 
-const AnalysisResultsScreen: React.FC<AnalysisResultsScreenProps> = ({ analysisData, onNewRecording, onClose }) => {
+const AnalysisResultsScreen: React.FC<AnalysisResultsScreenProps> = ({ analysisData, onNewRecording, onClose, isTeacherView = false }) => {
   const [selectedBiomarker, setSelectedBiomarker] = useState<Biomarker | null>(null);
 
   const containerVariants = {
@@ -467,14 +472,16 @@ const AnalysisResultsScreen: React.FC<AnalysisResultsScreenProps> = ({ analysisD
                 </div>
             </motion.div>
             
-            <motion.div className="space-y-4 pt-4" variants={itemVariants}>
-                 <button className="w-full h-14 rounded-2xl flex items-center justify-center font-bold text-white bg-gradient-to-r from-purple-dark to-purple-primary shadow-lg shadow-purple-dark/30 hover:scale-[1.02] transition-transform">
-                    <Bookmark className="w-5 h-5 mr-2"/> Save to History
-                </button>
-                 <button onClick={onNewRecording} className="w-full h-14 rounded-2xl flex items-center justify-center font-medium text-white glass-base border-purple-primary border hover:bg-purple-primary/20 transition-colors">
-                    <Microphone className="w-5 h-5 mr-2 text-purple-primary"/> Record Another Sample
-                </button>
-            </motion.div>
+            {!isTeacherView && (
+                <motion.div className="space-y-4 pt-4" variants={itemVariants}>
+                     <button className="w-full h-14 rounded-2xl flex items-center justify-center font-bold text-white bg-gradient-to-r from-purple-dark to-purple-primary shadow-lg shadow-purple-dark/30 hover:scale-[1.02] transition-transform">
+                        <Bookmark className="w-5 h-5 mr-2"/> Save to History
+                    </button>
+                     <button onClick={onNewRecording} className="w-full h-14 rounded-2xl flex items-center justify-center font-medium text-white glass-base border-purple-primary border hover:bg-purple-primary/20 transition-colors">
+                        <Microphone className="w-5 h-5 mr-2 text-purple-primary"/> Record Another Sample
+                    </button>
+                </motion.div>
+            )}
         </motion.div>
         
         <AnimatePresence>

@@ -11,16 +11,21 @@ import ScratchCard from './components/ScratchCard';
 import PasswordSetup from './components/PasswordSetup';
 import SuccessPopup from './components/SuccessPopup';
 import SignInScreen from './components/SignInScreen';
+import TeacherDashboard from './components/TeacherDashboard';
+import StudentDetailScreen from './components/StudentDetailScreen';
 import { AnimatePresence, motion } from 'framer-motion';
-import type { AnalysisData } from './types';
+import type { AnalysisData, Student } from './types';
 
-type AppState = 'SIGNIN' | 'SIGNUP' | 'CONFIRMATION' | 'ENROLLMENT' | 'SCRATCH_CARD' | 'PASSWORD_SETUP' | 'SUCCESS' | 'DASHBOARD' | 'RECORDING' | 'CALIBRATION_FLOW' | 'RESULTS';
+type AppState = 'SIGNIN' | 'SIGNUP' | 'CONFIRMATION' | 'ENROLLMENT' | 'SCRATCH_CARD' | 'PASSWORD_SETUP' | 'SUCCESS' | 'DASHBOARD' | 'RECORDING' | 'CALIBRATION_FLOW' | 'RESULTS' | 'TEACHER_DASHBOARD' | 'STUDENT_DETAIL';
 
 const App: React.FC = () => {
   const [appState, setAppState] = useState<AppState>('SIGNIN');
   const [analysisData, setAnalysisData] = useState<AnalysisData | null>(null);
   const [baselineData, setBaselineData] = useState<string | null>(null);
   const [recordedAudioBlob, setRecordedAudioBlob] = useState<Blob | null>(null);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [userType, setUserType] = useState<'student' | 'teacher'>('student');
   
   // Signup flow state
   const [selectedClass, setSelectedClass] = useState<number | null>(null);
@@ -35,27 +40,63 @@ const App: React.FC = () => {
       setBaselineData(storedBaseline);
     }
     
+    // Load real student data from localStorage
+    loadStudentData();
+    
     // Always start with sign-in page - let users choose to sign in or create account
     // The dashboard will only be accessible after successful sign-in
   }, []);
 
-  // Sign-in handlers
-  const handleSignIn = useCallback(async (code: string, password: string) => {
-    // Check if user data exists in localStorage
-    const userData = localStorage.getItem('userData');
-    if (!userData) {
-      throw new Error('No account found. Please create an account first.');
-    }
-
-    const parsedUserData = JSON.parse(userData);
-    
-    // Simple validation - in a real app, you'd validate against a backend
-    if (parsedUserData.accountNumber === code && parsedUserData.password === password) {
-      // Set a flag to indicate user is signed in
-      localStorage.setItem('isSignedIn', 'true');
-      setAppState('DASHBOARD');
+  const loadStudentData = useCallback(() => {
+    // Get all student data from localStorage
+    const allStudentsData = localStorage.getItem('allStudentsData');
+    if (allStudentsData) {
+      try {
+        const studentsData = JSON.parse(allStudentsData);
+        setStudents(studentsData);
+      } catch (error) {
+        console.error('Error parsing student data:', error);
+        // Fallback to empty array if data is corrupted
+        setStudents([]);
+      }
     } else {
-      throw new Error('Invalid credentials');
+      // Initialize with empty array if no data exists
+      setStudents([]);
+    }
+  }, []);
+
+  // Sign-in handlers
+  const handleSignIn = useCallback(async (code: string, password: string, userType: 'student' | 'teacher') => {
+    setUserType(userType);
+    
+    if (userType === 'teacher') {
+      // Teacher authentication with admin credentials
+      const adminCode = '9999';
+      const adminPassword = 'admin123';
+      
+      if (code === adminCode && password === adminPassword) {
+        localStorage.setItem('isTeacherSignedIn', 'true');
+        setAppState('TEACHER_DASHBOARD');
+      } else {
+        throw new Error('Invalid admin credentials');
+      }
+    } else {
+      // Student authentication
+      const userData = localStorage.getItem('userData');
+      if (!userData) {
+        throw new Error('No account found. Please create an account first.');
+      }
+
+      const parsedUserData = JSON.parse(userData);
+      
+      // Simple validation - in a real app, you'd validate against a backend
+      if (parsedUserData.accountNumber === code && parsedUserData.password === password) {
+        // Set a flag to indicate user is signed in
+        localStorage.setItem('isSignedIn', 'true');
+        setAppState('DASHBOARD');
+      } else {
+        throw new Error('Invalid credentials');
+      }
     }
   }, []);
 
@@ -65,7 +106,21 @@ const App: React.FC = () => {
 
   const handleSignOut = useCallback(() => {
     localStorage.removeItem('isSignedIn');
+    localStorage.removeItem('isTeacherSignedIn');
     setAppState('SIGNIN');
+  }, []);
+
+  const handleSelectStudent = useCallback((studentCode: string) => {
+    const student = students.find(s => s.code === studentCode);
+    if (student) {
+      setSelectedStudent(student);
+      setAppState('STUDENT_DETAIL');
+    }
+  }, [students]);
+
+  const handleBackToTeacherDashboard = useCallback(() => {
+    setSelectedStudent(null);
+    setAppState('TEACHER_DASHBOARD');
   }, []);
 
   // Signup flow handlers
@@ -124,7 +179,55 @@ const App: React.FC = () => {
 
   const handleAnalysisComplete = useCallback((data: AnalysisData) => {
     const { aiSummary, ...rest } = data;
-    setAnalysisData({ ...rest, aiSummary });
+    const analysisDataWithDate = { ...rest, aiSummary, date: new Date().toISOString() };
+    setAnalysisData(analysisDataWithDate);
+    
+    // Save analysis data to student's history
+    const userData = localStorage.getItem('userData');
+    if (userData) {
+      try {
+        const parsedUserData = JSON.parse(userData);
+        const studentCode = parsedUserData.accountNumber;
+        const studentName = parsedUserData.enrollment || 'Unknown Student';
+        const studentClass = parsedUserData.class || 10;
+        const studentSection = parsedUserData.section || 'A';
+        
+        // Get existing students data
+        const allStudentsData = localStorage.getItem('allStudentsData');
+        let studentsData: Student[] = allStudentsData ? JSON.parse(allStudentsData) : [];
+        
+        // Find existing student or create new one
+        let studentIndex = studentsData.findIndex(s => s.code === studentCode);
+        
+        if (studentIndex === -1) {
+          // Create new student
+          const newStudent: Student = {
+            code: studentCode,
+            name: studentName,
+            class: studentClass,
+            section: studentSection,
+            riskLevel: data.stressLevel > 70 ? 'high' : data.stressLevel > 40 ? 'moderate' : 'low',
+            analysisHistory: [analysisDataWithDate]
+          };
+          studentsData.push(newStudent);
+        } else {
+          // Update existing student
+          studentsData[studentIndex].analysisHistory.push(analysisDataWithDate);
+          // Update risk level based on latest analysis
+          const latestStress = data.stressLevel;
+          studentsData[studentIndex].riskLevel = latestStress > 70 ? 'high' : latestStress > 40 ? 'moderate' : 'low';
+        }
+        
+        // Save updated students data
+        localStorage.setItem('allStudentsData', JSON.stringify(studentsData));
+        
+        // Update local state
+        setStudents(studentsData);
+      } catch (error) {
+        console.error('Error saving student data:', error);
+      }
+    }
+    
     setAppState('RESULTS');
   }, []);
   
@@ -245,6 +348,41 @@ const App: React.FC = () => {
             <Dashboard 
               onStartVoiceSession={handleStartSession}
               onSignOut={handleSignOut}
+            />
+          </motion.div>
+        )}
+
+        {appState === 'TEACHER_DASHBOARD' && (
+          <motion.div
+            key="teacher-dashboard"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="w-full h-full"
+          >
+            <TeacherDashboard 
+              students={students}
+              onSelectStudent={handleSelectStudent}
+              onSignOut={handleSignOut}
+              onRefresh={loadStudentData}
+            />
+          </motion.div>
+        )}
+
+        {appState === 'STUDENT_DETAIL' && selectedStudent && (
+          <motion.div
+            key="student-detail"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="w-full h-full"
+          >
+            <StudentDetailScreen 
+              student={selectedStudent}
+              onBack={handleBackToTeacherDashboard}
+              isTeacherView={true}
             />
           </motion.div>
         )}
