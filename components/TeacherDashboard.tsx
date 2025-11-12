@@ -68,14 +68,14 @@ const StudentWidget: React.FC<{ student: Student; onClick: () => void }> = ({ st
             transition={{ type: 'spring', stiffness: 300 }}
         >
             <GlassCard className="p-4 flex items-center justify-between" variant="base">
-                <div className="flex items-center">
+                <div className="flex items-center gap-4">
                     <div className="flex flex-col items-center justify-center w-16 h-16 bg-background-primary rounded-xl">
-                        <span className="text-2xl font-bold tracking-tighter">{latestAnalysis.stressLevel}</span>
-                        <span className="text-xs text-text-muted">%</span>
+                        <span className="text-2xl font-bold text-text-primary">{latestAnalysis.stressLevel}</span>
+                        <span className="text-xs font-medium text-text-muted">%</span>
                     </div>
-                    <div className="ml-4">
-                        <p className="font-mono text-lg text-text-primary tracking-widest">{student.code}</p>
-                        <p className="text-sm text-text-muted">{student.name} &bull; {student.class}{student.section}</p>
+                    <div className="flex flex-col">
+                        <p className="text-base font-semibold text-text-primary">{student.code}</p>
+                        <p className="text-sm font-normal text-text-muted">{student.name} • {student.class}{student.section}</p>
                     </div>
                 </div>
                 <div className="w-24 h-10">
@@ -89,32 +89,40 @@ const StudentWidget: React.FC<{ student: Student; onClick: () => void }> = ({ st
 
 // --- High Risk Alerts Component ---
 const HighRiskAlerts: React.FC<{ students: Student[], onSelectStudent: (id: string) => void }> = ({ students, onSelectStudent }) => {
-    const highRiskStudents = students.filter(s => s.riskLevel === 'high' || s.riskLevel === 'moderate')
+    const highRiskStudents = students.filter(s => {
+        const latestStress = s.analysisHistory[s.analysisHistory.length - 1].stressLevel;
+        return latestStress >= 75; // Only show high risk (75%+)
+    })
         .sort((a, b) => b.analysisHistory[b.analysisHistory.length-1].stressLevel - a.analysisHistory[a.analysisHistory.length-1].stressLevel);
 
     if(highRiskStudents.length === 0) return null;
 
-    const riskColors: { [key in RiskLevel]: string } = {
-        high: 'bg-error-red/20 border-error-red/50',
-        moderate: 'bg-orange-warning/20 border-orange-warning/50',
-        low: 'bg-success-green/20 border-success-green/50',
+    const getRiskColor = (stressLevel: number) => {
+        if (stressLevel >= 90) return 'bg-error-red/20 border-error-red/50';
+        if (stressLevel >= 75) return 'bg-orange-warning/20 border-orange-warning/50';
+        return 'bg-yellow-500/20 border-yellow-500/50';
     };
+
     return (
-        <div>
-            <h2 className="text-sm font-bold uppercase text-text-muted tracking-wider mb-2 px-2">High-Risk Students Alert</h2>
-            <div className="flex gap-3 overflow-x-auto pb-3 -mx-4 px-4">
-                {highRiskStudents.map(student => (
-                    <motion.div
-                        key={student.code}
-                        onClick={() => onSelectStudent(student.code)}
-                        className={`flex-shrink-0 w-28 h-20 p-2 rounded-xl border cursor-pointer ${riskColors[student.riskLevel]}`}
-                        whileHover={{ y: -4 }}
-                    >
-                        <p className="font-mono text-lg font-bold">{student.code}</p>
-                        <p className="text-xs text-text-secondary -mt-1">{student.name}</p>
-                        <p className="text-2xl font-thin text-right">{student.analysisHistory[student.analysisHistory.length-1].stressLevel}%</p>
-                    </motion.div>
-                ))}
+        <div className="mb-8">
+            <h2 className="text-sm font-bold uppercase text-text-muted tracking-wider mb-4 px-2">High-Risk Students Alert</h2>
+            <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4">
+                {highRiskStudents.map(student => {
+                    const latestStress = student.analysisHistory[student.analysisHistory.length - 1].stressLevel;
+                    return (
+                        <motion.div
+                            key={student.code}
+                            onClick={() => onSelectStudent(student.code)}
+                            className={`flex-shrink-0 w-32 h-24 p-3 rounded-xl border-2 cursor-pointer ${getRiskColor(latestStress)}`}
+                            whileHover={{ y: -4, scale: 1.02 }}
+                            transition={{ type: 'spring', stiffness: 300 }}
+                        >
+                            <p className="text-base font-semibold text-text-primary mb-1">{student.code}</p>
+                            <p className="text-xs font-normal text-text-secondary mb-2 truncate">{student.name}</p>
+                            <p className="text-2xl font-bold text-text-primary text-right">{latestStress}%</p>
+                        </motion.div>
+                    );
+                })}
             </div>
         </div>
     );
@@ -190,18 +198,18 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
                     {selectedClassId && (
                         <motion.button 
                             onClick={() => setSelectedClassId(null)} 
-                            className="w-10 h-10 bg-surface rounded-full flex items-center justify-center"
+                            className="w-10 h-10 bg-surface rounded-full flex items-center justify-center hover:bg-surface/80 transition-colors"
                             initial={{ scale: 0 }}
                             animate={{ scale: 1 }}
                         >
-                            <ChevronLeft className="w-5 h-5" />
+                            <ChevronLeft className="w-5 h-5 text-text-secondary" />
                         </motion.button>
                     )}
                     <div>
-                        <h1 className="text-3xl font-bold text-text-primary">
+                        <h1 className="text-2xl font-bold text-text-primary">
                             {selectedClass ? selectedClass.name : 'Dashboard'}
                         </h1>
-                        <p className="text-text-muted">
+                        <p className="text-sm font-normal text-text-muted mt-1">
                             {selectedClass ? `${selectedClass.studentCount} Students` : 'Student Stress Overview'}
                         </p>
                     </div>
@@ -237,17 +245,17 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
                             key="class-grid"
                             variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={pageTransition}
                          >
-                            <h2 className="text-sm font-bold uppercase text-text-muted tracking-wider mb-3 px-2">All Classes</h2>
+                            <h2 className="text-sm font-bold uppercase text-text-muted tracking-wider mb-4 px-2">All Classes</h2>
                             {classSummaries.length === 0 ? (
                                 <div className="text-center py-12">
                                     <div className="w-16 h-16 bg-surface rounded-full flex items-center justify-center mx-auto mb-4">
                                         <UserCircle className="w-8 h-8 text-text-muted" />
                                     </div>
-                                    <h3 className="text-lg font-medium text-text-primary mb-2">No Students Yet</h3>
-                                    <p className="text-text-muted mb-4">Students will appear here once they complete their first voice analysis session.</p>
+                                    <h3 className="text-lg font-semibold text-text-primary mb-2">No Students Yet</h3>
+                                    <p className="text-sm font-normal text-text-muted mb-4">Students will appear here once they complete their first voice analysis session.</p>
                                     <button 
                                         onClick={onRefresh}
-                                        className="px-4 py-2 bg-purple-primary text-white rounded-lg hover:bg-purple-dark transition-colors"
+                                        className="px-4 py-2 bg-purple-primary text-white rounded-lg hover:bg-purple-dark transition-colors text-sm font-medium"
                                     >
                                         Refresh Data
                                     </button>
@@ -263,10 +271,10 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
                                             transition={{ type: 'spring', stiffness: 300 }}
                                         >
                                             <GlassCard className="p-5 flex flex-col justify-between h-32" variant="purple">
-                                                <h3 className="text-xl font-bold text-purple-light">{summary.name}</h3>
+                                                <h3 className="text-lg font-bold text-purple-light">{summary.name}</h3>
                                                 <div className="text-right">
-                                                    <p className="text-sm text-text-secondary">{summary.studentCount} Students</p>
-                                                    <p className="text-sm text-text-muted">Avg {summary.averageStress}% Stress</p>
+                                                    <p className="text-sm font-medium text-text-secondary">{summary.studentCount} Students</p>
+                                                    <p className="text-sm font-normal text-text-muted">Avg {summary.averageStress}% Stress</p>
                                                 </div>
                                             </GlassCard>
                                         </motion.div>
@@ -283,12 +291,12 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
                             <HighRiskAlerts students={selectedClass.students} onSelectStudent={onSelectStudent} />
 
                             <div>
-                                 <h2 className="text-sm font-bold uppercase text-text-muted tracking-wider mb-2 px-2">All Students in Class</h2>
+                                 <h2 className="text-sm font-bold uppercase text-text-muted tracking-wider mb-4 px-2">All Students in Class</h2>
                                 <MotionDiv
                                     variants={containerVariants}
                                     initial="hidden"
                                     animate="visible"
-                                    className="space-y-3"
+                                    className="space-y-4"
                                 >
                                     {selectedClass.students.map(student => (
                                         <StudentWidget 

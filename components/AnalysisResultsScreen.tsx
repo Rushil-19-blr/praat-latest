@@ -8,6 +8,7 @@ interface AnalysisResultsScreenProps {
   analysisData: AnalysisData;
   onNewRecording: () => void;
   onClose: () => void;
+  onNext?: () => void;
   isTeacherView?: boolean;
 }
 
@@ -390,7 +391,7 @@ const BiomarkerWidget: React.FC<{ biomarker: Biomarker, isExpanded?: boolean, on
 };
 
 
-const AnalysisResultsScreen: React.FC<AnalysisResultsScreenProps> = ({ analysisData, onNewRecording, onClose, isTeacherView = false }) => {
+const AnalysisResultsScreen: React.FC<AnalysisResultsScreenProps> = ({ analysisData, onNewRecording, onClose, onNext, isTeacherView = false }) => {
   const [selectedBiomarker, setSelectedBiomarker] = useState<Biomarker | null>(null);
 
   const containerVariants = {
@@ -426,7 +427,7 @@ const AnalysisResultsScreen: React.FC<AnalysisResultsScreenProps> = ({ analysisD
         <button onClick={onClose} className="glass-base w-11 h-11 rounded-full flex items-center justify-center transition-all hover:bg-purple-primary/20">
             <ChevronLeft className="w-5 h-5 text-white" />
         </button>
-        <h1 className="text-lg font-medium text-white">Analysis Results</h1>
+        {!isTeacherView && <h1 className="text-lg font-medium text-white">Analysis Results</h1>}
         <button className="glass-base w-11 h-11 rounded-full flex items-center justify-center transition-all hover:bg-purple-primary/20">
             <Share className="w-5 h-5 text-white" />
         </button>
@@ -477,6 +478,11 @@ const AnalysisResultsScreen: React.FC<AnalysisResultsScreenProps> = ({ analysisD
                      <button className="w-full h-14 rounded-2xl flex items-center justify-center font-bold text-white bg-gradient-to-r from-purple-dark to-purple-primary shadow-lg shadow-purple-dark/30 hover:scale-[1.02] transition-transform">
                         <Bookmark className="w-5 h-5 mr-2"/> Save to History
                     </button>
+                     {onNext && (
+                       <button onClick={onNext} className="w-full h-14 rounded-2xl flex items-center justify-center font-medium text-white glass-base border-purple-primary border hover:bg-purple-primary/20 transition-colors">
+                          Next: Get Suggestions
+                       </button>
+                     )}
                      <button onClick={onNewRecording} className="w-full h-14 rounded-2xl flex items-center justify-center font-medium text-white glass-base border-purple-primary border hover:bg-purple-primary/20 transition-colors">
                         <Microphone className="w-5 h-5 mr-2 text-purple-primary"/> Record Another Sample
                     </button>

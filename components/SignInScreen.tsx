@@ -67,7 +67,7 @@ const SignInScreen: React.FC<SignInScreenProps> = ({ onSignIn, onCreateAccount }
       margin: 0,
       padding: 0,
       backgroundColor: '#000000',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      fontFamily: '"DM Sans", system-ui, -apple-system, sans-serif',
       display: 'flex',
       justifyContent: 'center',
       alignItems: 'center',

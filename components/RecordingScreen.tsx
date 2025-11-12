@@ -4,10 +4,12 @@ import { webmBlobToWavMono16k } from '../utils/audio';
 import { extractFeaturesWithPraat } from '../services/praat';
 import { useGeminiLive } from '../hooks/useGeminiLive';
 import type { AnalysisData, RecordingState, RawBiomarkerData } from '../types';
-import { formatBiomarkers } from '../constants';
+import { formatBiomarkers, repeatStatements } from '../constants';
 import GlassCard from './GlassCard';
 import { ChevronLeft, QuestionMarkCircle, Microphone, MicrophoneWithWaves } from './Icons';
 import { motion, AnimatePresence } from 'framer-motion';
+import { VoicePoweredOrb } from './ui/voice-powered-orb';
+import { speakText, stopSpeech, isSpeaking } from '../services/textToSpeech';
 
 interface RecordingScreenProps {
   onAnalysisComplete: (data: AnalysisData) => void;
@@ -26,17 +28,26 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
   const [showHelp, setShowHelp] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
   
+  // Mode toggle state ('ai' | 'repeat')
+  const [mode, setMode] = useState<'ai' | 'repeat'>('ai');
+  
   // Multi-clip recording state
   const [audioClips, setAudioClips] = useState<Blob[]>([]);
   const [isSessionActive, setIsSessionActive] = useState(false);
 
-  // Gemini Live integration - auto-start
-  const { isConnected: geminiConnected, transcript: geminiTranscript, error: geminiError } = useGeminiLive(stream);
+  // Repeat mode state
+  const [currentStatementIndex, setCurrentStatementIndex] = useState(0);
+  const [isPlayingStatement, setIsPlayingStatement] = useState(false);
+
+  // Gemini Live integration - only active in 'ai' mode and unmuted
+  const shouldUseGemini = mode === 'ai';
+  const { isConnected: geminiConnected, transcript: geminiTranscript, error: geminiError, isMuted: geminiMuted, disconnect: disconnectGemini } = useGeminiLive(shouldUseGemini ? stream : null, false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const allClipsRef = useRef<Blob[]>([]); // Keep ref to always have latest clips
   
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -70,8 +81,60 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
       }
       if (timerRef.current) clearTimeout(timerRef.current as any);
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+      stopSpeech(); // Clean up TTS on unmount
     };
   }, [getMicrophonePermission, stream]);
+
+  // Clean up TTS and disconnect Gemini when switching modes
+  useEffect(() => {
+    if (mode === 'ai') {
+      stopSpeech();
+      setIsPlayingStatement(false);
+    } else {
+      disconnectGemini();
+    }
+  }, [mode, disconnectGemini]);
+
+  // Play current statement when in repeat mode and session is active
+  const playCurrentStatement = useCallback(async () => {
+    if (mode !== 'repeat' || isPlayingStatement || isSpeaking()) return;
+    
+    const statement = repeatStatements[currentStatementIndex];
+    if (!statement) return;
+    
+    setIsPlayingStatement(true);
+    try {
+      await speakText(statement, { rate: 0.9, pitch: 1.0, volume: 1.0 });
+    } catch (error) {
+      console.error('TTS error:', error);
+    } finally {
+      setIsPlayingStatement(false);
+    }
+  }, [mode, currentStatementIndex, isPlayingStatement]);
+
+  // Move to next statement after recording in repeat mode
+  useEffect(() => {
+    if (mode === 'repeat' && recordingState === 'IDLE' && isSessionActive && audioClips.length > 0) {
+      // Auto-play next statement after a short delay
+      const timer = setTimeout(() => {
+        const nextIndex = (currentStatementIndex + 1) % repeatStatements.length;
+        setCurrentStatementIndex(nextIndex);
+        
+        // Wait a bit more before playing
+        setTimeout(() => {
+          const statement = repeatStatements[nextIndex];
+          if (statement) {
+            setIsPlayingStatement(true);
+            speakText(statement, { rate: 0.9, pitch: 1.0, volume: 1.0 })
+              .then(() => setIsPlayingStatement(false))
+              .catch(() => setIsPlayingStatement(false));
+          }
+        }, 500);
+      }, 1500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [recordingState, isSessionActive, audioClips.length, mode, currentStatementIndex]);
 
   // Handle pre-recorded audio (if routed from elsewhere)
   useEffect(() => {
@@ -140,16 +203,43 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
     // Start session if not already active
     if (!isSessionActive) {
       setIsSessionActive(true);
+      // Reset clips for new session
+      allClipsRef.current = [];
+      setAudioClips([]);
+      // Reset statement index in repeat mode
+      if (mode === 'repeat') {
+        setCurrentStatementIndex(0);
+        // Play first statement in repeat mode
+        setTimeout(() => {
+          const statement = repeatStatements[0];
+          if (statement) {
+            setIsPlayingStatement(true);
+            speakText(statement, { rate: 0.9, pitch: 1.0, volume: 1.0 })
+              .then(() => setIsPlayingStatement(false))
+              .catch(() => setIsPlayingStatement(false));
+          }
+        }, 500);
+      }
     }
 
+    // Create new MediaRecorder for this clip
     mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-    mediaRecorderRef.current.addEventListener("dataavailable", event => {
-      audioChunksRef.current.push(event.data);
-    });
     
-    mediaRecorderRef.current.start();
+    mediaRecorderRef.current.ondataavailable = (event) => {
+      if (event.data && event.data.size > 0) {
+        console.log('Data available, size:', event.data.size);
+        audioChunksRef.current.push(event.data);
+      }
+    };
     
-    audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    // Start with a timeslice to ensure data is captured regularly
+    mediaRecorderRef.current.start(100); // Collect data every 100ms
+    
+    // Create audio context for visualization (only if not exists or closed)
+    if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
+      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
+    
     const source = audioContextRef.current.createMediaStreamSource(stream);
     analyserRef.current = audioContextRef.current.createAnalyser();
     analyserRef.current.fftSize = 512;
@@ -256,77 +346,87 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
     if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
     
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-      mediaRecorderRef.current.addEventListener("stop", () => {
+      mediaRecorderRef.current.onstop = () => {
+        console.log('Stop event fired, chunks collected:', audioChunksRef.current.length);
+        
+        if (audioChunksRef.current.length === 0) {
+          console.error('No audio chunks captured!');
+          setRecordingState('IDLE');
+          return;
+        }
+        
         const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        // Add clip to session instead of analyzing immediately
-        setAudioClips(prev => [...prev, blob]);
+        console.log('Recording stopped, blob size:', blob.size);
+        
+        // Update both state and ref
+        allClipsRef.current = [...allClipsRef.current, blob];
+        console.log('Total clips in ref:', allClipsRef.current.length);
+        console.log('All clip sizes:', allClipsRef.current.map(c => c.size));
+        
+        setAudioClips(prev => {
+          const updated = [...prev, blob];
+          console.log('Total clips in state:', updated.length);
+          return updated;
+        });
         setRecordingState('IDLE');
-      });
+      };
+      
       mediaRecorderRef.current.stop();
     }
   };
   
   const combineAudioClips = async (clips: Blob[]): Promise<Blob> => {
-    try {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      
-      // Decode all audio clips
-      const audioBuffers = await Promise.all(
-        clips.map(async (clip) => {
-          const arrayBuffer = await clip.arrayBuffer();
-          return await audioContext.decodeAudioData(arrayBuffer);
-        })
-      );
-      
-      // Calculate total length
-      const totalLength = audioBuffers.reduce((sum, buffer) => sum + buffer.length, 0);
-      
-      // Create a new buffer to hold all audio data
-      const combinedBuffer = audioContext.createBuffer(1, totalLength, audioBuffers[0].sampleRate);
-      const combinedData = combinedBuffer.getChannelData(0);
-      
-      // Copy all audio data into the combined buffer
-      let offset = 0;
-      for (const buffer of audioBuffers) {
-        const data = buffer.getChannelData(0);
-        combinedData.set(data, offset);
-        offset += data.length;
+    // Create audio context for combining
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    
+    // Decode all clips to AudioBuffers
+    const audioBuffers: AudioBuffer[] = [];
+    for (const clip of clips) {
+      const arrayBuffer = await clip.arrayBuffer();
+      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+      audioBuffers.push(audioBuffer);
+    }
+    
+    // Calculate total length
+    const totalLength = audioBuffers.reduce((sum, buffer) => sum + buffer.length, 0);
+    const sampleRate = audioBuffers[0].sampleRate;
+    const numberOfChannels = audioBuffers[0].numberOfChannels;
+    
+    // Create combined buffer
+    const combinedBuffer = audioContext.createBuffer(numberOfChannels, totalLength, sampleRate);
+    
+    // Copy all clips into combined buffer
+    let offset = 0;
+    for (const buffer of audioBuffers) {
+      for (let channel = 0; channel < numberOfChannels; channel++) {
+        const channelData = buffer.getChannelData(channel);
+        combinedBuffer.getChannelData(channel).set(channelData, offset);
       }
-      
-      // Convert back to blob
-      const audioBlob = await audioBufferToBlob(combinedBuffer);
-      return audioBlob;
-    } catch (error) {
-      console.error('Error combining audio clips:', error);
-      // Fallback: return the first clip if combination fails
-      return clips[0];
+      offset += buffer.length;
     }
+    
+    // Convert combined buffer to WAV blob
+    const wavBlob = audioBufferToWavBlob(combinedBuffer);
+    audioContext.close();
+    
+    return wavBlob;
   };
-
-  const audioBufferToBlob = async (audioBuffer: AudioBuffer): Promise<Blob> => {
+  
+  const audioBufferToWavBlob = (audioBuffer: AudioBuffer): Blob => {
+    const numberOfChannels = audioBuffer.numberOfChannels;
     const sampleRate = audioBuffer.sampleRate;
-    const numChannels = audioBuffer.numberOfChannels;
-    const length = audioBuffer.length;
+    const format = 1; // PCM
+    const bitDepth = 16;
     
-    // Convert to 16-bit PCM
-    const pcm16 = new Int16Array(length);
-    const channelData = audioBuffer.getChannelData(0);
+    const bytesPerSample = bitDepth / 8;
+    const blockAlign = numberOfChannels * bytesPerSample;
     
-    for (let i = 0; i < length; i++) {
-      pcm16[i] = Math.max(-32768, Math.min(32767, channelData[i] * 32768));
-    }
-    
-    // Create WAV file
-    const bitsPerSample = 16;
-    const byteRate = sampleRate * numChannels * bitsPerSample / 8;
-    const blockAlign = numChannels * bitsPerSample / 8;
-    const dataSize = pcm16.length * 2;
-    const fileSize = 36 + dataSize;
-    
-    const buffer = new ArrayBuffer(44 + dataSize);
+    const data = audioBuffer.getChannelData(0);
+    const dataLength = data.length * bytesPerSample;
+    const buffer = new ArrayBuffer(44 + dataLength);
     const view = new DataView(buffer);
     
-    // WAV header
+    // Write WAV header
     const writeString = (offset: number, string: string) => {
       for (let i = 0; i < string.length; i++) {
         view.setUint8(offset + i, string.charCodeAt(i));
@@ -334,40 +434,50 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
     };
     
     writeString(0, 'RIFF');
-    view.setUint32(4, fileSize, true);
+    view.setUint32(4, 36 + dataLength, true);
     writeString(8, 'WAVE');
     writeString(12, 'fmt ');
     view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true);
-    view.setUint16(22, numChannels, true);
+    view.setUint16(20, format, true);
+    view.setUint16(22, numberOfChannels, true);
     view.setUint32(24, sampleRate, true);
-    view.setUint32(28, byteRate, true);
+    view.setUint32(28, sampleRate * blockAlign, true);
     view.setUint16(32, blockAlign, true);
-    view.setUint16(34, bitsPerSample, true);
+    view.setUint16(34, bitDepth, true);
     writeString(36, 'data');
-    view.setUint32(40, dataSize, true);
+    view.setUint32(40, dataLength, true);
     
     // Write audio data
-    const pcmView = new DataView(buffer, 44);
-    for (let i = 0; i < pcm16.length; i++) {
-      pcmView.setInt16(i * 2, pcm16[i], true);
+    const volume = 1;
+    let index = 44;
+    for (let i = 0; i < data.length; i++) {
+      const sample = Math.max(-1, Math.min(1, data[i]));
+      view.setInt16(index, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+      index += 2;
     }
     
     return new Blob([buffer], { type: 'audio/wav' });
   };
 
   const endSession = async () => {
-    if (audioClips.length === 0) return;
+    // Disconnect Gemini Live immediately when ending the session
+    try { disconnectGemini(); } catch {}
+    // Use ref to get the most up-to-date clips
+    const clipsToAnalyze = allClipsRef.current;
+    if (clipsToAnalyze.length === 0) return;
     
     setRecordingState('ANALYZING');
     
     try {
-      console.log(`Combining ${audioClips.length} audio clips for analysis`);
-      // Properly combine all audio clips by decoding and concatenating the audio data
-      const combinedBlob = await combineAudioClips(audioClips);
+      console.log('Ending session with', clipsToAnalyze.length, 'clips from ref');
+      console.log('State has', audioClips.length, 'clips');
       
-      // Analyze the combined audio
-      const wavBlob = await webmBlobToWavMono16k(combinedBlob);
+      // Properly combine audio clips
+      const combinedWavBlob = await combineAudioClips(clipsToAnalyze);
+      console.log('Combined WAV blob size:', combinedWavBlob.size);
+      
+      // Convert to mono 16kHz for analysis
+      const wavBlob = await webmBlobToWavMono16k(combinedWavBlob);
       const featuresForAnalysis = await extractFeaturesWithPraat(wavBlob, 'http://localhost:8000');
       
       const featuresString = `
@@ -430,10 +540,15 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
           biomarkers: formatBiomarkers(resultJson),
           confidence: resultJson.confidence,
           snr: resultJson.snr,
-          audioUrl: URL.createObjectURL(combinedBlob),
+          audioUrl: URL.createObjectURL(combinedWavBlob),
           aiSummary: resultJson.ai_summary,
       };
 
+      // Reset session state
+      setIsSessionActive(false);
+      allClipsRef.current = [];
+      setAudioClips([]);
+      
       setRecordingState('COMPLETE');
       onAnalysisComplete(analysisResult);
     } catch (error) {
@@ -451,10 +566,10 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
       }
     }
   };
-  
+
   const statusText = {
-    IDLE: audioBlob ? "Processing recorded conversation..." : isSessionActive ? "Hold to record another clip" : "Hold to record your voice",
-    RECORDING: "Recording... Speak naturally",
+    IDLE: audioBlob ? "Processing recorded conversation..." : isSessionActive ? (mode === 'repeat' ? "Hold to repeat after me" : "Hold to record another clip") : (mode === 'repeat' ? "Hold to start repeat session" : "Hold to record your voice"),
+    RECORDING: mode === 'repeat' ? "Recording... Repeat after me" : "Recording... Speak naturally",
     ANALYZING: "Analyzing voice patterns...",
     COMPLETE: "Analysis complete",
     ERROR: "Analysis failed. Tap to retry.",
@@ -464,11 +579,34 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
   const headerText = "Voice Stress Analysis";
 
   const Header = () => (
-    <header className="fixed top-0 left-0 right-0 h-[60px] flex items-center justify-between px-4 z-10 max-w-2xl mx-auto">
+    <header className="fixed top-0 left-0 right-0 h-[90px] flex items-center justify-between px-4 z-10 max-w-2xl mx-auto bg-background-primary/95 backdrop-blur-sm">
         <div className="w-11 h-11" />
-        <div className="text-center">
+        <div className="text-center flex-1">
             <h1 className="text-lg font-medium text-white">{headerText}</h1>
             <div className="h-0.5 w-1/2 mx-auto bg-purple-primary" />
+            {/* Mode Toggle */}
+            <div className="flex items-center justify-center gap-2 mt-2">
+              <button
+                onClick={() => setMode('ai')}
+                className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all ${
+                  mode === 'ai'
+                    ? 'bg-purple-primary text-white'
+                    : 'bg-neutral-800/50 text-gray-400 hover:bg-neutral-700/50'
+                }`}
+              >
+                AI
+              </button>
+              <button
+                onClick={() => setMode('repeat')}
+                className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all ${
+                  mode === 'repeat'
+                    ? 'bg-purple-primary text-white'
+                    : 'bg-neutral-800/50 text-gray-400 hover:bg-neutral-700/50'
+                }`}
+              >
+                Repeat
+              </button>
+            </div>
         </div>
         <button onClick={() => setShowHelp(true)} className="glass-base w-11 h-11 rounded-full flex items-center justify-center transition-all hover:bg-purple-primary/20">
             <QuestionMarkCircle className="w-5 h-5 text-white" />
@@ -477,7 +615,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
   );
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 pt-[80px] pb-[60px] relative overflow-hidden">
+    <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 pt-[100px] pb-[60px] relative overflow-hidden">
         <Header />
         
         <GlassCard className="w-full max-w-sm mx-auto p-4 z-10" variant="purple">
@@ -498,19 +636,19 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
             </div>
         </GlassCard>
 
-        <div className="relative flex items-center justify-center my-10 h-[240px] w-[240px]">
-            <svg className="absolute inset-0" viewBox="0 0 240 240">
-                <circle cx="120" cy="120" r="117" stroke={recordingState === 'ERROR' ? 'rgba(239, 68, 68, 0.4)' : 'rgba(139, 92, 246, 0.4)'} strokeWidth="3" fill="none" />
-                 {recordingState === 'RECORDING' && (
-                    <motion.circle cx="120" cy="120" r="117" stroke="url(#progress-gradient)" strokeWidth="6" fill="none" strokeLinecap="round" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 10, ease: 'linear' }} style={{ transform: 'rotate(-90deg)', transformOrigin: 'center' }} />
-                )}
-                <defs>
-                    <linearGradient id="progress-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor="#A855F7" />
-                        <stop offset="100%" stopColor="#8B5CF6" />
-                    </linearGradient>
-                </defs>
-            </svg>
+        <div className="relative flex items-center justify-center my-10 h-[280px] w-[280px]">
+            {/* Voice Powered Orb - replaces the purple ring */}
+            <div className="absolute inset-0 pointer-events-none rounded-full overflow-hidden z-0">
+                <VoicePoweredOrb
+                    enableVoiceControl={recordingState === 'RECORDING'}
+                    externalAudioStream={stream}
+                    hue={0}
+                    voiceSensitivity={2.5}
+                    maxRotationSpeed={1.5}
+                    maxHoverIntensity={1.0}
+                    className="w-full h-full"
+                />
+            </div>
 
             <motion.button
                 onMouseDown={startRecording}
@@ -519,7 +657,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
                 onTouchStart={startRecording}
                 onTouchEnd={stopRecording}
                 disabled={recordingState === 'ANALYZING' || !!permissionError && recordingState !== 'ERROR' || (audioBlob && recordingState === 'IDLE')}
-                className={`w-[200px] h-[200px] rounded-full flex items-center justify-center shadow-2xl transition-all duration-300 ${recordingState === 'ANALYZING' ? 'bg-orange-primary/15' : recordingState === 'ERROR' ? 'bg-error-red/15' : recordingState === 'RECORDING' ? 'bg-purple-primary/30' : 'bg-purple-primary/15'} backdrop-blur-xl`}
+                className={`w-[180px] h-[180px] rounded-full flex items-center justify-center shadow-2xl transition-all duration-300 ${recordingState === 'ANALYZING' ? 'bg-orange-primary/15' : recordingState === 'ERROR' ? 'bg-error-red/15' : recordingState === 'RECORDING' ? 'bg-purple-primary/30' : 'bg-purple-primary/15'} backdrop-blur-xl z-10`}
                 whileHover={(recordingState === 'IDLE' || recordingState === 'ERROR') && !audioBlob ? { scale: 1.05, boxShadow: '0 0 40px rgba(139, 92, 246, 0.6)' } : {}}
                 whileTap={(recordingState === 'IDLE' || recordingState === 'ERROR') && !audioBlob ? { scale: 0.95 } : {}}
                 animate={{ 
@@ -527,7 +665,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
                               recordingState === 'ERROR' ? '0 0 30px rgba(239, 68, 68, 0.4)' : 
                               recordingState === 'RECORDING' ? '0 0 50px rgba(139, 92, 246, 0.8)' :
                               '0 12px 40px rgba(139, 92, 246, 0.3)',
-                    scale: recordingState === 'RECORDING' ? 1.1 : 1
+                    scale: recordingState === 'RECORDING' ? 1 : 1
                 }}
             >
                 <motion.div animate={{ scale: recordingState === 'RECORDING' ? [1, 1.2, 1] : 1 }} transition={{ duration: 0.8, repeat: recordingState === 'RECORDING' ? Infinity : 0 }}>
@@ -544,39 +682,100 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
             )}
         </AnimatePresence>
 
-        {/* Gemini Live Overlay */}
-        <div className="w-full max-w-sm mx-auto mt-6">
-          <GlassCard className="p-3">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-medium text-white">AI Assistant</h3>
-            </div>
-            
-            <div className="space-y-2">
-              <div className="flex items-center space-x-2">
-                <motion.div 
-                  animate={{ scale: geminiConnected ? [1, 1.2, 1] : 1 }} 
-                  transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                  className={`w-2 h-2 rounded-full ${geminiConnected ? 'bg-green-400' : 'bg-yellow-400'}`}
-                />
-                <p className="text-xs text-gray-300">
-                  {geminiConnected ? "Listening..." : "Connecting..."}
-                </p>
+        {/* AI Mode - Gemini Live Overlay */}
+        {mode === 'ai' && (
+          <div className="w-full max-w-sm mx-auto mt-6">
+            <GlassCard className="p-3">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-medium text-white">AI Assistant</h3>
+                <div className="flex items-center space-x-2">
+                  <Microphone className={`w-4 h-4 ${geminiMuted ? 'text-red-400' : 'text-green-400'}`} />
+                  <span className="text-xs text-gray-300">
+                    {geminiMuted ? 'Muted' : 'Live'}
+                  </span>
+                </div>
               </div>
               
-              {geminiTranscript && (
-                <div className="bg-black/20 rounded-lg p-2">
-                  <p className="text-xs text-gray-300">{geminiTranscript}</p>
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <motion.div 
+                    animate={{ scale: geminiConnected ? [1, 1.2, 1] : 1 }} 
+                    transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                    className={`w-2 h-2 rounded-full ${geminiConnected ? 'bg-green-400' : 'bg-yellow-400'}`}
+                  />
+                  <p className="text-xs text-gray-300">
+                    {geminiConnected ? (geminiMuted ? "Connected (Muted)" : "Listening...") : "Connecting..."}
+                  </p>
                 </div>
-              )}
-              
-              {geminiError && (
-                <div className="bg-red-500/20 rounded-lg p-2">
-                  <p className="text-xs text-red-400">{geminiError}</p>
+                
+                {geminiConnected && !geminiTranscript && !geminiMuted && !geminiError && (
+                  <div className="bg-purple-500/20 rounded-lg p-3 border border-purple-400/30">
+                    <p className="text-sm text-white text-center">
+                      Say hello to begin the conversation
+                    </p>
+                  </div>
+                )}
+                
+                {geminiTranscript && !geminiMuted && (
+                  <div className="bg-black/20 rounded-lg p-2">
+                    <p className="text-xs text-gray-300">{geminiTranscript}</p>
+                  </div>
+                )}
+                
+                {geminiError && (
+                  <div className="bg-red-500/20 rounded-lg p-2">
+                    <p className="text-xs text-red-400">{geminiError}</p>
+                  </div>
+                )}
+              </div>
+            </GlassCard>
+          </div>
+        )}
+
+        {/* Repeat Mode - Statement Overlay */}
+        {mode === 'repeat' && (
+          <div className="w-full max-w-sm mx-auto mt-6">
+            <GlassCard className="p-4">
+              <div className="text-center space-y-3">
+                <h3 className="text-sm font-medium text-white mb-3">Repeat After Me</h3>
+                
+                {isPlayingStatement && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="flex items-center justify-center gap-2 mb-2"
+                  >
+                    <motion.div
+                      animate={{ scale: [1, 1.2, 1] }}
+                      transition={{ duration: 0.8, repeat: Infinity }}
+                      className="w-2 h-2 bg-purple-400 rounded-full"
+                    />
+                    <span className="text-xs text-purple-300">Speaking...</span>
+                  </motion.div>
+                )}
+                
+                <div className="bg-purple-500/20 rounded-lg p-4 border border-purple-400/30 min-h-[80px] flex items-center justify-center">
+                  <p className="text-base text-white leading-relaxed">
+                    {repeatStatements[currentStatementIndex]}
+                  </p>
                 </div>
-              )}
-            </div>
-          </GlassCard>
-        </div>
+                
+                {!isPlayingStatement && isSessionActive && recordingState === 'IDLE' && (
+                  <button
+                    onClick={playCurrentStatement}
+                    className="w-full bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-all text-sm mt-2"
+                  >
+                    Play Statement Again
+                  </button>
+                )}
+                
+                <p className="text-xs text-gray-400 mt-2">
+                  Statement {currentStatementIndex + 1} of {repeatStatements.length}
+                </p>
+              </div>
+            </GlassCard>
+          </div>
+        )}
 
         {/* End Session Button */}
         <AnimatePresence>
@@ -601,8 +800,8 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
                   </button>
                 </div>
               </GlassCard>
-                </motion.div>
-            )}
+            </motion.div>
+          )}
         </AnimatePresence>
 
         <AnimatePresence>

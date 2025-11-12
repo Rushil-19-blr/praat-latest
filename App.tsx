@@ -4,6 +4,8 @@ import Dashboard from './components/Dashboard';
 import VoiceAnalysisModal from './components/VoiceAnalysisModal';
 import AnalysisResultsScreen from './components/AnalysisResultsScreen';
 import CalibrationScreen from './components/CalibrationScreen';
+import VoiceCalibrationScreen from './components/VoiceCalibrationScreen';
+import PostAnalysisSuggestionsScreen from './components/PostAnalysisSuggestionsScreen';
 import ConnectTheDots from './components/ConnectTheDots';
 import ConfirmationPopup from './components/ConfirmationPopup';
 import EnrollmentNumber from './components/EnrollmentNumber';
@@ -13,10 +15,12 @@ import SuccessPopup from './components/SuccessPopup';
 import SignInScreen from './components/SignInScreen';
 import TeacherDashboard from './components/TeacherDashboard';
 import StudentDetailScreen from './components/StudentDetailScreen';
+import PreRecordingQuestionnaire from './components/PreRecordingQuestionnaire';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { AnalysisData, Student } from './types';
+import type { QuestionnaireAnswers } from './components/PreRecordingQuestionnaire';
 
-type AppState = 'SIGNIN' | 'SIGNUP' | 'CONFIRMATION' | 'ENROLLMENT' | 'SCRATCH_CARD' | 'PASSWORD_SETUP' | 'SUCCESS' | 'DASHBOARD' | 'RECORDING' | 'CALIBRATION_FLOW' | 'RESULTS' | 'TEACHER_DASHBOARD' | 'STUDENT_DETAIL';
+type AppState = 'SIGNIN' | 'SIGNUP' | 'CONFIRMATION' | 'ENROLLMENT' | 'SCRATCH_CARD' | 'PASSWORD_SETUP' | 'SUCCESS' | 'DASHBOARD' | 'QUESTIONNAIRE' | 'RECORDING' | 'CALIBRATION_FLOW' | 'RESULTS' | 'SUGGESTIONS' | 'TEACHER_DASHBOARD' | 'STUDENT_DETAIL';
 
 const App: React.FC = () => {
   const [appState, setAppState] = useState<AppState>('SIGNIN');
@@ -26,6 +30,7 @@ const App: React.FC = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [userType, setUserType] = useState<'student' | 'teacher'>('student');
+  const [questionnaireAnswers, setQuestionnaireAnswers] = useState<QuestionnaireAnswers | null>(null);
   
   // Signup flow state
   const [selectedClass, setSelectedClass] = useState<number | null>(null);
@@ -171,8 +176,19 @@ const App: React.FC = () => {
     setAppState('DASHBOARD');
   }, []);
 
-  const handleStartSession = useCallback(() => setAppState('RECORDING'), []);
+  const handleStartSession = useCallback(() => setAppState('QUESTIONNAIRE'), []);
   const handleStartCalibration = useCallback(() => setAppState('CALIBRATION_FLOW'), []);
+  
+  const handleQuestionnaireSubmit = useCallback((answers: QuestionnaireAnswers) => {
+    setQuestionnaireAnswers(answers);
+    // Optionally store in localStorage for future reference
+    localStorage.setItem('questionnaireAnswers', JSON.stringify(answers));
+    setAppState('RECORDING');
+  }, []);
+
+  const handleQuestionnaireBack = useCallback(() => {
+    setAppState('DASHBOARD');
+  }, []);
   
   const handleCloseModal = useCallback(() => setAppState('DASHBOARD'), []);
 
@@ -237,6 +253,12 @@ const App: React.FC = () => {
     setAppState('DASHBOARD');
   }, []);
 
+  const handleVoiceCalibrationComplete = useCallback((baselineJson: string) => {
+    localStorage.setItem('voiceBaseline', baselineJson);
+    setBaselineData(baselineJson);
+    setAppState('DASHBOARD');
+  }, []);
+
   const handleResultsClose = useCallback(() => {
     setAnalysisData(null);
     setAppState('DASHBOARD');
@@ -245,6 +267,19 @@ const App: React.FC = () => {
   const handleNewRecordingFromResults = useCallback(() => {
     setAnalysisData(null);
     setAppState('RECORDING');
+  }, []);
+
+  const handleNextToSuggestions = useCallback(() => {
+    setAppState('SUGGESTIONS');
+  }, []);
+
+  const handleSuggestionsBack = useCallback(() => {
+    setAppState('RESULTS');
+  }, []);
+
+  const handleSuggestionsClose = useCallback(() => {
+    setAnalysisData(null);
+    setAppState('DASHBOARD');
   }, []);
 
   const pageVariants = {
@@ -347,7 +382,24 @@ const App: React.FC = () => {
            >
             <Dashboard 
               onStartVoiceSession={handleStartSession}
+              onStartCalibration={handleStartCalibration}
               onSignOut={handleSignOut}
+            />
+          </motion.div>
+        )}
+
+        {appState === 'QUESTIONNAIRE' && (
+          <motion.div
+            key="questionnaire"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="w-full h-full"
+          >
+            <PreRecordingQuestionnaire
+              onSubmit={handleQuestionnaireSubmit}
+              onBack={handleQuestionnaireBack}
             />
           </motion.div>
         )}
@@ -423,10 +475,19 @@ const App: React.FC = () => {
 
       <AnimatePresence>
         {appState === 'CALIBRATION_FLOW' && (
-          <CalibrationScreen 
-            onClose={handleCloseModal} 
-            onComplete={handleCalibrationComplete}
-          />
+          <motion.div
+            key="calibration-screen"
+            className="fixed inset-0 z-50 bg-background-primary overflow-y-auto"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <VoiceCalibrationScreen 
+              onClose={handleCloseModal} 
+              onCalibrationComplete={handleVoiceCalibrationComplete}
+            />
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -444,6 +505,26 @@ const App: React.FC = () => {
               analysisData={analysisData} 
               onNewRecording={handleNewRecordingFromResults}
               onClose={handleResultsClose}
+              onNext={handleNextToSuggestions}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {appState === 'SUGGESTIONS' && analysisData && (
+          <motion.div
+            key="suggestions-page"
+            className="fixed inset-0 z-50 bg-background-primary overflow-y-auto"
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            variants={pageVariants}
+          >
+            <PostAnalysisSuggestionsScreen 
+              analysisData={analysisData} 
+              onBack={handleSuggestionsBack}
+              onClose={handleSuggestionsClose}
             />
           </motion.div>
         )}

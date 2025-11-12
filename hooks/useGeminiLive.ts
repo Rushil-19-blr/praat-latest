@@ -1,19 +1,27 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality, Blob as GenaiBlob } from "@google/genai";
 import { decode, encode, decodeAudioData } from '../utils/audio';
+import { THERAPIST_SYSTEM_PROMPT, THERAPIST_INITIAL_USER_PROMPT } from '../constants';
 
-export const useGeminiLive = (stream: MediaStream | null) => {
+export const useGeminiLive = (stream: MediaStream | null, muted: boolean = true) => {
     const [isConnected, setIsConnected] = useState(false);
     const [transcript, setTranscript] = useState('');
     const [error, setError] = useState<string | null>(null);
+    const [isMuted, setIsMuted] = useState(muted);
     const transcriptRef = useRef('');
+    
+    // Use ref for muted state so the audio processor can access the latest value
+    const mutedRef = useRef(muted);
 
     const sessionRef = useRef<any | null>(null);
+    const prevMutedRef = useRef<boolean>(muted);
     const outputAudioContextRef = useRef<AudioContext | null>(null);
     const inputAudioContextRef = useRef<AudioContext | null>(null);
     const scriptProcessorRef = useRef<ScriptProcessorNode | null>(null);
+    const silentGainRef = useRef<GainNode | null>(null);
     const mediaStreamSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
     const nextStartTimeRef = useRef<number>(0);
+    const shouldReconnectRef = useRef<boolean>(true);
 
     const cleanup = useCallback(() => {
         if (sessionRef.current) {
@@ -28,6 +36,10 @@ export const useGeminiLive = (stream: MediaStream | null) => {
             mediaStreamSourceRef.current.disconnect();
             mediaStreamSourceRef.current = null;
         }
+        if (silentGainRef.current) {
+            try { silentGainRef.current.disconnect(); } catch {}
+            silentGainRef.current = null;
+        }
         if (inputAudioContextRef.current && inputAudioContextRef.current.state !== 'closed') {
             inputAudioContextRef.current.close().catch(console.error);
         }
@@ -37,6 +49,39 @@ export const useGeminiLive = (stream: MediaStream | null) => {
         setIsConnected(false);
     }, []);
 
+    // Update isMuted state and ref when muted prop changes
+    useEffect(() => {
+        mutedRef.current = muted;
+        setIsMuted(muted);
+        // Attempt to resume contexts on unmute (user interaction just happened)
+        if (!muted) {
+            if (inputAudioContextRef.current && inputAudioContextRef.current.state !== 'running') {
+                inputAudioContextRef.current.resume().catch(() => {});
+            }
+            if (outputAudioContextRef.current && outputAudioContextRef.current.state !== 'running') {
+                outputAudioContextRef.current.resume().catch(() => {});
+            }
+        }
+
+        // Detect transitions and inform the live session
+        try {
+            const wasMuted = prevMutedRef.current;
+            if (sessionRef.current) {
+                if (wasMuted && !muted) {
+                    // Unmuted: start new buffer and ask for streaming response immediately
+                    try { sessionRef.current.sendRealtimeInput({ event: 'input_audio_buffer.start' }); } catch {}
+                    try { sessionRef.current.sendRealtimeInput({ event: 'response.create' }); } catch {}
+                } else if (!wasMuted && muted) {
+                    // Muted: commit current buffer and request a response
+                    try { sessionRef.current.sendRealtimeInput({ event: 'input_audio_buffer.commit' }); } catch {}
+                    try { sessionRef.current.sendRealtimeInput({ event: 'response.create' }); } catch {}
+                }
+            }
+        } finally {
+            prevMutedRef.current = muted;
+        }
+    }, [muted]);
+
     useEffect(() => {
         if (!stream) {
             cleanup();
@@ -44,6 +89,8 @@ export const useGeminiLive = (stream: MediaStream | null) => {
         }
 
         let isCancelled = false;
+        // Allow reconnects when we have a valid stream unless explicitly disabled via disconnect
+        shouldReconnectRef.current = true;
         
         const connect = async () => {
             try {
@@ -55,8 +102,8 @@ export const useGeminiLive = (stream: MediaStream | null) => {
 
                 if (sessionRef.current) return;
 
-                outputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
-                inputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+                outputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000, latencyHint: 'interactive' as any });
+                inputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000, latencyHint: 'interactive' as any });
                 
                 const sessionPromise = ai.live.connect({
                     model: 'gemini-2.5-flash-native-audio-preview-09-2025',
@@ -68,18 +115,44 @@ export const useGeminiLive = (stream: MediaStream | null) => {
                             
                             const source = inputAudioContextRef.current!.createMediaStreamSource(stream);
                             mediaStreamSourceRef.current = source;
-                            const scriptProcessor = inputAudioContextRef.current!.createScriptProcessor(4096, 1, 1);
+                            const scriptProcessor = inputAudioContextRef.current!.createScriptProcessor(1024, 1, 1);
                             scriptProcessorRef.current = scriptProcessor;
 
                             scriptProcessor.onaudioprocess = (audioProcessingEvent) => {
+                                // Only send audio data if not muted (use ref to get current value)
+                                if (!mutedRef.current) {
+                                    try {
                                 const inputData = audioProcessingEvent.inputBuffer.getChannelData(0);
                                 const pcmBlob = createPcmBlob(inputData);
                                 sessionPromise.then((session) => {
-                                    session.sendRealtimeInput({ media: pcmBlob });
+                                            try {
+                                                session.sendRealtimeInput({ event: 'input_audio_buffer.append', media: pcmBlob });
+                                            } catch (e) {
+                                                // transport errors can occur if session is transitioning
+                                            }
                                 });
+                                    } catch {}
+                                }
                             };
+                            // Connect through a silent gain node to keep the graph active without audible loopback
+                            const silentGain = inputAudioContextRef.current!.createGain();
+                            silentGain.gain.value = 0;
+                            silentGainRef.current = silentGain;
+
                             source.connect(scriptProcessor);
-                            scriptProcessor.connect(inputAudioContextRef.current!.destination);
+                            scriptProcessor.connect(silentGain);
+                            silentGain.connect(inputAudioContextRef.current!.destination);
+
+                            // Request a streaming response to start the therapy session
+                            // The system prompt includes instructions to introduce themselves and ask an opening question
+                            try {
+                                sessionPromise.then((session) => {
+                                    try {
+                                        // Request a response so the therapist can introduce themselves based on system instructions
+                                        session.sendRealtimeInput({ event: 'response.create' });
+                                    } catch {}
+                                });
+                            } catch {}
                         },
                         onmessage: async (message: LiveServerMessage) => {
                            if (message.serverContent?.outputTranscription) {
@@ -117,6 +190,21 @@ export const useGeminiLive = (stream: MediaStream | null) => {
                            if (isCancelled) return;
                            setIsConnected(false);
                            cleanup();
+                           // Try to reconnect shortly after close if stream still present and reconnects are allowed
+                           if (!shouldReconnectRef.current) {
+                               return;
+                           }
+                           setTimeout(() => {
+                               if (!isCancelled && stream && !sessionRef.current) {
+                                   // Best-effort resume contexts before reconnect
+                                   try { inputAudioContextRef.current?.resume().catch(() => {}); } catch {}
+                                   try { outputAudioContextRef.current?.resume().catch(() => {}); } catch {}
+                                   // Avoid unbounded loops; connect will no-op if a session exists
+                                   try { 
+                                       connect();
+                                   } catch {}
+                               }
+                           }, 500);
                         },
                     },
                     config: {
@@ -125,6 +213,8 @@ export const useGeminiLive = (stream: MediaStream | null) => {
                         speechConfig: {
                             voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Zephyr' } },
                         },
+                        systemInstruction: THERAPIST_SYSTEM_PROMPT,
+                        inputAudioTranscription: {},
                     },
                 });
                 
@@ -159,5 +249,11 @@ export const useGeminiLive = (stream: MediaStream | null) => {
         };
     };
 
-    return { isConnected, transcript, error };
+    const disconnect = useCallback(() => {
+        // Prevent auto-reconnect and tear down resources
+        shouldReconnectRef.current = false;
+        cleanup();
+    }, [cleanup]);
+
+    return { isConnected, transcript, error, isMuted, disconnect };
 };

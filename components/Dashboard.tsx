@@ -1,12 +1,44 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Component as PlayfulTodoList } from './ui/playful-todolist';
+import StudentChatModal from './StudentChatModal';
+import { MessageCircle } from './Icons';
+import NotificationPanel from './NotificationPanel';
+import { LiquidButton } from './ui/liquid-button';
+import StudentChatModal from './StudentChatModal';
+import { MessageCircle } from './Icons';
+import NotificationPanel from './NotificationPanel';
+import { LiquidButton } from './ui/liquid-button';
 
 interface DashboardProps {
   onStartVoiceSession: () => void;
+  onStartCalibration?: () => void;
   onSignOut?: () => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onSignOut }) => {
+interface UserData {
+  class?: number;
+  section?: string;
+  enrollment?: string;
+  accountNumber?: string;
+  password?: string;
+}
+
+const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalibration, onSignOut }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [userData, setUserData] = useState<UserData | null>(null);
+
+    useEffect(() => {
+        // Load user data from localStorage
+        const storedUserData = localStorage.getItem('userData');
+        if (storedUserData) {
+            try {
+                const parsed = JSON.parse(storedUserData);
+                setUserData(parsed);
+            } catch (error) {
+                console.error('Error parsing user data:', error);
+            }
+        }
+    }, []);
 
     const openModal = () => setIsModalOpen(true);
     const closeModal = () => setIsModalOpen(false);
@@ -41,7 +73,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onSignOut })
                     margin: 0;
                     padding: 0;
                     background-color: #000000;
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
                     color: #ffffff;
                     min-height: 100vh;
                 }
@@ -51,14 +83,13 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onSignOut })
                     justify-content: space-between;
                     align-items: center;
                     padding: 20px 40px;
-                    background: linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 100%);
-                    border-bottom: 1px solid #333333;
+                    background-color: #000000;
                 }
 
                 .app-logo h1 {
                     margin: 0;
                     font-size: 24px;
-                    font-weight: 600;
+                    font-weight: 700;
                     background: linear-gradient(135deg, #a855f7, #8b5cf6);
                     -webkit-background-clip: text;
                     -webkit-text-fill-color: transparent;
@@ -92,61 +123,20 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onSignOut })
                     flex-direction: column;
                     align-items: center;
                     gap: 40px;
+                    padding-bottom: 100px;
                 }
 
-                .streaks-widget {
-                    background: linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 100%);
-                    border-radius: 20px;
-                    padding: 30px;
-                    width: 100%;
-                    max-width: 600px;
-                    border: 1px solid #333333;
-                    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+                .calibration-section {
+                    position: fixed;
+                    bottom: 20px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    z-index: 100;
                 }
 
-                .streaks-title {
-                    text-align: center;
-                    margin-bottom: 20px;
-                    font-size: 20px;
-                    font-weight: 600;
-                    color: #ffffff;
-                }
-
-                .streaks-container {
-                    display: flex;
-                    justify-content: space-around;
-                    align-items: flex-end;
-                    height: 120px;
-                    gap: 10px;
-                }
-
-                .streak-month {
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    gap: 5px;
-                }
-
-                .month-label {
-                    font-size: 12px;
-                    color: #a0a0a0;
-                    margin-bottom: 5px;
-                }
-
-                .flame {
-                    font-size: 28px; /* Base size increased for better visibility */
-                    transition: transform 0.3s ease;
-                    animation: flicker 1.5s infinite alternate;
-                }
-
-                .flame.small { font-size: 24px; }
-                .flame.medium { font-size: 36px; }
-                .flame.large { font-size: 48px; }
-
-                @keyframes flicker {
-                    0% { transform: scale(1) rotate(-2deg); opacity: 0.8; }
-                    50% { transform: scale(1.05) rotate(1deg); opacity: 1; }
-                    100% { transform: scale(1) rotate(0deg); opacity: 0.9; }
+                .wellbeing-widget {
+                    width: fit-content;
+                    max-width: fit-content;
                 }
 
                 .session-section {
@@ -160,8 +150,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onSignOut })
                     background: linear-gradient(135deg, #a855f7, #8b5cf6);
                     border: none;
                     border-radius: 50%; /* Fully round */
-                    width: 100px;
-                    height: 100px;
+                    width: 150px;
+                    height: 150px;
                     cursor: pointer;
                     transition: transform 0.2s ease, box-shadow 0.2s ease;
                     display: flex;
@@ -175,10 +165,38 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onSignOut })
                     box-shadow: 0 15px 30px rgba(168, 85, 247, 0.4);
                 }
 
+                .calibration-btn {
+                    background: linear-gradient(135deg, #fbbf24, #f59e0b);
+                    border: none;
+                    border-radius: 12px;
+                    padding: 8px 16px;
+                    cursor: pointer;
+                    transition: transform 0.2s ease, box-shadow 0.2s ease;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 6px;
+                    box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3);
+                    font-size: 14px;
+                    font-weight: 600;
+                    color: #000000;
+                }
+
+                .calibration-btn:hover {
+                    transform: translateY(-1px) scale(1.02);
+                    box-shadow: 0 6px 16px rgba(251, 191, 36, 0.4);
+                }
+
                 .voice-icon {
-                    width: 50px;
-                    height: 50px;
+                    width: 75px;
+                    height: 75px;
                     fill: #ffffff;
+                }
+
+                .calibration-icon {
+                    width: 16px;
+                    height: 16px;
+                    fill: #000000;
                 }
 
                 .session-text {
@@ -186,7 +204,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onSignOut })
                     font-weight: 600;
                     color: #ffffff;
                     text-align: center;
+                    margin-top: 10px;
                 }
+
 
                 /* Popup Styles */
                 .modal {
@@ -232,16 +252,16 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onSignOut })
                 }
 
                 .account-name {
-                    font-size: 24px;
+                    font-size: 20px;
                     font-weight: 600;
                     color: #ffffff;
                     margin-bottom: 5px;
                 }
 
                 .account-code {
-                    font-size: 18px;
+                    font-size: 14px;
                     color: #a0a0a0;
-                    font-weight: 500;
+                    font-weight: 400;
                 }
 
                 .logout-btn {
@@ -273,55 +293,52 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onSignOut })
             </div>
 
             <div className="main-content">
-                <div className="streaks-widget">
-                    <div className="streaks-title">Your Streaks</div>
-                    <div className="streaks-container">
-                        <div className="streak-month">
-                            <div className="month-label">Jun</div>
-                            <div className="flame small">🔥</div>
-                        </div>
-                        <div className="streak-month">
-                            <div className="month-label">Jul</div>
-                            <div className="flame medium">🔥</div>
-                        </div>
-                        <div className="streak-month">
-                            <div className="month-label">Aug</div>
-                            <div className="flame large">🔥</div>
-                        </div>
-                        <div className="streak-month">
-                            <div className="month-label">Sep</div>
-                            <div className="flame medium">🔥</div>
-                        </div>
-                        <div className="streak-month">
-                            <div className="month-label">Oct</div>
-                            <div className="flame small">🔥</div>
-                        </div>
-                    </div>
+                <div className="wellbeing-widget">
+                    <PlayfulTodoList />
                 </div>
 
                 <div className="session-section">
                     <button className="start-session-btn" onClick={startSession}>
-                        <svg className="voice-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <rect x="1" y="18" width="2" height="6" rx="1" fill="#ffffff"/>
-                            <rect x="3.5" y="12" width="2" height="12" rx="1" fill="#ffffff"/>
-                            <rect x="6" y="15" width="2" height="9" rx="1" fill="#ffffff"/>
-                            <rect x="8.5" y="9" width="2" height="15" rx="1" fill="#ffffff"/>
-                            <rect x="11" y="12" width="2" height="12" rx="1" fill="#ffffff"/>
-                            <rect x="13.5" y="15" width="2" height="9" rx="1" fill="#ffffff"/>
-                            <rect x="16" y="12" width="2" height="12" rx="1" fill="#ffffff"/>
-                            <rect x="18.5" y="18" width="2" height="6" rx="1" fill="#ffffff"/>
+                        <svg className="voice-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="75" height="75">
+                            {/* 9 vertical bars in symmetrical equalizer pattern - pink/magenta color */}
+                            {/* Left side: medium, medium-tall, tall, very tall */}
+                            <rect x="2" y="14" width="2" height="6" rx="1" fill="#f472b6" />
+                            <rect x="4.5" y="11" width="2" height="9" rx="1" fill="#f472b6" />
+                            <rect x="7" y="8" width="2" height="12" rx="1" fill="#f472b6" />
+                            <rect x="9.5" y="5" width="2" height="15" rx="1" fill="#f472b6" />
+                            {/* Center bar: tallest */}
+                            <rect x="12" y="3" width="2" height="18" rx="1" fill="#f472b6" />
+                            {/* Right side: very tall, tall, medium-tall, medium */}
+                            <rect x="14.5" y="5" width="2" height="15" rx="1" fill="#f472b6" />
+                            <rect x="17" y="8" width="2" height="12" rx="1" fill="#f472b6" />
+                            <rect x="19.5" y="11" width="2" height="9" rx="1" fill="#f472b6" />
+                            <rect x="22" y="14" width="2" height="6" rx="1" fill="#f472b6" />
                         </svg>
                     </button>
                     <div className="session-text">Start a Session</div>
                 </div>
             </div>
 
+            {onStartCalibration && (
+                <div className="calibration-section">
+                    <button className="calibration-btn" onClick={onStartCalibration}>
+                        <svg className="calibration-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                            <path d="M17.3 11c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/>
+                        </svg>
+                        <span>Calibrate</span>
+                    </button>
+                </div>
+            )}
+
             <div id="accountsModal" className="modal" onClick={handleOutsideClick}>
                 <div className="modal-content">
                     <span className="close" onClick={closeModal}>&times;</span>
                     <div className="account-info">
-                        <div className="account-name">John Doe</div>
-                        <div className="account-code">1234</div>
+                        <div className="account-name">
+                            {userData?.class ? `Class ${userData.class}${userData.section ? ` - Section ${userData.section}` : ''}` : 'Student Account'}
+                        </div>
+                        <div className="account-code">{userData?.accountNumber || '----'}</div>
                     </div>
                     <button className="logout-btn" onClick={logout}>Logout</button>
                 </div>

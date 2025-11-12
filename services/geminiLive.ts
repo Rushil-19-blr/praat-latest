@@ -1,4 +1,5 @@
 import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
+import { THERAPIST_SYSTEM_PROMPT } from '../constants';
 
 // This file uses a global variable for the API key.
 // In a real-world app, this would be handled more securely.
@@ -21,12 +22,6 @@ try {
   console.error("API_KEY is not available. Please set it in your environment.");
 }
 
-const SYSTEM_PROMPT = {
-  parts: [{
-    text: "You are a friendly, warm person meeting someone new. Start a natural conversation by introducing yourself and asking them about their day or how they're feeling. Keep the conversation light and engaging. Respond as if you're talking to a friend. Keep responses brief and conversational to encourage natural dialogue."
-  }]
-};
-
 export const GeminiLiveService = {
   // Connect to Gemini Live with callbacks
   connect: (callbacks: {
@@ -46,7 +41,7 @@ export const GeminiLiveService = {
         speechConfig: {
             voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Zephyr' } },
         },
-        systemInstruction: SYSTEM_PROMPT,
+        systemInstruction: THERAPIST_SYSTEM_PROMPT,
         inputAudioTranscription: {},
         outputAudioTranscription: {},
       },
