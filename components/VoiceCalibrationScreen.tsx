@@ -3,9 +3,11 @@ import { webmBlobToWavMono16k } from '../utils/audio';
 import { extractFeaturesWithPraat } from '../services/praat';
 import type { RecordingState } from '../types';
 import GlassCard from './GlassCard';
-import { ChevronLeft, QuestionMarkCircle, Microphone } from './Icons';
+import { ChevronLeft, QuestionMarkCircle, Microphone, MicrophoneFilled } from './Icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { VoicePoweredOrb } from './ui/voice-powered-orb';
+import { BeamsBackground } from './ui/beams-background';
+import CalibrationSuccessPopup from './CalibrationSuccessPopup';
 
 interface VoiceCalibrationScreenProps {
   onCalibrationComplete: (baselineJson: string) => void;
@@ -22,6 +24,7 @@ const VoiceCalibrationScreen: React.FC<VoiceCalibrationScreenProps> = ({
   const [showHelp, setShowHelp] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [hasBaseline, setHasBaseline] = useState(false);
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -165,13 +168,43 @@ const VoiceCalibrationScreen: React.FC<VoiceCalibrationScreenProps> = ({
       // Extract features using Praat
       const features = await extractFeaturesWithPraat(wavBlob, 'http://localhost:8000');
       
-      // Save baseline features (no stress levels)
+      // Print extracted Praat features to console
+      console.log('=== Praat Extracted Features (Calibration) ===');
+      console.log('Basic Features:');
+      console.log('  RMS (energy/loudness):', features.rms);
+      console.log('  ZCR (noise/sibilance):', features.zcr);
+      console.log('  Spectral Centroid (brightness):', features.spectralCentroid);
+      console.log('  Spectral Flatness (tonality):', features.spectralFlatness);
+      console.log('  MFCCs (spectral shape):', features.mfcc);
+      console.log('\nPraat Advanced Features (Real Extractions):');
+      console.log('  F0 Mean (pitch):', features.f0_mean, 'Hz');
+      console.log('  F0 Range:', features.f0_range, 'Hz');
+      console.log('  Jitter:', features.jitter, '%');
+      console.log('  Shimmer:', features.shimmer, '%');
+      console.log('  HNR (Harmonics-to-Noise):', features.hnr, 'dB');
+      console.log('  F1 (First Formant):', features.f1, 'Hz');
+      console.log('  F2 (Second Formant):', features.f2, 'Hz');
+      console.log('  Speech Rate:', features.speech_rate, 'WPM');
+      console.log('Full Features Object:', JSON.stringify(features, null, 2));
+      console.log('==============================================');
+      
+      // Save baseline features including Praat biomarkers
       const baselineData = {
+        // Basic features (for backwards compatibility)
         rms: features.rms,
         zcr: features.zcr,
         spectralCentroid: features.spectralCentroid,
         spectralFlatness: features.spectralFlatness,
         mfcc: features.mfcc,
+        // Praat advanced features (for stress analysis)
+        f0_mean: features.f0_mean || 0,
+        f0_range: features.f0_range || 0,
+        jitter: features.jitter || 0,
+        shimmer: features.shimmer || 0,
+        hnr: features.hnr || 0,
+        f1: features.f1 || 0,
+        f2: features.f2 || 0,
+        speech_rate: features.speech_rate || 0,
         timestamp: new Date().toISOString()
       };
       
@@ -180,8 +213,10 @@ const VoiceCalibrationScreen: React.FC<VoiceCalibrationScreenProps> = ({
       setHasBaseline(true);
       setRecordingState('COMPLETE');
       
-      // Call completion handler
-      onCalibrationComplete(baselineJson);
+      // Show success popup
+      setTimeout(() => {
+        setShowSuccessPopup(true);
+      }, 500);
     } catch (error) {
       console.error("Calibration Error:", error);
       setRecordingState('ERROR');
@@ -243,7 +278,7 @@ const VoiceCalibrationScreen: React.FC<VoiceCalibrationScreenProps> = ({
   const headerText = "Voice Calibration";
 
   const Header = () => (
-    <header className="fixed top-0 left-0 right-0 h-[90px] flex items-center justify-between px-4 z-10 max-w-2xl mx-auto bg-background-primary/95 backdrop-blur-sm">
+    <header className="fixed top-0 left-0 right-0 h-[90px] flex items-center justify-between px-4 z-10 max-w-2xl mx-auto">
         <button onClick={onClose} className="glass-base w-11 h-11 rounded-full flex items-center justify-center transition-all hover:bg-purple-primary/20">
             <ChevronLeft className="w-5 h-5 text-white" />
         </button>
@@ -259,9 +294,17 @@ const VoiceCalibrationScreen: React.FC<VoiceCalibrationScreenProps> = ({
 
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 pt-[100px] pb-[60px] relative overflow-hidden">
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 0,
+          pointerEvents: 'none'
+        }}>
+          <BeamsBackground intensity="medium" className="!z-0" />
+        </div>
         <Header />
         
-        <GlassCard className="w-full max-w-sm mx-auto p-4 z-10" variant="purple">
+        <GlassCard className="w-full max-w-sm mx-auto p-4 z-10 relative" variant="purple">
             <div className="text-center">
                 {recordingState === 'RECORDING' && (
                     <p className="text-2xl font-mono text-white tabular-nums">
@@ -284,7 +327,7 @@ const VoiceCalibrationScreen: React.FC<VoiceCalibrationScreenProps> = ({
             </div>
         </GlassCard>
 
-        <div className="relative flex items-center justify-center my-10 h-[280px] w-[280px]">
+        <div className="relative flex items-center justify-center my-10 h-[280px] w-[280px] z-10">
             {/* Voice Powered Orb - replaces the purple ring */}
             <div className="absolute inset-0 pointer-events-none rounded-full overflow-hidden z-0">
                 <VoicePoweredOrb
@@ -318,7 +361,7 @@ const VoiceCalibrationScreen: React.FC<VoiceCalibrationScreenProps> = ({
                 }}
             >
                 <motion.div animate={{ scale: recordingState === 'RECORDING' ? [1, 1.2, 1] : 1 }} transition={{ duration: 0.8, repeat: recordingState === 'RECORDING' ? Infinity : 0 }}>
-                    <Microphone className="w-16 h-16 text-white" />
+                    <MicrophoneFilled className="w-16 h-16 text-white" />
                 </motion.div>
             </motion.button>
         </div>
@@ -337,7 +380,7 @@ const VoiceCalibrationScreen: React.FC<VoiceCalibrationScreenProps> = ({
                     <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} onClick={(e) => e.stopPropagation()} className="w-full" >
                         <GlassCard className="p-5 max-w-md mx-auto">
                             <div className="text-center">
-                                <Microphone className="w-7 h-7 text-purple-primary mx-auto mb-2" />
+                                <MicrophoneFilled className="w-7 h-7 text-purple-primary mx-auto mb-2" />
                                 <h3 className="text-base font-bold text-white mb-2">Voice Calibration</h3>
                                 <ol className="text-sm text-text-muted space-y-1 text-left">
                                     <li>1. Find a quiet, relaxed environment</li>
@@ -357,6 +400,18 @@ const VoiceCalibrationScreen: React.FC<VoiceCalibrationScreenProps> = ({
         </AnimatePresence>
         
         {permissionError && <div className="fixed bottom-0 left-0 right-0 p-4 bg-error-red/80 text-center text-white text-sm z-50">{permissionError}</div>}
+        
+        {/* Calibration Success Popup */}
+        <CalibrationSuccessPopup
+          isOpen={showSuccessPopup}
+          onContinue={() => {
+            setShowSuccessPopup(false);
+            const baselineJson = localStorage.getItem('voiceBaseline');
+            if (baselineJson) {
+              onCalibrationComplete(baselineJson);
+            }
+          }}
+        />
     </div>
   );
 };

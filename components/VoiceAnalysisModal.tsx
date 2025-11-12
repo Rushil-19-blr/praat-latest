@@ -29,19 +29,11 @@ const VoiceAnalysisModal: React.FC<VoiceAnalysisModalProps> = ({
         exit={{ opacity: 0 }}
         className="fixed inset-0 bg-black/50 backdrop-blur-lg z-40 flex flex-col"
     >
-        {/* Close button for the modal */}
-        <button 
-            onClick={onClose} 
-            className="absolute top-4 right-4 z-50 w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-2xl hover:bg-white/20"
-            aria-label="Close voice analysis"
-        >
-            &times;
-        </button>
-        
         <RecordingScreen 
             onAnalysisComplete={handleAnalysisComplete} 
             baselineData={baselineData}
             audioBlob={audioBlob}
+            onClose={onClose}
         />
 
     </motion.div>

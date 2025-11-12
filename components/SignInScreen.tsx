@@ -1,4 +1,6 @@
 import React, { useState, useRef } from 'react';
+import { BeamsBackground } from './ui/beams-background';
+import { SlideToUnlock } from './ui/reward-card';
 
 interface SignInScreenProps {
   onSignIn: (code: string, password: string, userType: 'student' | 'teacher') => void;
@@ -11,6 +13,7 @@ const SignInScreen: React.FC<SignInScreenProps> = ({ onSignIn, onCreateAccount }
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [userType, setUserType] = useState<'student' | 'teacher'>('student');
+  const [sliderKey, setSliderKey] = useState(0);
   const codeInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const togglePassword = () => {
@@ -37,17 +40,20 @@ const SignInScreen: React.FC<SignInScreenProps> = ({ onSignIn, onCreateAccount }
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    
     const codeString = code.join('');
     
     if (codeString.length !== 4) {
       alert('Please enter a 4-digit code');
+      setSliderKey(prev => prev + 1); // Reset slider
       return;
     }
     
     if (!password) {
       alert('Please enter your password');
+      setSliderKey(prev => prev + 1); // Reset slider
       return;
     }
 
@@ -57,6 +63,7 @@ const SignInScreen: React.FC<SignInScreenProps> = ({ onSignIn, onCreateAccount }
     } catch (error) {
       console.error('Sign in error:', error);
       alert('Sign in failed. Please check your credentials.');
+      setSliderKey(prev => prev + 1); // Reset slider on error
     } finally {
       setIsLoading(false);
     }
@@ -66,22 +73,37 @@ const SignInScreen: React.FC<SignInScreenProps> = ({ onSignIn, onCreateAccount }
     <div style={{
       margin: 0,
       padding: 0,
-      backgroundColor: '#000000',
-      fontFamily: '"DM Sans", system-ui, -apple-system, sans-serif',
+      backgroundColor: 'transparent',
+      fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       display: 'flex',
       justifyContent: 'center',
       alignItems: 'center',
       minHeight: '100vh',
-      color: '#ffffff'
+      width: '100vw',
+      color: '#ffffff',
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      overflow: 'hidden'
     }}>
       <div style={{
-        background: 'linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 100%)',
+        position: 'absolute',
+        inset: 0,
+        zIndex: 0
+      }}>
+        <BeamsBackground intensity="medium" />
+      </div>
+      <div style={{
+        background: 'linear-gradient(135deg, rgba(26, 26, 26, 0.9) 0%, rgba(13, 13, 13, 0.9) 100%)',
+        backdropFilter: 'blur(10px)',
         borderRadius: '20px',
         padding: '40px',
         boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)',
         width: '100%',
         maxWidth: '400px',
-        border: '1px solid #333333'
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        position: 'relative',
+        zIndex: 10
       }}>
         <div style={{ textAlign: 'center', marginBottom: '30px' }}>
           <h1 style={{
@@ -94,7 +116,7 @@ const SignInScreen: React.FC<SignInScreenProps> = ({ onSignIn, onCreateAccount }
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text'
           }}>
-            Voice Analyser
+            AWAAZ
           </h1>
         </div>
 
@@ -238,35 +260,20 @@ const SignInScreen: React.FC<SignInScreenProps> = ({ onSignIn, onCreateAccount }
             </div>
           </div>
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            style={{
-              background: 'linear-gradient(135deg, #a855f7, #8b5cf6)',
-              border: 'none',
-              borderRadius: '12px',
-              padding: '14px',
-              fontSize: '16px',
-              fontWeight: 600,
-              color: '#ffffff',
-              cursor: isLoading ? 'not-allowed' : 'pointer',
-              transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-              marginTop: '10px',
-              opacity: isLoading ? 0.7 : 1
-            }}
-            onMouseEnter={(e) => {
-              if (!isLoading) {
-                e.currentTarget.style.transform = 'translateY(-1px)';
-                e.currentTarget.style.boxShadow = '0 10px 20px rgba(168, 85, 247, 0.3)';
+          <div style={{ marginTop: '20px', width: '100%' }}>
+            <SlideToUnlock
+              key={sliderKey}
+              onUnlock={handleSubmit}
+              sliderText={`Swipe to sign in as ${userType === 'teacher' ? 'Teacher' : 'Student'} →`}
+              className="!max-w-full !p-0 !border-0 !bg-transparent !shadow-none !rounded-none"
+              shimmer={true}
+              unlockedContent={
+                <div style={{ height: '14px' }}></div>
               }
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = 'none';
-            }}
-          >
-            {isLoading ? 'Signing In...' : 'Sign In'}
-          </button>
+            >
+              <div style={{ display: 'none' }}></div>
+            </SlideToUnlock>
+          </div>
         </form>
 
         <div style={{
@@ -305,3 +312,4 @@ const SignInScreen: React.FC<SignInScreenProps> = ({ onSignIn, onCreateAccount }
 };
 
 export default SignInScreen;
+

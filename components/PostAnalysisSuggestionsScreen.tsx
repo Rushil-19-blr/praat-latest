@@ -1,8 +1,10 @@
-import React, { useEffect } from 'react';
-import type { AnalysisData } from '../types';
+import React, { useEffect, useState } from 'react';
+import type { AnalysisData, Biomarker } from '../types';
 import GlassCard from './GlassCard';
 import { ChevronLeft } from './Icons';
 import { motion } from 'framer-motion';
+import { LiquidButton } from './ui/liquid-button';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 interface PostAnalysisSuggestionsScreenProps {
   analysisData: AnalysisData;
@@ -23,63 +25,206 @@ const positiveAffirmations = [
   "Small steps lead to meaningful change—you're making progress"
 ];
 
-const getSuggestions = (stressLevel: number): { immediate: string[]; longTerm: string[]; nextSession: number } => {
-  if (stressLevel < 34) {
-    // Low stress
+// Generate personalized suggestions using Gemini AI
+const generateSuggestionsWithGemini = async (
+  stressLevel: number,
+  biomarkers: Biomarker[],
+  aiSummary?: string
+): Promise<{ immediate: string[]; longTerm: string[]; nextSession: number }> => {
+  try {
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.API_KEY;
+    if (!apiKey) {
+      throw new Error('Gemini API key not found');
+    }
+
+    const ai = new GoogleGenerativeAI(apiKey);
+    const model = ai.getGenerativeModel({ model: 'gemini-2.5-pro' });
+
+    // Analyze problematic biomarkers
+    const problematicBiomarkers = biomarkers.filter(b => b.status === 'red' || b.status === 'orange');
+    const biomarkerDetails = problematicBiomarkers.map(b => `${b.name}: ${b.value} (${b.status})`).join(', ');
+    
+    // Determine stress category
+    const stressCategory = stressLevel < 34 ? 'low' : stressLevel < 67 ? 'moderate' : 'high';
+    
+    const prompt = `You are a wellness expert providing personalized stress management suggestions based on vocal stress analysis.
+
+STRESS LEVEL: ${stressLevel}/100 (${stressCategory} stress)
+AI ANALYSIS SUMMARY: ${aiSummary || 'No additional summary available'}
+PROBLEMATIC BIOMARKERS: ${biomarkerDetails || 'None detected'}
+
+CRITICAL REQUIREMENTS - YOU MUST FOLLOW THESE EXACTLY:
+1. Generate EXACTLY 6 suggestions TOTAL - NO MORE, NO LESS
+2. Maximum 3 "Immediate Actions" (things they can do right now)
+3. Maximum 3 "Long-term Wellness" (ongoing practices for better stress management)
+4. The sum of immediate + longTerm MUST equal exactly 6
+5. If you provide 3 immediate actions, provide exactly 3 long-term suggestions
+6. If you provide 2 immediate actions, provide exactly 4 long-term suggestions (but this is not preferred - aim for 3+3)
+7. If you provide 1 immediate action, provide exactly 5 long-term suggestions (but this is not preferred - aim for 3+3)
+
+PERSONALIZATION GUIDELINES:
+- High stress (67+): Focus on immediate relief techniques and professional support
+- Moderate stress (34-66): Focus on breathing exercises, physical activity, and routine building
+- Low stress (<34): Focus on maintenance and prevention strategies
+- Personalize based on problematic biomarkers mentioned above
+- Make suggestions actionable, specific, and relevant to the stress level
+
+OUTPUT FORMAT:
+Return ONLY valid JSON with no markdown, no explanations, no additional text. Format:
+{"immediate": ["suggestion1", "suggestion2", "suggestion3"], "longTerm": ["suggestion1", "suggestion2", "suggestion3"]}
+
+Example (for high stress):
+{
+  "immediate": ["Find a quiet space and practice 5-10 minutes of deep breathing", "Take a warm shower or bath to help relax your body", "Listen to calming music or nature sounds"],
+  "longTerm": ["Prioritize getting 7-9 hours of quality sleep each night", "Start with light exercise and gradually increase intensity", "Consider speaking with a mental health professional"]
+}
+
+Generate personalized suggestions now - REMEMBER: EXACTLY 6 TOTAL (max 3 immediate, max 3 long-term):`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+    
+    // Extract JSON from response (handle markdown code blocks if present)
+    let jsonText = text.trim();
+    if (jsonText.includes('```json')) {
+      jsonText = jsonText.split('```json')[1].split('```')[0].trim();
+    } else if (jsonText.includes('```')) {
+      jsonText = jsonText.split('```')[1].split('```')[0].trim();
+    }
+    
+    const parsed = JSON.parse(jsonText);
+    
+    // STRICT ENFORCEMENT: Ensure max 6 total suggestions, max 3 per category
+    let immediate = Array.isArray(parsed.immediate) ? parsed.immediate : [];
+    let longTerm = Array.isArray(parsed.longTerm) ? parsed.longTerm : [];
+    
+    // Trim each category to max 3
+    immediate = immediate.slice(0, 3);
+    longTerm = longTerm.slice(0, 3);
+    
+    // Calculate current total
+    let total = immediate.length + longTerm.length;
+    
+    // If total exceeds 6, trim long-term to fit
+    if (total > 6) {
+      longTerm = longTerm.slice(0, 6 - immediate.length);
+      total = immediate.length + longTerm.length;
+    }
+    
+    // Ensure we have at least 2 in each category if we have room (but never exceed 6)
+    if (total < 6) {
+      if (immediate.length < 2 && total + 1 <= 6) {
+        immediate.push("Take a moment to practice deep breathing and center yourself");
+        total++;
+      }
+      if (longTerm.length < 2 && total + 1 <= 6) {
+        longTerm.push("Establish a consistent daily routine that includes self-care");
+        total++;
+      }
+    }
+    
+    // Final safety check: ensure we never exceed 6
+    if (total > 6) {
+      // Trim long-term first, then immediate if needed
+      const excess = total - 6;
+      if (longTerm.length >= excess) {
+        longTerm = longTerm.slice(0, longTerm.length - excess);
+      } else {
+        const remainingExcess = excess - longTerm.length;
+        longTerm = [];
+        immediate = immediate.slice(0, immediate.length - remainingExcess);
+      }
+    }
+    
+    // Determine next session based on stress level
+    let nextSession = 14; // 2 weeks default
+    if (stressLevel >= 67) {
+      nextSession = 3; // 3 days for high stress
+    } else if (stressLevel >= 34) {
+      nextSession = 7; // 1 week for moderate stress
+    }
+    
+    // Final return with strict limits
     return {
-      immediate: [
-        "Maintain your current positive routines",
-        "Continue practicing mindfulness or meditation",
-        "Stay connected with supportive friends or family"
-      ],
-      longTerm: [
-        "Keep a regular sleep schedule (7-9 hours)",
-        "Engage in regular physical activity you enjoy",
-        "Practice gratitude journaling daily",
-        "Maintain healthy social connections"
-      ],
-      nextSession: 14 // 2 weeks
+      immediate: immediate.slice(0, 3), // Max 3
+      longTerm: longTerm.slice(0, Math.min(3, 6 - immediate.length)), // Max 3, but ensure total <= 6
+      nextSession
     };
-  } else if (stressLevel < 67) {
-    // Moderate stress
-    return {
-      immediate: [
+  } catch (error) {
+    console.error('Error generating suggestions with Gemini:', error);
+    // Fallback to basic suggestions if Gemini fails
+    return getFallbackSuggestions(stressLevel, biomarkers, aiSummary);
+  }
+};
+
+// Fallback function if Gemini fails - STRICTLY enforces max 6 total
+const getFallbackSuggestions = (
+  stressLevel: number,
+  biomarkers: Biomarker[],
+  aiSummary?: string
+): { immediate: string[]; longTerm: string[]; nextSession: number } => {
+  const isHighStress = stressLevel >= 67;
+  const isModerateStress = stressLevel >= 34 && stressLevel < 67;
+  
+  let immediate: string[] = [];
+  let longTerm: string[] = [];
+  
+  if (isHighStress) {
+    // High stress: 3 immediate + 3 long-term = 6 total
+    immediate = [
+      "Find a quiet space and practice 5-10 minutes of deep breathing",
+      "Take a warm shower or bath to help relax your body",
+      "Listen to calming music or nature sounds"
+    ];
+    longTerm = [
+      "Prioritize getting 7-9 hours of quality sleep each night",
+      "Start with light exercise and gradually increase intensity",
+      "Consider speaking with a mental health professional"
+    ];
+  } else if (isModerateStress) {
+    // Moderate stress: 3 immediate + 3 long-term = 6 total
+    immediate = [
         "Take a 10-minute break to practice deep breathing",
         "Go for a short walk outside to clear your mind",
-        "Listen to calming music or a guided meditation",
-        "Drink some water and have a healthy snack"
-      ],
-      longTerm: [
+      "Listen to calming music or a guided meditation"
+    ];
+    longTerm = [
         "Establish a consistent sleep routine",
         "Incorporate regular exercise (30 minutes, 3-4 times/week)",
-        "Practice daily mindfulness or meditation (10-15 minutes)",
-        "Set boundaries to protect your personal time",
-        "Consider keeping a stress journal to identify patterns"
-      ],
-      nextSession: 7 // 1 week
-    };
+      "Practice daily mindfulness or meditation (10-15 minutes)"
+    ];
   } else {
-    // High stress
-    return {
-      immediate: [
-        "Find a quiet space and practice 5-10 minutes of deep breathing",
-        "Take a warm shower or bath to help relax your body",
-        "Listen to calming music or nature sounds",
-        "Practice progressive muscle relaxation",
-        "Reach out to a trusted friend, family member, or counselor"
-      ],
-      longTerm: [
-        "Prioritize getting 7-9 hours of quality sleep each night",
-        "Start with light exercise and gradually increase intensity",
-        "Schedule regular breaks throughout your day",
-        "Learn and practice stress management techniques",
-        "Consider speaking with a mental health professional",
-        "Reduce caffeine and alcohol intake",
-        "Create a daily routine that includes self-care activities"
-      ],
-      nextSession: 3 // 3 days
-    };
+    // Low stress: 3 immediate + 3 long-term = 6 total
+    immediate = [
+      "Continue practicing mindfulness or meditation",
+      "Stay connected with supportive friends or family",
+      "Take a moment to appreciate your current positive state"
+    ];
+    longTerm = [
+      "Keep a regular sleep schedule (7-9 hours)",
+      "Engage in regular physical activity you enjoy",
+      "Practice gratitude journaling daily"
+    ];
   }
+  
+  // STRICT ENFORCEMENT: Ensure exactly 6 total, max 3 per category
+  // All cases already have 3+3=6, so we just need to ensure we don't exceed limits
+  let finalImmediate = immediate.slice(0, 3);
+  let finalLongTerm = longTerm.slice(0, 3);
+  
+  // Ensure total never exceeds 6
+  const total = finalImmediate.length + finalLongTerm.length;
+  if (total > 6) {
+    // Trim long-term to fit
+    finalLongTerm = finalLongTerm.slice(0, 6 - finalImmediate.length);
+  }
+  
+  return {
+    immediate: finalImmediate,
+    longTerm: finalLongTerm,
+    nextSession: isHighStress ? 3 : isModerateStress ? 7 : 14
+  };
 };
 
 const PostAnalysisSuggestionsScreen: React.FC<PostAnalysisSuggestionsScreenProps> = ({ 
@@ -87,9 +232,68 @@ const PostAnalysisSuggestionsScreen: React.FC<PostAnalysisSuggestionsScreenProps
   onBack,
   onClose 
 }) => {
+  const [suggestions, setSuggestions] = useState<{ immediate: string[]; longTerm: string[]; nextSession: number }>({
+    immediate: [],
+    longTerm: [],
+    nextSession: 14
+  });
+  const [loading, setLoading] = useState(true);
   const stressLevel = analysisData.stressLevel;
-  const suggestions = getSuggestions(stressLevel);
   const affirmation = positiveAffirmations[Math.floor(Math.random() * positiveAffirmations.length)];
+  
+  // Generate suggestions using Gemini AI when component mounts
+  useEffect(() => {
+    const loadSuggestions = async () => {
+      setLoading(true);
+      try {
+        const generated = await generateSuggestionsWithGemini(
+          stressLevel,
+          analysisData.biomarkers || [],
+          analysisData.aiSummary
+        );
+        
+        // STRICT VALIDATION: Ensure max 6 total, max 3 per category
+        let finalImmediate = generated.immediate.slice(0, 3);
+        let finalLongTerm = generated.longTerm.slice(0, 3);
+        
+        // Ensure total never exceeds 6
+        const total = finalImmediate.length + finalLongTerm.length;
+        if (total > 6) {
+          // Trim long-term to fit
+          finalLongTerm = finalLongTerm.slice(0, 6 - finalImmediate.length);
+        }
+        
+        // Debug log to verify count
+        const finalTotal = finalImmediate.length + finalLongTerm.length;
+        console.log(`[Suggestions] Immediate: ${finalImmediate.length}, Long-term: ${finalLongTerm.length}, Total: ${finalTotal}`);
+        
+        if (finalTotal > 6) {
+          console.error(`[ERROR] Suggestions exceed 6! Total: ${finalTotal}`);
+          // Emergency fix
+          finalLongTerm = finalLongTerm.slice(0, Math.max(0, 6 - finalImmediate.length));
+        }
+        
+        setSuggestions({
+          immediate: finalImmediate,
+          longTerm: finalLongTerm,
+          nextSession: generated.nextSession
+        });
+      } catch (error) {
+        console.error('Error loading suggestions:', error);
+        // Use fallback
+        const fallback = getFallbackSuggestions(
+          stressLevel,
+          analysisData.biomarkers || [],
+          analysisData.aiSummary
+        );
+        setSuggestions(fallback);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadSuggestions();
+  }, [stressLevel, analysisData.biomarkers, analysisData.aiSummary]);
 
   // Save suggestions to localStorage for the todo list
   useEffect(() => {
@@ -182,77 +386,62 @@ const PostAnalysisSuggestionsScreen: React.FC<PostAnalysisSuggestionsScreenProps
         initial="hidden"
         animate="visible"
       >
-        {/* Top Section - Positive Affirmation */}
+        {/* Top Banner - Positive Affirmation */}
         <motion.div variants={itemVariants}>
-          <GlassCard className="p-5" variant="purple">
-            <p className="text-lg font-medium text-white text-center leading-relaxed">
+          <div className="bg-purple-dark rounded-2xl p-5">
+            <p className="text-base font-medium text-white text-center leading-relaxed">
               {affirmation}
             </p>
-          </GlassCard>
+          </div>
         </motion.div>
 
-        {/* Middle Section - Personalized Suggestions */}
+        {/* Main Section - Personalized Suggestions */}
         <motion.div variants={itemVariants}>
-          <GlassCard className="p-5 bg-surface/40 backdrop-blur-xl">
-            <h2 className="text-xl font-bold text-white mb-4">Personalized Suggestions</h2>
+          <div className="bg-surface rounded-2xl p-6">
+            <h2 className="text-2xl font-bold text-white mb-6 text-left">Personalized Suggestions</h2>
             
+            {loading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="text-white">Generating personalized suggestions...</div>
+              </div>
+            ) : (
+              <>
             {/* Immediate Actions */}
             <div className="mb-6">
-              <h3 className="text-base font-semibold text-purple-light mb-3">Immediate Actions</h3>
-              <ul className="space-y-2">
-                {suggestions.immediate.map((suggestion, index) => (
-                  <li key={index} className="flex items-start text-sm text-text-secondary">
-                    <span className="text-purple-primary mr-2 mt-1">•</span>
-                    <span className="flex-1">{suggestion}</span>
-                  </li>
+              <h3 className="text-base font-bold text-purple-light mb-4 text-left">Immediate Actions</h3>
+              <div className="space-y-3">
+                    {suggestions.immediate.slice(0, 3).map((suggestion, index) => (
+                  <div key={index} className="bg-background-secondary rounded-xl p-4">
+                    <p className="text-sm text-white leading-relaxed text-left">{suggestion}</p>
+                  </div>
                 ))}
-              </ul>
+              </div>
             </div>
 
-            {/* Long-term Habits */}
+            {/* Long-term Wellness */}
             <div>
-              <h3 className="text-base font-semibold text-purple-light mb-3">Long-term Wellness</h3>
-              <ul className="space-y-2">
-                {suggestions.longTerm.map((suggestion, index) => (
-                  <li key={index} className="flex items-start text-sm text-text-secondary">
-                    <span className="text-purple-primary mr-2 mt-1">•</span>
-                    <span className="flex-1">{suggestion}</span>
-                  </li>
+              <h3 className="text-base font-bold text-purple-light mb-4 text-left">Long-term Wellness</h3>
+              <div className="space-y-3">
+                    {suggestions.longTerm.slice(0, 3).map((suggestion, index) => (
+                  <div key={index} className="bg-background-secondary rounded-xl p-4">
+                    <p className="text-sm text-white leading-relaxed text-left">{suggestion}</p>
+                  </div>
                 ))}
-              </ul>
+              </div>
             </div>
-          </GlassCard>
-        </motion.div>
-
-        {/* Bottom Section - Next Session Recommendation */}
-        <motion.div variants={itemVariants}>
-          <GlassCard className="p-5 bg-surface/40 backdrop-blur-xl">
-            <div className="text-center">
-              <p className="text-base text-text-secondary mb-2" style={{ fontStyle: 'italic' }}>
-                Recommended next session
-              </p>
-              <p className="text-2xl font-light text-white" style={{ fontStyle: 'italic' }}>
-                in <span className="text-purple-primary font-semibold not-italic">
-                  {suggestions.nextSession} {suggestions.nextSession === 1 ? 'day' : 'days'}
-                </span>
-              </p>
-              {suggestions.nextSession >= 7 && (
-                <p className="text-sm text-text-muted mt-1" style={{ fontStyle: 'italic' }}>
-                  ({Math.floor(suggestions.nextSession / 7)} {Math.floor(suggestions.nextSession / 7) === 1 ? 'week' : 'weeks'})
-                </p>
-              )}
-            </div>
-          </GlassCard>
+              </>
+            )}
+          </div>
         </motion.div>
 
         {/* Close/Finish Button */}
         <motion.div variants={itemVariants} className="pt-4">
-          <button 
+          <LiquidButton 
             onClick={onClose}
-            className="w-full h-14 rounded-2xl flex items-center justify-center font-medium text-white bg-gradient-to-r from-purple-dark to-purple-primary shadow-lg shadow-purple-dark/30 hover:scale-[1.02] transition-transform"
+            className="w-full h-14 rounded-2xl flex items-center justify-center font-medium"
           >
             Return to Dashboard
-          </button>
+          </LiquidButton>
         </motion.div>
       </motion.div>
     </div>

@@ -15,12 +15,18 @@ import SuccessPopup from './components/SuccessPopup';
 import SignInScreen from './components/SignInScreen';
 import TeacherDashboard from './components/TeacherDashboard';
 import StudentDetailScreen from './components/StudentDetailScreen';
+import StudentReportScreen from './components/StudentReportScreen';
 import PreRecordingQuestionnaire from './components/PreRecordingQuestionnaire';
+import StreamChatProvider from './components/StreamChatProvider';
 import { AnimatePresence, motion } from 'framer-motion';
+import { BeamsBackground } from './components/ui/beams-background';
+import { GlassFilter } from './components/ui/liquid-radio';
 import type { AnalysisData, Student } from './types';
 import type { QuestionnaireAnswers } from './components/PreRecordingQuestionnaire';
+// Import storage utilities - makes clearAllStorage() available globally
+import './utils/storageUtils';
 
-type AppState = 'SIGNIN' | 'SIGNUP' | 'CONFIRMATION' | 'ENROLLMENT' | 'SCRATCH_CARD' | 'PASSWORD_SETUP' | 'SUCCESS' | 'DASHBOARD' | 'QUESTIONNAIRE' | 'RECORDING' | 'CALIBRATION_FLOW' | 'RESULTS' | 'SUGGESTIONS' | 'TEACHER_DASHBOARD' | 'STUDENT_DETAIL';
+type AppState = 'SIGNIN' | 'SIGNUP' | 'CONFIRMATION' | 'ENROLLMENT' | 'SCRATCH_CARD' | 'PASSWORD_SETUP' | 'SUCCESS' | 'DASHBOARD' | 'QUESTIONNAIRE' | 'RECORDING' | 'CALIBRATION_FLOW' | 'RESULTS' | 'SUGGESTIONS' | 'TEACHER_DASHBOARD' | 'STUDENT_DETAIL' | 'STUDENT_REPORT';
 
 const App: React.FC = () => {
   const [appState, setAppState] = useState<AppState>('SIGNIN');
@@ -38,19 +44,6 @@ const App: React.FC = () => {
   const [enrollmentNumber, setEnrollmentNumber] = useState<string>('');
   const [accountNumber, setAccountNumber] = useState<string>('');
   const [showConfirmation, setShowConfirmation] = useState(false);
-
-  useEffect(() => {
-    const storedBaseline = localStorage.getItem('voiceBaseline');
-    if (storedBaseline) {
-      setBaselineData(storedBaseline);
-    }
-    
-    // Load real student data from localStorage
-    loadStudentData();
-    
-    // Always start with sign-in page - let users choose to sign in or create account
-    // The dashboard will only be accessible after successful sign-in
-  }, []);
 
   const loadStudentData = useCallback(() => {
     // Get all student data from localStorage
@@ -70,6 +63,23 @@ const App: React.FC = () => {
     }
   }, []);
 
+  useEffect(() => {
+    const storedBaseline = localStorage.getItem('voiceBaseline');
+    if (storedBaseline) {
+      setBaselineData(storedBaseline);
+    }
+    
+    // Load real student data from localStorage on initial mount
+    loadStudentData();
+  }, [loadStudentData]);
+
+  // Reload student data when teacher dashboard is shown
+  useEffect(() => {
+    if (appState === 'TEACHER_DASHBOARD') {
+      loadStudentData();
+    }
+  }, [appState, loadStudentData]);
+
   // Sign-in handlers
   const handleSignIn = useCallback(async (code: string, password: string, userType: 'student' | 'teacher') => {
     setUserType(userType);
@@ -81,29 +91,69 @@ const App: React.FC = () => {
       
       if (code === adminCode && password === adminPassword) {
         localStorage.setItem('isTeacherSignedIn', 'true');
+        // Reload student data to get latest students including newly created ones
+        loadStudentData();
         setAppState('TEACHER_DASHBOARD');
       } else {
         throw new Error('Invalid admin credentials');
       }
     } else {
-      // Student authentication
-      const userData = localStorage.getItem('userData');
-      if (!userData) {
+      // Student authentication - check all student accounts
+      let studentAccountsData = localStorage.getItem('studentAccounts');
+      let studentAccounts: any[] = [];
+      
+      // Backward compatibility: Migrate old userData to studentAccounts if it exists
+      if (!studentAccountsData) {
+        const oldUserData = localStorage.getItem('userData');
+        if (oldUserData) {
+          try {
+            const parsedOldData = JSON.parse(oldUserData);
+            // Migrate old account to new format
+            studentAccounts = [parsedOldData];
+            localStorage.setItem('studentAccounts', JSON.stringify(studentAccounts));
+          } catch (error) {
+            console.error('Error migrating old user data:', error);
+          }
+        }
+      } else {
+        try {
+          const parsed = JSON.parse(studentAccountsData);
+          // Ensure it's an array - if it's an object, convert it to an array
+          if (Array.isArray(parsed)) {
+            studentAccounts = parsed;
+          } else if (parsed && typeof parsed === 'object') {
+            // If it's a single object, convert to array
+            studentAccounts = [parsed];
+          } else {
+            // If it's not an array or object, start fresh
+            studentAccounts = [];
+          }
+        } catch (error) {
+          console.error('Error parsing studentAccounts from localStorage:', error);
+          // If parsing fails, start with empty array
+          studentAccounts = [];
+        }
+      }
+      
+      if (studentAccounts.length === 0) {
         throw new Error('No account found. Please create an account first.');
       }
-
-      const parsedUserData = JSON.parse(userData);
       
-      // Simple validation - in a real app, you'd validate against a backend
-      if (parsedUserData.accountNumber === code && parsedUserData.password === password) {
-        // Set a flag to indicate user is signed in
+      // Find the account matching the provided credentials
+      const matchingAccount = studentAccounts.find((account: any) => 
+        account.accountNumber === code && account.password === password
+      );
+      
+      if (matchingAccount) {
+        // Store the current user's data for the session
+        localStorage.setItem('userData', JSON.stringify(matchingAccount));
         localStorage.setItem('isSignedIn', 'true');
         setAppState('DASHBOARD');
       } else {
         throw new Error('Invalid credentials');
       }
     }
-  }, []);
+  }, [loadStudentData]);
 
   const handleCreateAccount = useCallback(() => {
     setAppState('SIGNUP');
@@ -124,9 +174,10 @@ const App: React.FC = () => {
   }, [students]);
 
   const handleBackToTeacherDashboard = useCallback(() => {
+    loadStudentData();
     setSelectedStudent(null);
     setAppState('TEACHER_DASHBOARD');
-  }, []);
+  }, [loadStudentData]);
 
   // Signup flow handlers
   const handleClassSectionConnect = useCallback((classNum: number, section: string) => {
@@ -159,16 +210,83 @@ const App: React.FC = () => {
   }, []);
 
   const handlePasswordSetupComplete = useCallback((password: string) => {
-    // Store signup data
-    localStorage.setItem('isSignedUp', 'true');
-    localStorage.setItem('isSignedIn', 'true'); // Auto-sign in after successful signup
-    localStorage.setItem('userData', JSON.stringify({
+    // Store signup data in the accounts array to support multiple accounts
+    const newAccountData = {
       class: selectedClass,
       section: selectedSection,
       enrollment: enrollmentNumber,
       accountNumber: accountNumber,
       password: password
-    }));
+    };
+    
+    // Get existing student accounts or create new array
+    const studentAccountsData = localStorage.getItem('studentAccounts');
+    let studentAccounts: any[] = [];
+    
+    if (studentAccountsData) {
+      try {
+        const parsed = JSON.parse(studentAccountsData);
+        // Ensure it's an array - if it's an object, convert it to an array
+        if (Array.isArray(parsed)) {
+          studentAccounts = parsed;
+        } else if (parsed && typeof parsed === 'object') {
+          // If it's a single object, convert to array
+          studentAccounts = [parsed];
+        } else {
+          // If it's not an array or object, start fresh
+          studentAccounts = [];
+        }
+      } catch (error) {
+        console.error('Error parsing studentAccounts from localStorage:', error);
+        // If parsing fails, start with empty array
+        studentAccounts = [];
+      }
+    }
+    
+    // Check if account already exists (shouldn't happen, but just in case)
+    const accountIndex = studentAccounts.findIndex(acc => acc.accountNumber === accountNumber);
+    
+    if (accountIndex === -1) {
+      // Add new account to the array
+      studentAccounts.push(newAccountData);
+      localStorage.setItem('studentAccounts', JSON.stringify(studentAccounts));
+    } else {
+      // Update existing account (shouldn't normally happen)
+      studentAccounts[accountIndex] = newAccountData;
+      localStorage.setItem('studentAccounts', JSON.stringify(studentAccounts));
+    }
+    
+    // Store current user data for the session (auto-sign in after successful signup)
+    localStorage.setItem('isSignedUp', 'true');
+    localStorage.setItem('isSignedIn', 'true');
+    localStorage.setItem('userData', JSON.stringify(newAccountData));
+    
+    // Add student to allStudentsData immediately so teacher can see them
+    const allStudentsData = localStorage.getItem('allStudentsData');
+    let studentsData: Student[] = allStudentsData ? JSON.parse(allStudentsData) : [];
+    
+    // Check if student already exists (shouldn't happen, but just in case)
+    const studentIndex = studentsData.findIndex(s => s.code === accountNumber);
+    
+    if (studentIndex === -1) {
+      // Create new student entry with empty analysisHistory
+      const newStudent: Student = {
+        code: accountNumber,
+        name: enrollmentNumber || 'Unknown Student',
+        class: selectedClass || 10,
+        section: selectedSection || 'A',
+        riskLevel: 'low', // Default to low risk until analysis is done
+        analysisHistory: [] // Empty initially
+      };
+      studentsData.push(newStudent);
+      
+      // Save updated students data
+      localStorage.setItem('allStudentsData', JSON.stringify(studentsData));
+      
+      // Update local state
+      setStudents(studentsData);
+    }
+    
     setAppState('SUCCESS');
   }, [selectedClass, selectedSection, enrollmentNumber, accountNumber]);
 
@@ -195,7 +313,16 @@ const App: React.FC = () => {
 
   const handleAnalysisComplete = useCallback((data: AnalysisData) => {
     const { aiSummary, ...rest } = data;
-    const analysisDataWithDate = { ...rest, aiSummary, date: new Date().toISOString() };
+    // Get questionnaire answers from localStorage if available
+    const storedAnswers = localStorage.getItem('questionnaireAnswers');
+    const questionnaireAnswers = storedAnswers ? JSON.parse(storedAnswers) : null;
+    
+    const analysisDataWithDate = { 
+      ...rest, 
+      aiSummary, 
+      date: new Date().toISOString(),
+      questionnaireAnswers: questionnaireAnswers || undefined
+    };
     setAnalysisData(analysisDataWithDate);
     
     // Save analysis data to student's history
@@ -269,7 +396,13 @@ const App: React.FC = () => {
     setAppState('RECORDING');
   }, []);
 
-  const handleNextToSuggestions = useCallback(() => {
+  const handleNextToSuggestions = useCallback(async () => {
+    // Trigger confetti when navigating to suggestions
+    const { triggerSideCannonsConfetti } = await import('./utils/confetti');
+    // Small delay to ensure page transition starts and suggestions screen is visible
+    setTimeout(() => {
+      triggerSideCannonsConfetti();
+    }, 500);
     setAppState('SUGGESTIONS');
   }, []);
 
@@ -282,6 +415,17 @@ const App: React.FC = () => {
     setAppState('DASHBOARD');
   }, []);
 
+  const handleReportClick = useCallback((analysis: AnalysisData) => {
+    if (selectedStudent && analysis) {
+      setAnalysisData(analysis);
+      setAppState('STUDENT_REPORT');
+    }
+  }, [selectedStudent]);
+
+  const handleReportBack = useCallback(() => {
+    setAppState('STUDENT_DETAIL');
+  }, []);
+
   const pageVariants = {
     initial: { opacity: 0, scale: 0.98 },
     animate: { opacity: 1, scale: 1 },
@@ -290,7 +434,10 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen w-full bg-background-primary overflow-hidden relative">
+    <StreamChatProvider>
+      <GlassFilter />
+      <BeamsBackground intensity="medium" />
+      <div className="min-h-screen w-full overflow-hidden relative">
       <AnimatePresence initial={false}>
         {/* Sign-in Screen */}
         {appState === 'SIGNIN' && (
@@ -435,6 +582,24 @@ const App: React.FC = () => {
               student={selectedStudent}
               onBack={handleBackToTeacherDashboard}
               isTeacherView={true}
+              onReportClick={handleReportClick}
+            />
+          </motion.div>
+        )}
+
+        {appState === 'STUDENT_REPORT' && selectedStudent && analysisData && (
+          <motion.div
+            key="student-report"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="w-full h-full"
+          >
+            <StudentReportScreen
+              student={selectedStudent}
+              analysisData={analysisData}
+              onBack={handleReportBack}
             />
           </motion.div>
         )}
@@ -529,7 +694,8 @@ const App: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+      </div>
+    </StreamChatProvider>
   );
 };
 

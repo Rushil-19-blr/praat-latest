@@ -28,6 +28,22 @@ export const Microphone: React.FC<{ className?: string }> = ({ className }) => (
   </svg>
 );
 
+// Filled microphone icon (based on start session button)
+export const MicrophoneFilled: React.FC<{ className?: string }> = ({ className }) => (
+  <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" className={className} fill="currentColor">
+    <path d="M256 32c-44.2 0-80 35.8-80 80v160c0 44.2 35.8 80 80 80s80-35.8 80-80V112c0-44.2-35.8-80-80-80z" />
+    <path d="M128 240v32c0 70.7 57.3 128 128 128s128-57.3 128-128v-32c0-8.8 7.2-16 16-16s16 7.2 16 16v32c0 83.5-63.8 152.1-145.5 159.5V496h65.5c8.8 0 16 7.2 16 16s-7.2 16-16 16h-160c-8.8 0-16-7.2-16-16s7.2-16 16-16h65.5v-64.5C160.8 424.1 97 355.5 97 272v-32c0-8.8 7.2-16 16-16s16 7.2 16 16z" />
+  </svg>
+);
+
+// Outlined microphone icon (stroke only, no fill) - for recording screen
+export const MicrophoneOutlined: React.FC<{ className?: string }> = ({ className }) => (
+  <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" className={className} fill="none" stroke="currentColor" strokeWidth="16" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M256 32c-44.2 0-80 35.8-80 80v160c0 44.2 35.8 80 80 80s80-35.8 80-80V112c0-44.2-35.8-80-80-80z" />
+    <path d="M128 240v32c0 70.7 57.3 128 128 128s128-57.3 128-128v-32c0-8.8 7.2-16 16-16s16 7.2 16 16v32c0 83.5-63.8 152.1-145.5 159.5V496h65.5c8.8 0 16 7.2 16 16s-7.2 16-16 16h-160c-8.8 0-16-7.2-16-16s7.2-16 16-16h65.5v-64.5C160.8 424.1 97 355.5 97 272v-32c0-8.8 7.2-16 16-16s16 7.2 16 16z" />
+  </svg>
+);
+
 export const MicrophoneWithWaves: React.FC<{ className?: string }> = ({ className }) => (
     <svg {...iconProps} fill="none" viewBox="0 0 24 24" stroke="currentColor" className={className}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5a6 6 0 00-12 0v1.5a6 6 0 006 6z" />
@@ -178,3 +194,33 @@ const BIOMARKER_ICONS: { [key: string]: React.FC<{ className?: string }> } = {
   Speedometer: IconSpeedometer,
 };
 export const getBiomarkerIcon = (name: string) => BIOMARKER_ICONS[name];
+
+export const MessageCircle: React.FC<{ className?: string }> = ({ className }) => (
+  <svg {...iconProps} className={className}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+  </svg>
+);
+
+export const Users: React.FC<{ className?: string }> = ({ className }) => (
+  <svg {...iconProps} className={className}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+  </svg>
+);
+
+export const X: React.FC<{ className?: string }> = ({ className }) => (
+  <svg {...iconProps} className={className}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+  </svg>
+);
+
+export const Pencil: React.FC<{ className?: string }> = ({ className }) => (
+  <svg {...iconProps} className={className}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+  </svg>
+);
+
+export const FileText: React.FC<{ className?: string }> = ({ className }) => (
+  <svg {...iconProps} className={className}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+  </svg>
+);

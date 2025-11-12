@@ -20,6 +20,7 @@ export interface AnalysisData {
   audioUrl: string;
   aiSummary: string;
   date: string;
+  questionnaireAnswers?: { [questionIndex: number]: string }; // Optional questionnaire answers
 }
 
 export interface RawBiomarkerData {

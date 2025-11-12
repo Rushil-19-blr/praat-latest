@@ -393,15 +393,20 @@ export const Component = () => {
   }, [getCurrentBatch]);
 
   return (
-    <div 
-      className="bg-neutral-900 rounded-2xl p-6 space-y-6 border border-neutral-700 w-fit"
-      onMouseDown={handleLongPressStart}
-      onMouseUp={handleLongPressEnd}
-      onMouseLeave={handleLongPressEnd}
-      onTouchStart={handleLongPressStart}
-      onTouchEnd={handleLongPressEnd}
-      onTouchCancel={handleLongPressEnd}
-    >
+    <div className="relative inline-flex">
+      <div
+        className="absolute top-0 left-0 isolate -z-10 h-full w-full overflow-hidden rounded-2xl"
+        style={{ filter: 'url("#radio-glass")' }}
+      />
+      <div 
+        className="relative z-10 bg-background-primary/80 backdrop-blur-xl rounded-2xl p-6 space-y-6 border border-white/10 w-[500px] shadow-[0_0_6px_rgba(0,0,0,0.03),0_2px_6px_rgba(0,0,0,0.08),inset_3px_3px_0.5px_-3px_rgba(0,0,0,0.9),inset_-3px_-3px_0.5px_-3px_rgba(0,0,0,0.85),inset_1px_1px_1px_-0.5px_rgba(0,0,0,0.6),inset_-1px_-1px_1px_-0.5px_rgba(0,0,0,0.6),inset_0_0_6px_6px_rgba(0,0,0,0.12),inset_0_0_2px_2px_rgba(0,0,0,0.06),0_0_12px_rgba(255,255,255,0.15)]"
+        onMouseDown={handleLongPressStart}
+        onMouseUp={handleLongPressEnd}
+        onMouseLeave={handleLongPressEnd}
+        onTouchStart={handleLongPressStart}
+        onTouchEnd={handleLongPressEnd}
+        onTouchCancel={handleLongPressEnd}
+      >
       {displayedItems.map((item, idx) => (
         <div key={item.id} className="space-y-6">
           <div className="flex items-center space-x-2">
@@ -441,10 +446,11 @@ export const Component = () => {
             </div>
           </div>
           {idx !== displayedItems.length - 1 && (
-            <div className="border-t border-neutral-700" />
+            <div className="border-t border-white/10" />
           )}
         </div>
       ))}
+      </div>
     </div>
   );
 }

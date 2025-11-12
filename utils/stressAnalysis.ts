@@ -237,35 +237,71 @@ const calculateDeviationScores = (current: MeasureValues, baseline: MeasureValue
         details: { f0MeanDeviation, f0RangeDeviation, speechRateDeviation, jitterRatio, shimmerRatio, hnrRatio }
     };
 
-    // Jitter: Higher is worse. Exponentially sensitive past 100% increase.
-    if (jitterRatio > 1.25) scores.jitter = 5 * Math.log10(jitterRatio / 1.25 * 9 + 1);
-    // Shimmer: Higher is worse.
-    if (shimmerRatio > 1.25) scores.shimmer = 5 * Math.log10(shimmerRatio / 1.25 * 9 + 1);
-    // HNR: Lower is worse.
-    if (hnrRatio < 0.9) scores.hnr = 6 * Math.log10(1 / (hnrRatio / 0.9 * 0.9 + 0.1));
-    // F0 Mean: Both higher and lower are bad.
-    scores.f0Mean = 10 * Math.pow(Math.abs(f0MeanDeviation), 0.7);
+    // Improved thresholds: More gradual contribution starting from smaller deviations
+    // This prevents overly low scores when all biomarkers are slightly within normal ranges
+    
+    // Jitter: Higher is worse. Now starts contributing once it exceeds ~1.2x (20% increase) over baseline
+    if (jitterRatio > 1.2) {
+        if (jitterRatio > 1.35) {
+            scores.jitter = 5 * Math.log10(jitterRatio / 1.35 * 9 + 1);
+        } else {
+            // Gradual contribution for 1.2x to 1.35x range
+            const progress = (jitterRatio - 1.2) / (1.35 - 1.2); // 0 to 1
+            scores.jitter = 1.5 * progress; // Start near 0, reach ~1.5 at 1.35x
+        }
+    }
+    
+    // Shimmer: Higher is worse. Same relaxed thresholds as jitter (starts at ~1.2x)
+    if (shimmerRatio > 1.2) {
+        if (shimmerRatio > 1.35) {
+            scores.shimmer = 5 * Math.log10(shimmerRatio / 1.35 * 9 + 1);
+        } else {
+            // Gradual contribution for 1.2x to 1.35x range
+            const progress = (shimmerRatio - 1.2) / (1.35 - 1.2);
+            scores.shimmer = 1.5 * progress;
+        }
+    }
+    
+    // HNR: Lower is worse. Now starts contributing when clarity drops below ~0.9x baseline
+    if (hnrRatio < 0.9) {
+        if (hnrRatio < 0.85) {
+            scores.hnr = 6 * Math.log10(1 / (hnrRatio + 0.1));
+        } else {
+            // Gradual contribution for 0.85x to 0.9x range
+            const progress = (0.9 - hnrRatio) / (0.9 - 0.85); // 0 to 1
+            scores.hnr = 2 * progress; // Start near 0, reach 2 at 0.85x
+        }
+    }
+    
+    // F0 Mean: Both higher and lower are bad. Already contributes for any deviation.
+    // Fine-tuned sensitivity to prevent over-scoring small variations
+    scores.f0Mean = 7 * Math.pow(Math.abs(f0MeanDeviation), 0.8); // Further reduced sensitivity
+    
     // F0 Range: Both higher (agitated) and lower (monotone) are bad. Monotone is worse.
-    const f0RangePenalty = f0RangeDeviation < 0 ? 1.5 : 1;
-    scores.f0Range = 10 * Math.pow(Math.abs(f0RangeDeviation), 0.8) * f0RangePenalty;
-    // Speech Rate: Both higher and lower are bad.
-    scores.speechRate = 10 * Math.pow(Math.abs(speechRateDeviation), 0.9);
+    const f0RangePenalty = f0RangeDeviation < 0 ? 1.4 : 1; // Slightly reduced penalty
+    scores.f0Range = 7 * Math.pow(Math.abs(f0RangeDeviation), 0.9) * f0RangePenalty; // Further reduced sensitivity
+    
+    // Speech Rate: Both higher and lower are bad. Already contributes for any deviation.
+    // Fine-tuned sensitivity
+    scores.speechRate = 7 * Math.pow(Math.abs(speechRateDeviation), 1.0); // Reduced from 8, linear scaling
+    
     return scores;
 };
 
 const calculateBaselineInteraction = (scores: any) => {
     let interactionBonus = 0;
     // Agitation Pattern: High pitch + fast speech
+    // Reduced multiplier to prevent over-scoring
     if (scores.details.f0MeanDeviation > 0.1 && scores.details.speechRateDeviation > 0.1) {
-        interactionBonus += 0.5 * Math.min(scores.f0Mean, scores.speechRate);
+        interactionBonus += 0.35 * Math.min(scores.f0Mean, scores.speechRate); // Reduced from 0.5
     }
     // Fatigue/Depressive Pattern: Monotone + slow speech
     if (scores.details.f0RangeDeviation < -0.2 && scores.details.speechRateDeviation < -0.1) {
-        interactionBonus += 0.6 * Math.min(scores.f0Range, scores.speechRate);
+        interactionBonus += 0.45 * Math.min(scores.f0Range, scores.speechRate); // Reduced from 0.6
     }
     // Vocal Strain Pattern: High instability + low quality
     if (scores.jitter > 4 && scores.shimmer > 4 && scores.hnr > 4) {
-        interactionBonus += 0.4 * (scores.jitter + scores.shimmer + scores.hnr);
+        interactionBonus += 0.3 * (scores.jitter + scores.shimmer + scores.hnr); // Reduced from 0.4
     }
     return interactionBonus;
 };
@@ -298,18 +334,21 @@ const calculateStressFromBaseline = (current: MeasureValues, baseline: MeasureVa
   const scores = calculateDeviationScores(current, baseline);
   const interactionScore = calculateBaselineInteraction(scores);
 
-  const { interactions, ...weightedScores } = BASELINE_WEIGHTS;
-
-  let totalWeightedScore = Object.keys(weightedScores).reduce((acc, key) => {
-    const weight = BASELINE_WEIGHTS[key as keyof typeof weightedScores];
-    return acc + (scores[key as keyof typeof weightedScores] * weight);
+  // Fix: Iterate over actual score keys, not weight keys
+  const scoreKeys = ['jitter', 'shimmer', 'hnr', 'f0Mean', 'f0Range', 'speechRate'] as const;
+  
+  let totalWeightedScore = scoreKeys.reduce((acc, key) => {
+    const weight = BASELINE_WEIGHTS[key];
+    return acc + (scores[key] * weight);
   }, 0);
 
-  let totalWeight = Object.values(weightedScores).reduce((acc, weight) => acc + weight, 0);
+  let totalWeight = scoreKeys.reduce((acc, key) => acc + BASELINE_WEIGHTS[key], 0);
   totalWeightedScore += interactionScore * BASELINE_WEIGHTS.interactions;
   totalWeight += BASELINE_WEIGHTS.interactions;
 
-  const finalScore = Math.min(100, Math.max(0, (totalWeightedScore / totalWeight) * 10));
+  // Fine-tuned multiplier: reduced from 10 to 6.5 to prevent over-scoring
+  // This provides a more balanced stress level calculation
+  const finalScore = Math.min(100, Math.max(0, (totalWeightedScore / totalWeight) * 6.5));
   let level: StressLevel;
   if (finalScore >= 55) level = StressLevel.High;
   else if (finalScore >= 25) level = StressLevel.Medium;
@@ -322,6 +361,31 @@ const calculateStressFromBaseline = (current: MeasureValues, baseline: MeasureVa
 // ============================================================================
 // MAIN DISPATCH FUNCTION (Primary Export)
 // ============================================================================
+
+/**
+ * Validates that baseline values are complete and valid for stress calculation.
+ * @param baseline The baseline measure values to validate
+ * @returns true if baseline is valid, false otherwise
+ */
+const isValidBaseline = (baseline: MeasureValues): boolean => {
+  // Check that all critical baseline values are positive and non-zero
+  // These are the values used in ratio calculations, so they must be > 0
+  return (
+    baseline.f0Mean > 0 &&
+    baseline.jitter > 0 &&
+    baseline.shimmer > 0 &&
+    baseline.hnr > 0 &&
+    baseline.speechRate > 0 &&
+    baseline.f0Range > 0 &&
+    // Ensure values are within reasonable ranges (not NaN or Infinity)
+    isFinite(baseline.f0Mean) &&
+    isFinite(baseline.jitter) &&
+    isFinite(baseline.shimmer) &&
+    isFinite(baseline.hnr) &&
+    isFinite(baseline.speechRate) &&
+    isFinite(baseline.f0Range)
+  );
+};
 
 /**
  * Calculates the vocal stress level using either the population-based or
@@ -338,9 +402,11 @@ export const calculateStressLevel = (
   profileType: ProfileType = 'mixed',
   baselineValues: MeasureValues | null = null
 ): StressResultType => {
-  if (baselineValues) {
+  // Only use baseline mode if baseline values are valid
+  if (baselineValues && isValidBaseline(baselineValues)) {
     return calculateStressFromBaseline(values, baselineValues);
   } else {
+    // Fall back to population-based analysis if baseline is invalid or missing
     return calculateStressFromPopulation(values, profileType);
   }
 };

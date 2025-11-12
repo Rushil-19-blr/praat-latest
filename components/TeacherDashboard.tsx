@@ -1,19 +1,22 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Student, RiskLevel } from '../types';
-import { UserCircle, ChevronLeft } from './Icons';
+import { UserCircle, ChevronLeft, MessageCircle, Pencil } from './Icons';
 import GlassCard from './GlassCard';
+import TeacherChatModal from './TeacherChatModal';
+import { Gauge } from './ui/gauge-1';
+import { LiquidButton } from './ui/liquid-button';
 
 // HACK: Cast motion components to 'any' to bypass type errors.
 const MotionDiv = motion.div as any;
 
-// --- Sparkline Chart Component ---
-const Sparkline: React.FC<{ data: number[] }> = ({ data }) => {
+// --- Stress Chart Component (Sparkline) ---
+const StressChart: React.FC<{ data: number[]; id?: string }> = ({ data, id = 'default' }) => {
     if (data.length < 2) {
         return <div className="w-full h-full bg-white/5 rounded-md" />;
     }
     const width = 100;
-    const height = 30;
+    const height = 40;
     const min = Math.min(...data);
     const max = Math.max(...data);
     const range = max - min === 0 ? 1 : max - min;
@@ -26,103 +29,281 @@ const Sparkline: React.FC<{ data: number[] }> = ({ data }) => {
         })
         .join(' ');
 
-    const isTrendingUp = data[data.length - 1] > data[0];
+    const latestValue = data[data.length - 1];
+    
+    // Determine color based on latest stress level
+    const getLineColor = () => {
+        if (latestValue < 34) return "#22C55E"; // green
+        if (latestValue < 67) return "#F59E0B"; // orange
+        return "#EF4444"; // red
+    };
+
+    const lineColor = getLineColor();
+    const gradientId = `sparkline-gradient-${id}-${lineColor.replace('#', '')}`;
 
     return (
         <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto" preserveAspectRatio="none">
-             <defs>
-                <linearGradient id="sparkline-gradient-red" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#EF4444" stopOpacity="0.3" />
-                    <stop offset="100%" stopColor="#EF4444" stopOpacity="0" />
-                </linearGradient>
-                <linearGradient id="sparkline-gradient-green" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#22C55E" stopOpacity="0.3" />
-                    <stop offset="100%" stopColor="#22C55E" stopOpacity="0" />
+            <defs>
+                <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={lineColor} stopOpacity="0.3" />
+                    <stop offset="100%" stopColor={lineColor} stopOpacity="0" />
                 </linearGradient>
             </defs>
             <polyline
-                fill={isTrendingUp ? "url(#sparkline-gradient-red)" : "url(#sparkline-gradient-green)"}
+                fill={`url(#${gradientId})`}
                 points={`0,${height} ${points} ${width},${height}`}
             />
             <polyline
                 fill="none"
-                stroke={isTrendingUp ? "#EF4444" : "#22C55E"}
+                stroke={lineColor}
                 strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
                 points={points}
             />
         </svg>
     );
 };
 
+// --- Get Border Color Based on Stress Level ---
+const getBorderColor = (stressLevel: number): string => {
+    if (stressLevel < 34) return 'border-success-green/50'; // green for low stress
+    if (stressLevel < 67) return 'border-orange-warning/50'; // orange for moderate stress
+    return 'border-error-red/50'; // red for high stress
+};
 
 // --- Student Widget Component ---
-const StudentWidget: React.FC<{ student: Student; onClick: () => void }> = ({ student, onClick }) => {
-    const latestAnalysis = student.analysisHistory[student.analysisHistory.length - 1];
+const StudentWidget: React.FC<{ 
+    student: Student; 
+    onClick: () => void; 
+    onChatClick: () => void; 
+    onEditNickname: (studentId: string) => void;
+    isHighAlert?: boolean;
+}> = ({ student, onClick, onChatClick, onEditNickname, isHighAlert = false }) => {
+    const hasAnalysis = student.analysisHistory.length > 0;
+    const latestAnalysis = hasAnalysis ? student.analysisHistory[student.analysisHistory.length - 1] : null;
+    const stressLevel = latestAnalysis?.stressLevel || 0;
     const stressHistory = student.analysisHistory.map(a => a.stressLevel);
 
+    // Nickname management functions
+    const getNicknames = useCallback((): Record<string, string> => {
+        const stored = localStorage.getItem('studentNicknames');
+        return stored ? JSON.parse(stored) : {};
+    }, []);
+
+    const getNickname = useCallback((studentId: string): string | null => {
+        const nicknames = getNicknames();
+        return nicknames[studentId] || null;
+    }, [getNicknames]);
+
+    const getDisplayName = useCallback((studentId: string): string => {
+        const nickname = getNickname(studentId);
+        return nickname ? `${nickname} (${studentId})` : studentId;
+    }, [getNickname]);
+
+    // Determine color based on stress level thresholds
+    const getPrimaryColor = (): "danger" | "warning" | "success" => {
+        if (!hasAnalysis) return "success"; // Default to success for no analysis
+        if (stressLevel < 34) return "success";
+        if (stressLevel < 67) return "warning";
+        return "danger";
+    };
+
+    const handleChatClick = (e: React.MouseEvent) => {
+        e.stopPropagation(); // Prevent triggering the widget's onClick
+        onChatClick();
+    };
+
+    const handleEditClick = (e: React.MouseEvent) => {
+        e.stopPropagation(); // Prevent triggering the widget's onClick
+        onEditNickname(student.code);
+    };
+
+    // Red color scheme for High Alerts
+    const alertBorderColor = isHighAlert ? 'border-red-500/80' : '';
+    const alertBgGradient = isHighAlert ? 'bg-gradient-to-br from-red-900/20 to-red-800/10' : '';
+    
     return (
         <motion.div
             onClick={onClick}
-            className="cursor-pointer"
-            whileHover={{ scale: 1.03, y: -5 }}
+            className="cursor-pointer relative"
+            whileHover={{ scale: 1.02, y: -2 }}
             transition={{ type: 'spring', stiffness: 300 }}
         >
-            <GlassCard className="p-4 flex items-center justify-between" variant="base">
-                <div className="flex items-center gap-4">
-                    <div className="flex flex-col items-center justify-center w-16 h-16 bg-background-primary rounded-xl">
-                        <span className="text-2xl font-bold text-text-primary">{latestAnalysis.stressLevel}</span>
-                        <span className="text-xs font-medium text-text-muted">%</span>
+            <GlassCard className={`p-6 min-h-[200px] flex flex-col items-center justify-center gap-4 border-2 ${isHighAlert ? alertBorderColor : (hasAnalysis ? getBorderColor(stressLevel) : 'border-white/20')} ${isHighAlert ? alertBgGradient : ''}`} variant={isHighAlert ? "base" : "base"}>
+                {/* Chat button in top right corner */}
+                <button
+                    onClick={handleChatClick}
+                    className={`absolute top-3 right-3 w-8 h-8 ${isHighAlert ? 'bg-red-500/20 hover:bg-red-500/40' : 'bg-purple-primary/20 hover:bg-purple-primary/40'} rounded-full flex items-center justify-center transition-colors z-10`}
+                    title="Chat with student"
+                >
+                    <MessageCircle className={`w-4 h-4 ${isHighAlert ? 'text-red-400' : 'text-purple-primary'}`} />
+                </button>
+                
+                {/* Edit button in top left corner */}
+                <button
+                    onClick={handleEditClick}
+                    className={`absolute top-3 left-3 w-9 h-9 ${isHighAlert ? 'bg-red-500/20 hover:bg-red-500/40' : 'bg-purple-primary/20 hover:bg-purple-primary/40'} rounded-full flex items-center justify-center transition-colors z-10`}
+                    title="Edit nickname"
+                >
+                    <Pencil className={`w-4 h-4 ${isHighAlert ? 'text-red-400' : 'text-purple-primary'}`} />
+                </button>
+                
+                <p className="text-3xl font-bold text-text-primary text-center px-8 break-words">{getDisplayName(student.code)}</p>
+                {hasAnalysis ? (
+                    <div className="flex items-center justify-center gap-4 flex-1">
+                        <div className="flex items-center justify-center">
+                            <Gauge
+                                value={stressLevel}
+                                size={90}
+                                strokeWidth={6}
+                                gradient={true}
+                                primary={isHighAlert ? "danger" : getPrimaryColor()}
+                                showValue={true}
+                                showPercentage={true}
+                                unit="%"
+                                tickMarks={true}
+                                glowEffect={true}
+                                transition={{ length: 800, delay: 0 }}
+                                className={{
+                                    svgClassName: "text-white",
+                                    textClassName: "fill-white"
+                                }}
+                            />
+                        </div>
+                        <div className="w-20 h-12 flex-shrink-0">
+                            <StressChart data={stressHistory} id={student.code} />
+                        </div>
                     </div>
-                    <div className="flex flex-col">
-                        <p className="text-base font-semibold text-text-primary">{student.code}</p>
-                        <p className="text-sm font-normal text-text-muted">{student.name} • {student.class}{student.section}</p>
+                ) : (
+                    <div className="flex flex-col items-center justify-center gap-2 flex-1">
+                        <p className="text-text-muted text-sm text-center">No analysis yet</p>
+                        <p className="text-text-muted/70 text-xs text-center">Student has not completed<br />voice analysis</p>
                     </div>
-                </div>
-                <div className="w-24 h-10">
-                    <Sparkline data={stressHistory} />
-                </div>
+                )}
             </GlassCard>
         </motion.div>
     );
 };
 
 
-// --- High Risk Alerts Component ---
+// --- High Alerts Section Component (Stress > 80%) ---
+const HighAlertsSection: React.FC<{ 
+    students: Student[], 
+    onSelectStudent: (id: string) => void,
+    onChatClick: (studentId: string) => void,
+    onEditNickname: (studentId: string) => void
+}> = ({ students, onSelectStudent, onChatClick, onEditNickname }) => {
+    const highAlertStudents = students.filter(s => {
+        // Only include students with analysis history and stress > 80%
+        if (s.analysisHistory.length === 0) return false;
+        const latestStress = s.analysisHistory[s.analysisHistory.length - 1].stressLevel;
+        return latestStress > 80; // Only show high alerts (stress > 80%)
+    })
+        .sort((a, b) => b.analysisHistory[b.analysisHistory.length-1].stressLevel - a.analysisHistory[a.analysisHistory.length-1].stressLevel);
+
+    if (highAlertStudents.length === 0) return null;
+
+    return (
+        <div className="mb-8">
+            <h2 className="text-xl font-bold uppercase text-red-500 tracking-wider mb-4 px-2 flex items-center gap-2">
+                <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                HIGH ALERTS
+            </h2>
+            <div className="overflow-x-auto scrollbar-hide pb-4">
+                <div className="flex gap-4 min-w-max">
+                    {highAlertStudents.map(student => (
+                        <div key={student.code} className="flex-shrink-0 w-[280px]">
+                            <StudentWidget 
+                                student={student}
+                                onClick={() => onSelectStudent(student.code)}
+                                onChatClick={() => onChatClick(student.code)}
+                                onEditNickname={onEditNickname}
+                                isHighAlert={true}
+                            />
+                        </div>
+                    ))}
+                </div>
+            </div>
+            <style>{`
+                .scrollbar-hide::-webkit-scrollbar {
+                    display: none;
+                }
+                .scrollbar-hide {
+                    -ms-overflow-style: none;
+                    scrollbar-width: none;
+                }
+            `}</style>
+        </div>
+    );
+};
+
+// --- High Risk Alerts Component (Legacy - for backwards compatibility) ---
 const HighRiskAlerts: React.FC<{ students: Student[], onSelectStudent: (id: string) => void }> = ({ students, onSelectStudent }) => {
     const highRiskStudents = students.filter(s => {
+        // Only include students with analysis history
+        if (s.analysisHistory.length === 0) return false;
         const latestStress = s.analysisHistory[s.analysisHistory.length - 1].stressLevel;
-        return latestStress >= 75; // Only show high risk (75%+)
+        return latestStress >= 75 && latestStress <= 80; // Show moderate-high risk (75-80%)
     })
         .sort((a, b) => b.analysisHistory[b.analysisHistory.length-1].stressLevel - a.analysisHistory[a.analysisHistory.length-1].stressLevel);
 
     if(highRiskStudents.length === 0) return null;
 
-    const getRiskColor = (stressLevel: number) => {
-        if (stressLevel >= 90) return 'bg-error-red/20 border-error-red/50';
-        if (stressLevel >= 75) return 'bg-orange-warning/20 border-orange-warning/50';
-        return 'bg-yellow-500/20 border-yellow-500/50';
-    };
-
     return (
         <div className="mb-8">
-            <h2 className="text-sm font-bold uppercase text-text-muted tracking-wider mb-4 px-2">High-Risk Students Alert</h2>
-            <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4">
-                {highRiskStudents.map(student => {
-                    const latestStress = student.analysisHistory[student.analysisHistory.length - 1].stressLevel;
-                    return (
-                        <motion.div
-                            key={student.code}
-                            onClick={() => onSelectStudent(student.code)}
-                            className={`flex-shrink-0 w-32 h-24 p-3 rounded-xl border-2 cursor-pointer ${getRiskColor(latestStress)}`}
-                            whileHover={{ y: -4, scale: 1.02 }}
-                            transition={{ type: 'spring', stiffness: 300 }}
-                        >
-                            <p className="text-base font-semibold text-text-primary mb-1">{student.code}</p>
-                            <p className="text-xs font-normal text-text-secondary mb-2 truncate">{student.name}</p>
-                            <p className="text-2xl font-bold text-text-primary text-right">{latestStress}%</p>
-                        </motion.div>
-                    );
-                })}
+            <h2 className="text-xl font-bold uppercase text-text-muted tracking-wider mb-4 px-2">HIGH-RISK STUDENTS ALERT</h2>
+            <div className="bg-[#2a2418] rounded-2xl p-4">
+                <div className="grid grid-cols-2 gap-4">
+                    {highRiskStudents.map(student => {
+                        const latestStress = student.analysisHistory[student.analysisHistory.length - 1].stressLevel;
+                        
+                        // Determine color based on stress level thresholds
+                        const getPrimaryColor = (): "danger" | "warning" | "success" => {
+                            if (latestStress < 34) return "success";
+                            if (latestStress < 67) return "warning";
+                            return "danger";
+                        };
+
+                        const stressHistory = student.analysisHistory.map(a => a.stressLevel);
+
+                        return (
+                            <motion.div
+                                key={student.code}
+                                onClick={() => onSelectStudent(student.code)}
+                                className={`bg-surface rounded-xl p-6 cursor-pointer flex flex-col items-center justify-center gap-4 min-h-[180px] border-2 ${getBorderColor(latestStress)}`}
+                                whileHover={{ scale: 1.02, y: -2 }}
+                                transition={{ type: 'spring', stiffness: 300 }}
+                            >
+                                <p className="text-3xl font-bold text-text-primary">{student.code}</p>
+                                <div className="flex items-center justify-center gap-3 flex-1">
+                                    <div className="flex items-center justify-center">
+                                        <Gauge
+                                            value={latestStress}
+                                            size={80}
+                                            strokeWidth={6}
+                                            gradient={true}
+                                            primary={getPrimaryColor()}
+                                            showValue={true}
+                                            showPercentage={true}
+                                            unit="%"
+                                            tickMarks={true}
+                                            glowEffect={true}
+                                            transition={{ length: 800, delay: 0 }}
+                                            className={{
+                                                svgClassName: "text-white",
+                                                textClassName: "fill-white"
+                                            }}
+                                        />
+                                    </div>
+                                    <div className="w-16 h-10 flex-shrink-0">
+                                        <StressChart data={stressHistory} id={student.code} />
+                                    </div>
+                                </div>
+                            </motion.div>
+                        );
+                    })}
+                </div>
             </div>
         </div>
     );
@@ -146,25 +327,72 @@ interface TeacherDashboardProps {
 
 const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectStudent, onSignOut, onRefresh }) => {
     const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
+    const [isChatOpen, setIsChatOpen] = useState(false);
+    const [selectedStudentForChat, setSelectedStudentForChat] = useState<string | null>(null);
+    const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
+    const [nicknameInput, setNicknameInput] = useState<string>('');
+    
+    // Teacher ID (hardcoded - same as admin code)
+    const teacherId = '9999';
+
+    // Nickname management functions
+    const getNicknames = useCallback((): Record<string, string> => {
+        const stored = localStorage.getItem('studentNicknames');
+        return stored ? JSON.parse(stored) : {};
+    }, []);
+
+    const setNickname = useCallback((studentId: string, nickname: string) => {
+        const nicknames = getNicknames();
+        if (nickname.trim()) {
+            nicknames[studentId] = nickname.trim();
+        } else {
+            delete nicknames[studentId];
+        }
+        localStorage.setItem('studentNicknames', JSON.stringify(nicknames));
+    }, [getNicknames]);
+
+    const handleEditNickname = useCallback((studentId: string) => {
+        const nicknames = getNicknames();
+        setNicknameInput(nicknames[studentId] || '');
+        setEditingStudentId(studentId);
+    }, [getNicknames]);
+
+    const handleSaveNickname = useCallback(() => {
+        if (editingStudentId) {
+            setNickname(editingStudentId, nicknameInput);
+            setEditingStudentId(null);
+            setNicknameInput('');
+        }
+    }, [editingStudentId, nicknameInput, setNickname]);
+
+    const handleCancelEdit = useCallback(() => {
+        setEditingStudentId(null);
+        setNicknameInput('');
+    }, []);
 
     const classSummaries = useMemo<ClassSummary[]>(() => {
-        const classes = new Map<string, { totalStress: number; studentList: Student[] }>();
+        const classes = new Map<string, { totalStress: number; studentList: Student[]; analyzedCount: number }>();
         
         students.forEach(student => {
             const classId = `${student.class}-${student.section}`;
             if (!classes.has(classId)) {
-                classes.set(classId, { totalStress: 0, studentList: [] });
+                classes.set(classId, { totalStress: 0, studentList: [], analyzedCount: 0 });
             }
             const classData = classes.get(classId)!;
             classData.studentList.push(student);
-            classData.totalStress += student.analysisHistory[student.analysisHistory.length - 1].stressLevel;
+            
+            // Only add to stress calculation if student has analysis history
+            if (student.analysisHistory.length > 0) {
+                classData.totalStress += student.analysisHistory[student.analysisHistory.length - 1].stressLevel;
+                classData.analyzedCount += 1;
+            }
         });
 
         return Array.from(classes.entries()).map(([id, data]) => ({
             id,
             name: `Class ${id.replace('-', ' ')}`,
             studentCount: data.studentList.length,
-            averageStress: Math.round(data.totalStress / data.studentList.length),
+            averageStress: data.analyzedCount > 0 ? Math.round(data.totalStress / data.analyzedCount) : 0,
             students: data.studentList
         })).sort((a,b) => a.id.localeCompare(b.id));
 
@@ -192,7 +420,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
     };
 
     return (
-        <div className="min-h-screen w-full p-4 max-w-2xl mx-auto">
+        <div className="min-h-screen w-full p-4 max-w-4xl mx-auto">
             <header className="flex items-center justify-between pt-4 pb-6">
                  <div className="flex items-center gap-2">
                     {selectedClassId && (
@@ -206,35 +434,96 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
                         </motion.button>
                     )}
                     <div>
-                        <h1 className="text-2xl font-bold text-text-primary">
+                        <h1 className="text-4xl font-bold text-text-primary">
                             {selectedClass ? selectedClass.name : 'Dashboard'}
                         </h1>
-                        <p className="text-sm font-normal text-text-muted mt-1">
+                        <p className="text-xl font-normal text-text-muted mt-1">
                             {selectedClass ? `${selectedClass.studentCount} Students` : 'Student Stress Overview'}
                         </p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
                     <button 
-                        className="w-10 h-10 bg-surface rounded-full flex items-center justify-center hover:bg-purple-primary/20 transition-colors cursor-pointer"
-                        onClick={onRefresh}
-                        title="Refresh Data"
+                        className="w-10 h-10 bg-surface rounded-full flex items-center justify-center hover:bg-purple-primary/20 transition-colors cursor-pointer relative"
+                        onClick={() => setIsChatOpen(true)}
+                        title="Messages"
                     >
-                        <svg className="w-5 h-5 text-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
+                        <MessageCircle className="w-5 h-5 text-text-secondary" />
+                        <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-black"></span>
                     </button>
-                    <button 
-                        className="w-12 h-12 bg-surface rounded-full flex items-center justify-center hover:bg-purple-primary/20 transition-colors cursor-pointer"
+                    <motion.div
+                        animate={{
+                            scale: [1, 1.05, 1],
+                            rotate: [0, 3, -3, 0],
+                        }}
+                        whileHover={{ 
+                            scale: 1.15,
+                        }}
+                        whileTap={{ 
+                            scale: 0.9,
+                            rotate: 360,
+                        }}
+                        transition={{
+                            scale: {
+                                duration: 2.5,
+                                repeat: Infinity,
+                                ease: "easeInOut",
+                            },
+                            rotate: {
+                                duration: 4,
+                                repeat: Infinity,
+                                ease: "easeInOut",
+                            },
+                            whileHover: {
+                                duration: 0.3,
+                            },
+                            whileTap: {
+                                rotate: {
+                                    duration: 0.5,
+                                    ease: "easeOut",
+                                },
+                                scale: {
+                                    duration: 0.1,
+                                }
+                            }
+                        }}
+                    >
+                        <LiquidButton 
+                            onClick={onRefresh}
+                            title="Refresh Data"
+                            className="w-10 h-10 rounded-full flex items-center justify-center p-0 relative"
+                        >
+                            <motion.svg 
+                                className="w-5 h-5" 
+                                fill="none" 
+                                stroke="currentColor" 
+                                viewBox="0 0 24 24"
+                                animate={{
+                                    rotate: [0, 360],
+                                }}
+                                transition={{
+                                    rotate: {
+                                        duration: 4,
+                                        repeat: Infinity,
+                                        ease: "linear",
+                                    }
+                                }}
+                            >
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </motion.svg>
+                        </LiquidButton>
+                    </motion.div>
+                    <LiquidButton 
                         onClick={() => {
                             if (window.confirm('Are you sure you want to sign out?')) {
                                 onSignOut();
                             }
                         }}
                         title="Sign Out"
+                        className="w-12 h-12 rounded-full flex items-center justify-center p-0"
                     >
-                        <UserCircle className="w-6 h-6 text-text-secondary" />
-                    </button>
+                        <UserCircle className="w-6 h-6" />
+                    </LiquidButton>
                 </div>
             </header>
 
@@ -245,14 +534,14 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
                             key="class-grid"
                             variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={pageTransition}
                          >
-                            <h2 className="text-sm font-bold uppercase text-text-muted tracking-wider mb-4 px-2">All Classes</h2>
+                            <h2 className="text-xl font-bold uppercase text-text-muted tracking-wider mb-4 px-2">All Classes</h2>
                             {classSummaries.length === 0 ? (
                                 <div className="text-center py-12">
                                     <div className="w-16 h-16 bg-surface rounded-full flex items-center justify-center mx-auto mb-4">
                                         <UserCircle className="w-8 h-8 text-text-muted" />
                                     </div>
-                                    <h3 className="text-lg font-semibold text-text-primary mb-2">No Students Yet</h3>
-                                    <p className="text-sm font-normal text-text-muted mb-4">Students will appear here once they complete their first voice analysis session.</p>
+                                    <h3 className="text-3xl font-semibold text-text-primary mb-2">No Students Yet</h3>
+                                    <p className="text-xl font-normal text-text-muted mb-4">Students will appear here once they complete their first voice analysis session.</p>
                                     <button 
                                         onClick={onRefresh}
                                         className="px-4 py-2 bg-purple-primary text-white rounded-lg hover:bg-purple-dark transition-colors text-sm font-medium"
@@ -271,10 +560,10 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
                                             transition={{ type: 'spring', stiffness: 300 }}
                                         >
                                             <GlassCard className="p-5 flex flex-col justify-between h-32" variant="purple">
-                                                <h3 className="text-lg font-bold text-purple-light">{summary.name}</h3>
+                                                <h3 className="text-2xl font-bold text-purple-light">{summary.name}</h3>
                                                 <div className="text-right">
-                                                    <p className="text-sm font-medium text-text-secondary">{summary.studentCount} Students</p>
-                                                    <p className="text-sm font-normal text-text-muted">Avg {summary.averageStress}% Stress</p>
+                                                    <p className="text-xl font-medium text-text-secondary">{summary.studentCount} Students</p>
+                                                    <p className="text-xl font-normal text-text-muted">Avg {summary.averageStress}% Stress</p>
                                                 </div>
                                             </GlassCard>
                                         </motion.div>
@@ -288,21 +577,37 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
                             variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={pageTransition}
                             className="space-y-8"
                          >
+                            {/* High Alerts Section - Prominently displayed at top */}
+                            <HighAlertsSection 
+                                students={selectedClass.students} 
+                                onSelectStudent={onSelectStudent}
+                                onChatClick={(studentId) => {
+                                    setSelectedStudentForChat(studentId);
+                                    setIsChatOpen(true);
+                                }}
+                                onEditNickname={handleEditNickname}
+                            />
+                            
                             <HighRiskAlerts students={selectedClass.students} onSelectStudent={onSelectStudent} />
 
                             <div>
-                                 <h2 className="text-sm font-bold uppercase text-text-muted tracking-wider mb-4 px-2">All Students in Class</h2>
+                                 <h2 className="text-xl font-bold uppercase text-text-muted tracking-wider mb-4 px-2">ALL STUDENTS IN CLASS</h2>
                                 <MotionDiv
                                     variants={containerVariants}
                                     initial="hidden"
                                     animate="visible"
-                                    className="space-y-4"
+                                    className="grid grid-cols-2 gap-4"
                                 >
                                     {selectedClass.students.map(student => (
                                         <StudentWidget 
                                             key={student.code} 
                                             student={student}
                                             onClick={() => onSelectStudent(student.code)}
+                                            onChatClick={() => {
+                                                setSelectedStudentForChat(student.code);
+                                                setIsChatOpen(true);
+                                            }}
+                                            onEditNickname={handleEditNickname}
                                         />
                                     ))}
                                 </MotionDiv>
@@ -311,6 +616,73 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
                     )}
                 </AnimatePresence>
             </main>
+
+            {/* Teacher Chat Modal */}
+            <TeacherChatModal
+                isOpen={isChatOpen}
+                onClose={() => {
+                    setIsChatOpen(false);
+                    setSelectedStudentForChat(null);
+                }}
+                teacherId={teacherId}
+                students={students.map(s => ({ code: s.code, name: s.name }))}
+                selectedStudentId={selectedStudentForChat}
+            />
+
+            {/* Nickname Edit Modal */}
+            {editingStudentId && (
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+                    onClick={handleCancelEdit}
+                >
+                    <motion.div
+                        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                        animate={{ scale: 1, opacity: 1, y: 0 }}
+                        exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                        transition={{ duration: 0.2 }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="bg-background-primary rounded-xl p-6 w-full max-w-md border border-white/10 shadow-2xl"
+                    >
+                        <h3 className="text-lg font-semibold text-white mb-2">Edit Nickname</h3>
+                        <p className="text-sm text-text-muted mb-4">Student Code: {editingStudentId}</p>
+                        
+                        <input
+                            type="text"
+                            value={nicknameInput}
+                            onChange={(e) => setNicknameInput(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    handleSaveNickname();
+                                } else if (e.key === 'Escape') {
+                                    handleCancelEdit();
+                                }
+                            }}
+                            placeholder="Enter nickname (leave empty to remove)"
+                            className="w-full px-4 py-3 bg-surface border border-white/10 rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-purple-primary mb-4"
+                            autoFocus
+                        />
+                        
+                        <div className="flex gap-3 justify-end">
+                            <button
+                                onClick={handleCancelEdit}
+                                className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white text-sm font-medium transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSaveNickname}
+                                className="px-4 py-2 bg-purple-primary hover:bg-purple-primary/90 rounded-lg text-white text-sm font-medium transition-colors"
+                            >
+                                Save
+                            </button>
+                        </div>
+                    </motion.div>
+                </motion.div>
+            )}
         </div>
     );
 };

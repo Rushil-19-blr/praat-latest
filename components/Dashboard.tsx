@@ -1,13 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Component as PlayfulTodoList } from './ui/playful-todolist';
 import StudentChatModal from './StudentChatModal';
-import { MessageCircle } from './Icons';
+import { MessageCircle, X } from './Icons';
 import NotificationPanel from './NotificationPanel';
-import { LiquidButton } from './ui/liquid-button';
-import StudentChatModal from './StudentChatModal';
-import { MessageCircle } from './Icons';
-import NotificationPanel from './NotificationPanel';
-import { LiquidButton } from './ui/liquid-button';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface DashboardProps {
   onStartVoiceSession: () => void;
@@ -25,7 +21,9 @@ interface UserData {
 
 const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalibration, onSignOut }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isChatOpen, setIsChatOpen] = useState(false);
     const [userData, setUserData] = useState<UserData | null>(null);
+    const accountsButtonRef = useRef<HTMLButtonElement>(null);
 
     useEffect(() => {
         // Load user data from localStorage
@@ -40,8 +38,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
         }
     }, []);
 
-    const openModal = () => setIsModalOpen(true);
-    const closeModal = () => setIsModalOpen(false);
 
     const startSession = () => {
         onStartVoiceSession();
@@ -62,7 +58,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
     // Close modal when clicking outside
     const handleOutsideClick = (event: React.MouseEvent<HTMLDivElement>) => {
         if (event.target === event.currentTarget) {
-            closeModal();
+            setIsModalOpen(false);
         }
     };
 
@@ -72,8 +68,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                 body {
                     margin: 0;
                     padding: 0;
-                    background-color: #000000;
-                    font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+                    background-color: transparent;
+                    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
                     color: #ffffff;
                     min-height: 100vh;
                 }
@@ -83,12 +79,12 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                     justify-content: space-between;
                     align-items: center;
                     padding: 20px 40px;
-                    background-color: #000000;
+                    background-color: transparent;
                 }
 
                 .app-logo h1 {
                     margin: 0;
-                    font-size: 24px;
+                    font-size: 36px;
                     font-weight: 700;
                     background: linear-gradient(135deg, #a855f7, #8b5cf6);
                     -webkit-background-clip: text;
@@ -103,7 +99,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                     padding: 12px;
                     color: #a0a0a0;
                     cursor: pointer;
-                    transition: border-color 0.2s ease, color 0.2s ease;
+                    transition: border-color 0.3s ease, color 0.3s ease, background-color 0.3s ease;
+                    position: relative;
+                    z-index: 1001;
                 }
 
                 .accounts-btn:hover {
@@ -111,10 +109,18 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                     color: #a855f7;
                 }
 
+                .accounts-btn.active {
+                    border-color: #a855f7;
+                    color: #a855f7;
+                    background-color: rgba(168, 85, 247, 0.1);
+                }
+
                 .accounts-icon {
                     width: 20px;
                     height: 20px;
                     fill: currentColor;
+                    stroke: currentColor;
+                    transition: transform 0.3s ease;
                 }
 
                 .main-content {
@@ -124,14 +130,39 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                     align-items: center;
                     gap: 40px;
                     padding-bottom: 100px;
+                    max-width: 2000px;
+                    margin: 0 auto;
+                    width: 100%;
                 }
 
                 .calibration-section {
                     position: fixed;
                     bottom: 20px;
-                    left: 50%;
-                    transform: translateX(-50%);
+                    left: 20px;
                     z-index: 100;
+                }
+
+                .calendar-section {
+                    position: fixed;
+                    bottom: 20px;
+                    right: 20px;
+                    z-index: 100;
+                }
+
+                .notification-dot {
+                    position: absolute;
+                    top: -2px;
+                    right: -2px;
+                    width: 12px;
+                    height: 12px;
+                    background-color: #ef4444;
+                    border-radius: 50%;
+                    border: 2px solid #000000;
+                    z-index: 10;
+                }
+
+                .accounts-btn {
+                    position: relative;
                 }
 
                 .wellbeing-widget {
@@ -150,8 +181,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                     background: linear-gradient(135deg, #a855f7, #8b5cf6);
                     border: none;
                     border-radius: 50%; /* Fully round */
-                    width: 150px;
-                    height: 150px;
+                    width: 250px;
+                    height: 250px;
                     cursor: pointer;
                     transition: transform 0.2s ease, box-shadow 0.2s ease;
                     display: flex;
@@ -169,27 +200,27 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                     background: linear-gradient(135deg, #fbbf24, #f59e0b);
                     border: none;
                     border-radius: 12px;
-                    padding: 8px 16px;
+                    padding: 12px 20px;
                     cursor: pointer;
                     transition: transform 0.2s ease, box-shadow 0.2s ease;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    gap: 6px;
-                    box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3);
-                    font-size: 14px;
+                    gap: 8px;
+                    box-shadow: 0 6px 20px rgba(251, 191, 36, 0.4);
+                    font-size: 15px;
                     font-weight: 600;
                     color: #000000;
                 }
 
                 .calibration-btn:hover {
-                    transform: translateY(-1px) scale(1.02);
-                    box-shadow: 0 6px 16px rgba(251, 191, 36, 0.4);
+                    transform: translateY(-2px) scale(1.05);
+                    box-shadow: 0 8px 24px rgba(251, 191, 36, 0.5);
                 }
 
                 .voice-icon {
-                    width: 75px;
-                    height: 75px;
+                    width: 125px;
+                    height: 125px;
                     fill: #ffffff;
                 }
 
@@ -200,7 +231,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                 }
 
                 .session-text {
-                    font-size: 18px;
+                    font-size: 28px;
                     font-weight: 600;
                     color: #ffffff;
                     text-align: center;
@@ -209,27 +240,28 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
 
 
                 /* Popup Styles */
-                .modal {
-                    display: ${isModalOpen ? 'block' : 'none'};
+                .modal-overlay {
                     position: fixed;
                     z-index: 1000;
                     left: 0;
                     top: 0;
                     width: 100%;
                     height: 100%;
-                    background-color: rgba(0, 0, 0, 0.8);
-                    backdrop-filter: blur(5px);
+                    background-color: rgba(0, 0, 0, 0.3);
+                    backdrop-filter: blur(2px);
                 }
 
                 .modal-content {
-                    background: linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 100%);
-                    margin: 15% auto;
+                    background: linear-gradient(135deg, #2a2a2a 0%, #1d1d1d 100%);
                     padding: 30px;
                     border-radius: 20px;
-                    width: 90%;
-                    max-width: 400px;
-                    border: 1px solid #333333;
-                    position: relative;
+                    width: 320px;
+                    border: 1px solid #444444;
+                    position: fixed;
+                    top: 80px;
+                    right: 40px;
+                    z-index: 1001;
+                    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
                 }
 
                 .close {
@@ -283,13 +315,36 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
             `}</style>
             <div className="header">
                 <div className="app-logo">
-                    <h1>Voice Analyser</h1>
+                    <h1>AWAAZ</h1>
                 </div>
-                <button className="accounts-btn" onClick={openModal}>
-                    <svg className="accounts-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                    </svg>
-                </button>
+                <div className="flex gap-2">
+                    <button 
+                        className="accounts-btn" 
+                        onClick={() => setIsChatOpen(true)}
+                        title="Messages"
+                    >
+                        <MessageCircle className="accounts-icon" />
+                        <span className="notification-dot"></span>
+                    </button>
+                    <button 
+                        ref={accountsButtonRef}
+                        className={`accounts-btn ${isModalOpen ? 'active' : ''}`} 
+                        onClick={() => setIsModalOpen(!isModalOpen)}
+                    >
+                        <motion.div
+                            animate={{ rotate: isModalOpen ? 90 : 0 }}
+                            transition={{ duration: 0.3, ease: "easeInOut" }}
+                        >
+                            {isModalOpen ? (
+                                <X className="accounts-icon" />
+                            ) : (
+                                <svg className="accounts-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                                </svg>
+                            )}
+                        </motion.div>
+                    </button>
+                </div>
             </div>
 
             <div className="main-content">
@@ -299,50 +354,92 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
 
                 <div className="session-section">
                     <button className="start-session-btn" onClick={startSession}>
-                        <svg className="voice-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="75" height="75">
-                            {/* 9 vertical bars in symmetrical equalizer pattern - pink/magenta color */}
-                            {/* Left side: medium, medium-tall, tall, very tall */}
-                            <rect x="2" y="14" width="2" height="6" rx="1" fill="#f472b6" />
-                            <rect x="4.5" y="11" width="2" height="9" rx="1" fill="#f472b6" />
-                            <rect x="7" y="8" width="2" height="12" rx="1" fill="#f472b6" />
-                            <rect x="9.5" y="5" width="2" height="15" rx="1" fill="#f472b6" />
-                            {/* Center bar: tallest */}
-                            <rect x="12" y="3" width="2" height="18" rx="1" fill="#f472b6" />
-                            {/* Right side: very tall, tall, medium-tall, medium */}
-                            <rect x="14.5" y="5" width="2" height="15" rx="1" fill="#f472b6" />
-                            <rect x="17" y="8" width="2" height="12" rx="1" fill="#f472b6" />
-                            <rect x="19.5" y="11" width="2" height="9" rx="1" fill="#f472b6" />
-                            <rect x="22" y="14" width="2" height="6" rx="1" fill="#f472b6" />
+                        <svg className="voice-icon" width="125" height="125" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M256 32c-44.2 0-80 35.8-80 80v160c0 44.2 35.8 80 80 80s80-35.8 80-80V112c0-44.2-35.8-80-80-80z" fill="#f472b6"/>
+                            <path d="M128 240v32c0 70.7 57.3 128 128 128s128-57.3 128-128v-32c0-8.8 7.2-16 16-16s16 7.2 16 16v32c0 83.5-63.8 152.1-145.5 159.5V496h65.5c8.8 0 16 7.2 16 16s-7.2 16-16 16h-160c-8.8 0-16-7.2-16-16s7.2-16 16-16h65.5v-64.5C160.8 424.1 97 355.5 97 272v-32c0-8.8 7.2-16 16-16s16 7.2 16 16z" fill="#f472b6"/>
                         </svg>
                     </button>
                     <div className="session-text">Start a Session</div>
                 </div>
-            </div>
 
-            {onStartCalibration && (
-                <div className="calibration-section">
-                    <button className="calibration-btn" onClick={onStartCalibration}>
-                        <svg className="calibration-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
-                            <path d="M17.3 11c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/>
-                        </svg>
-                        <span>Calibrate</span>
-                    </button>
-                </div>
-            )}
-
-            <div id="accountsModal" className="modal" onClick={handleOutsideClick}>
-                <div className="modal-content">
-                    <span className="close" onClick={closeModal}>&times;</span>
-                    <div className="account-info">
-                        <div className="account-name">
-                            {userData?.class ? `Class ${userData.class}${userData.section ? ` - Section ${userData.section}` : ''}` : 'Student Account'}
-                        </div>
-                        <div className="account-code">{userData?.accountNumber || '----'}</div>
+                {onStartCalibration && (
+                    <div className="calibration-section">
+                        <button 
+                            onClick={onStartCalibration} 
+                            className="calibration-btn"
+                            title="Calibration"
+                        >
+                            <svg className="calibration-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
+                                <path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                                <path d="M17.3 11c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/>
+                            </svg>
+                            <span>Calibration</span>
+                        </button>
                     </div>
-                    <button className="logout-btn" onClick={logout}>Logout</button>
-                </div>
+                )}
             </div>
+
+            <div className="calendar-section">
+                <NotificationPanel />
+            </div>
+
+            <AnimatePresence>
+                {isModalOpen && (
+                    <>
+                        <motion.div
+                            className="modal-overlay"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.2 }}
+                            onClick={handleOutsideClick}
+                        />
+                        <motion.div
+                            className="modal-content"
+                            initial={{ 
+                                opacity: 0, 
+                                scale: 0.8,
+                                y: -20,
+                                x: 20
+                            }}
+                            animate={{ 
+                                opacity: 1, 
+                                scale: 1,
+                                y: 0,
+                                x: 0
+                            }}
+                            exit={{ 
+                                opacity: 0, 
+                                scale: 0.8,
+                                y: -20,
+                                x: 20
+                            }}
+                            transition={{ 
+                                duration: 0.3,
+                                ease: [0.4, 0, 0.2, 1]
+                            }}
+                        >
+                            <div className="account-info">
+                                <div className="account-name">
+                                    {userData?.class ? `Class ${userData.class}${userData.section ? ` - Section ${userData.section}` : ''}` : 'Student Account'}
+                                </div>
+                                <div className="account-code">{userData?.accountNumber || '----'}</div>
+                            </div>
+                            <button className="logout-btn" onClick={logout}>Logout</button>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
+
+            {/* Student Chat Modal */}
+            {userData?.accountNumber && (
+                <StudentChatModal
+                isOpen={isChatOpen} 
+                onClose={() => setIsChatOpen(false)} 
+                    studentId={userData.accountNumber}
+                    studentName={userData.enrollment || `Student ${userData.accountNumber}`}
+            />
+            )}
         </>
     );
 };

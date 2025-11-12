@@ -6,7 +6,7 @@ import { useGeminiLive } from '../hooks/useGeminiLive';
 import type { AnalysisData, RecordingState, RawBiomarkerData } from '../types';
 import { formatBiomarkers, repeatStatements } from '../constants';
 import GlassCard from './GlassCard';
-import { ChevronLeft, QuestionMarkCircle, Microphone, MicrophoneWithWaves } from './Icons';
+import { ChevronLeft, QuestionMarkCircle, Microphone, MicrophoneWithWaves, MicrophoneFilled, X } from './Icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { VoicePoweredOrb } from './ui/voice-powered-orb';
 import { speakText, stopSpeech, isSpeaking } from '../services/textToSpeech';
@@ -15,12 +15,14 @@ interface RecordingScreenProps {
   onAnalysisComplete: (data: AnalysisData) => void;
   baselineData: string | null;
   audioBlob?: Blob | null;
+  onClose?: () => void;
 }
 
 const RecordingScreen: React.FC<RecordingScreenProps> = ({ 
   onAnalysisComplete,
   baselineData,
-  audioBlob
+  audioBlob,
+  onClose
 }) => {
   const [recordingState, setRecordingState] = useState<RecordingState>('IDLE');
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -99,6 +101,9 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
   const playCurrentStatement = useCallback(async () => {
     if (mode !== 'repeat' || isPlayingStatement || isSpeaking()) return;
     
+    // Stop any ongoing speech first
+    stopSpeech();
+    
     const statement = repeatStatements[currentStatementIndex];
     if (!statement) return;
     
@@ -111,28 +116,82 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
       setIsPlayingStatement(false);
     }
   }, [mode, currentStatementIndex, isPlayingStatement]);
-
-  // Move to next statement after recording in repeat mode
+  
+  // Auto-play first statement only when session starts
+  const sessionStartedRef = useRef(false);
   useEffect(() => {
-    if (mode === 'repeat' && recordingState === 'IDLE' && isSessionActive && audioClips.length > 0) {
-      // Auto-play next statement after a short delay
+    if (mode === 'repeat' && isSessionActive && !sessionStartedRef.current && currentStatementIndex === 0) {
+      sessionStartedRef.current = true;
       const timer = setTimeout(() => {
+        if (!isPlayingStatement && !isSpeaking() && recordingState === 'IDLE') {
+          playCurrentStatement();
+        }
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+    if (!isSessionActive) {
+      sessionStartedRef.current = false;
+    }
+  }, [mode, isSessionActive, currentStatementIndex, isPlayingStatement, recordingState, playCurrentStatement]);
+
+  // Track previous recording state to detect when recording stops
+  const prevRecordingStateRef = useRef<RecordingState>(recordingState);
+  
+  const statementTimerRef = useRef<{ advance: ReturnType<typeof setTimeout> | null; play: ReturnType<typeof setTimeout> | null }>({ advance: null, play: null });
+  
+  // Move to next statement and auto-play after user finishes recording (with delay)
+  useEffect(() => {
+    // Only advance statement when recording transitions from RECORDING to IDLE
+    const justFinishedRecording = prevRecordingStateRef.current === 'RECORDING' && recordingState === 'IDLE';
+    
+    if (mode === 'repeat' && justFinishedRecording && isSessionActive && audioClips.length > 0) {
+      // Stop any current speech first
+      stopSpeech();
+      setIsPlayingStatement(false);
+      
+      // Clear any existing timers
+      if (statementTimerRef.current.advance) clearTimeout(statementTimerRef.current.advance);
+      if (statementTimerRef.current.play) clearTimeout(statementTimerRef.current.play);
+      
+      // Advance to next statement after a delay (gives user time to prepare)
+      statementTimerRef.current.advance = setTimeout(() => {
         const nextIndex = (currentStatementIndex + 1) % repeatStatements.length;
         setCurrentStatementIndex(nextIndex);
         
-        // Wait a bit more before playing
-        setTimeout(() => {
-          const statement = repeatStatements[nextIndex];
-          if (statement) {
-            setIsPlayingStatement(true);
-            speakText(statement, { rate: 0.9, pitch: 1.0, volume: 1.0 })
-              .then(() => setIsPlayingStatement(false))
-              .catch(() => setIsPlayingStatement(false));
+        // Auto-play the next statement after another delay (gives user time to get ready)
+        statementTimerRef.current.play = setTimeout(() => {
+          // Check state again to ensure we're still in the right mode and state
+          if (recordingState === 'IDLE' && !isPlayingStatement && !isSpeaking() && mode === 'repeat') {
+            const statement = repeatStatements[nextIndex];
+            if (statement) {
+              setIsPlayingStatement(true);
+              speakText(statement, { rate: 0.9, pitch: 1.0, volume: 1.0 })
+                .then(() => setIsPlayingStatement(false))
+                .catch(() => setIsPlayingStatement(false));
+            }
           }
-        }, 500);
-      }, 1500);
+          statementTimerRef.current.play = null;
+        }, 2000); // 2 second delay before playing next statement (3 seconds total from recording end)
+        
+        statementTimerRef.current.advance = null;
+      }, 1000); // 1 second delay before advancing
       
-      return () => clearTimeout(timer);
+      // Update previous state
+      prevRecordingStateRef.current = recordingState;
+      
+      return () => {
+        if (statementTimerRef.current.advance) {
+          clearTimeout(statementTimerRef.current.advance);
+          statementTimerRef.current.advance = null;
+        }
+        if (statementTimerRef.current.play) {
+          clearTimeout(statementTimerRef.current.play);
+          statementTimerRef.current.play = null;
+        }
+      };
+    } else {
+      // Update previous state
+      prevRecordingStateRef.current = recordingState;
     }
   }, [recordingState, isSessionActive, audioClips.length, mode, currentStatementIndex]);
 
@@ -206,19 +265,9 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
       // Reset clips for new session
       allClipsRef.current = [];
       setAudioClips([]);
-      // Reset statement index in repeat mode
+      // Reset statement index in repeat mode (auto-play handled by useEffect)
       if (mode === 'repeat') {
         setCurrentStatementIndex(0);
-        // Play first statement in repeat mode
-        setTimeout(() => {
-          const statement = repeatStatements[0];
-          if (statement) {
-            setIsPlayingStatement(true);
-            speakText(statement, { rate: 0.9, pitch: 1.0, volume: 1.0 })
-              .then(() => setIsPlayingStatement(false))
-              .catch(() => setIsPlayingStatement(false));
-          }
-        }, 500);
       }
     }
 
@@ -259,68 +308,184 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
       const wavBlob = await webmBlobToWavMono16k(audioBlob);
       const featuresForAnalysis = await extractFeaturesWithPraat(wavBlob, 'http://localhost:8000');
       
-      const featuresString = `
-      - RMS (energy/loudness): ${featuresForAnalysis.rms.toFixed(4)}
-      - ZCR (noise/sibilance): ${featuresForAnalysis.zcr.toFixed(4)}
-      - Spectral Centroid (brightness): ${featuresForAnalysis.spectralCentroid.toFixed(2)}
-      - Spectral Flatness (tonality): ${featuresForAnalysis.spectralFlatness.toFixed(4)}
-      - MFCCs (spectral shape): [${featuresForAnalysis.mfcc.map((c: number) => c.toFixed(2)).join(', ')}]
-      `;
+      // Print extracted Praat features to console
+      console.log('=== Praat Extracted Features ===');
+      console.log('Basic Features:');
+      console.log('  RMS (energy/loudness):', featuresForAnalysis.rms);
+      console.log('  ZCR (noise/sibilance):', featuresForAnalysis.zcr);
+      console.log('  Spectral Centroid (brightness):', featuresForAnalysis.spectralCentroid);
+      console.log('  Spectral Flatness (tonality):', featuresForAnalysis.spectralFlatness);
+      console.log('  MFCCs (spectral shape):', featuresForAnalysis.mfcc);
+      console.log('\nPraat Advanced Features (Real Extractions):');
+      console.log('  F0 Mean (pitch):', featuresForAnalysis.f0_mean, 'Hz');
+      console.log('  F0 Range:', featuresForAnalysis.f0_range, 'Hz');
+      console.log('  Jitter:', featuresForAnalysis.jitter, '%');
+      console.log('  Shimmer:', featuresForAnalysis.shimmer, '%');
+      console.log('  HNR (Harmonics-to-Noise):', featuresForAnalysis.hnr, 'dB');
+      console.log('  F1 (First Formant):', featuresForAnalysis.f1, 'Hz');
+      console.log('  F2 (Second Formant):', featuresForAnalysis.f2, 'Hz');
+      console.log('  Speech Rate:', featuresForAnalysis.speech_rate, 'WPM');
+      console.log('Full Features Object:', JSON.stringify(featuresForAnalysis, null, 2));
+      console.log('================================');
       
-      const baselineString = baselineData ? `The user's personal CALM BASELINE voice features are: ${JSON.stringify(JSON.parse(baselineData), null, 2)}` : "No personal baseline is available. Analyze based on general population data.";
+      // Check if Praat extracted the advanced features
+      const hasPraatFeatures = featuresForAnalysis.f0_mean !== undefined && 
+                                featuresForAnalysis.f0_mean > 0 &&
+                                featuresForAnalysis.jitter !== undefined;
+      
+      if (!hasPraatFeatures) {
+        throw new Error('Praat did not extract required biomarkers. Please ensure the audio contains clear speech.');
+      }
 
+      // Use real Praat features directly - no estimation needed!
+      const biomarkers: RawBiomarkerData = {
+        stress_level: 0, // Will be calculated by stress analysis algorithm
+        f0_mean: featuresForAnalysis.f0_mean || 0,
+        f0_range: featuresForAnalysis.f0_range || 0,
+        jitter: featuresForAnalysis.jitter || 0,
+        shimmer: featuresForAnalysis.shimmer || 0,
+        hnr: featuresForAnalysis.hnr || 0,
+        f1: featuresForAnalysis.f1 || 0,
+        f2: featuresForAnalysis.f2 || 0,
+        speech_rate: featuresForAnalysis.speech_rate || 0,
+        confidence: 95, // High confidence since these are real measurements
+        snr: 0, // Will be estimated if needed
+        ai_summary: '', // Will be generated by Gemini
+      };
+
+      // Calculate stress level using the stress analysis algorithm
+      const { calculateStressLevel } = await import('../utils/stressAnalysis');
+      const baselineDataObj = baselineData ? JSON.parse(baselineData) : null;
+      
+      // Convert to MeasureValues format
+      const measureValues = {
+        f0Mean: biomarkers.f0_mean,
+        f0Range: biomarkers.f0_range,
+        jitter: biomarkers.jitter,
+        shimmer: biomarkers.shimmer,
+        hnr: biomarkers.hnr,
+        f1: biomarkers.f1,
+        f2: biomarkers.f2,
+        speechRate: biomarkers.speech_rate,
+      };
+
+      // Calculate stress level
+      // Validate baseline data before using it - only use if all critical values are present and valid
+      let baselineMeasureValues: MeasureValues | null = null;
+      if (baselineDataObj) {
+        const hasValidBaseline = (
+          baselineDataObj.f0_mean > 0 &&
+          baselineDataObj.jitter > 0 &&
+          baselineDataObj.shimmer > 0 &&
+          baselineDataObj.hnr > 0 &&
+          baselineDataObj.speech_rate > 0 &&
+          baselineDataObj.f0_range > 0 &&
+          isFinite(baselineDataObj.f0_mean) &&
+          isFinite(baselineDataObj.jitter) &&
+          isFinite(baselineDataObj.shimmer) &&
+          isFinite(baselineDataObj.hnr) &&
+          isFinite(baselineDataObj.speech_rate) &&
+          isFinite(baselineDataObj.f0_range)
+        );
+
+        if (hasValidBaseline) {
+          baselineMeasureValues = {
+            f0Mean: baselineDataObj.f0_mean,
+            f0Range: baselineDataObj.f0_range,
+            jitter: baselineDataObj.jitter,
+            shimmer: baselineDataObj.shimmer,
+            hnr: baselineDataObj.hnr,
+            f1: baselineDataObj.f1 || 0,
+            f2: baselineDataObj.f2 || 0,
+            speechRate: baselineDataObj.speech_rate,
+          };
+        } else {
+          console.warn('Baseline data is incomplete or invalid. Falling back to population-based analysis.');
+        }
+      }
+
+      const stressResult = calculateStressLevel(
+        measureValues,
+        'mixed', // profile type
+        baselineMeasureValues
+      );
+
+      biomarkers.stress_level = stressResult.score;
+
+      // Get AI summary from Gemini (just for explanation, not for feature extraction)
       const ai = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.API_KEY);
       const model = ai.getGenerativeModel({ model: 'gemini-2.5-pro' });
       
-      const prompt = `You are a world-class expert in Voice Stress Analysis (VSA). I have two sets of acoustic features from a voice sample: a potential calm baseline, and the current sample. Your task is to compare them to determine the stress level.
+      const baselineString = baselineData ? 
+        `The user's personal CALM BASELINE voice biomarkers are: ${JSON.stringify(baselineDataObj, null, 2)}` : 
+        "No personal baseline is available. Analysis is based on general population norms.";
+
+      const prompt = `You are a world-class expert in Voice Stress Analysis (VSA). I have real, measured vocal biomarkers from a voice sample (extracted using Praat phonetics software) and a stress level calculation.
 
       ${baselineString}
 
-      The CURRENT voice sample's features (extracted using Praat phonetics analysis) are:
-      ${featuresString}
+      The CURRENT voice sample's REAL biomarkers (extracted using Praat):
+      - F0 Mean (pitch): ${biomarkers.f0_mean.toFixed(2)} Hz
+      - F0 Range: ${biomarkers.f0_range.toFixed(2)} Hz
+      - Jitter: ${biomarkers.jitter.toFixed(2)}%
+      - Shimmer: ${biomarkers.shimmer.toFixed(2)}%
+      - HNR (Harmonics-to-Noise Ratio): ${biomarkers.hnr.toFixed(2)} dB
+      - F1 (First Formant): ${biomarkers.f1.toFixed(2)} Hz
+      - F2 (Second Formant): ${biomarkers.f2.toFixed(2)} Hz
+      - Speech Rate: ${biomarkers.speech_rate.toFixed(1)} WPM
 
-      Based on this data, perform these tasks:
-      1.  **Compare and Infer Biomarkers**: Critically compare the CURRENT features to the BASELINE (if available). Based on the *differences*, estimate plausible values for the following VSA biomarkers. Stress often manifests as *deviations* from a baseline (e.g., higher RMS and spectral centroid -> higher F0). If no baseline is available, use general population norms.
-          - f0_mean (Hz): Avg pitch.
-          - f0_range (Hz): Pitch variability.
-          - jitter (%): Frequency perturbation.
-          - shimmer (%): Amplitude perturbation.
-          - hnr (dB): Harmonics-to-Noise Ratio.
-          - f1 (Hz), f2 (Hz): Formants.
-          - speech_rate (WPM): Words per minute.
-      2.  **Determine Stress Level**: Based on the deviation from baseline, provide an overall stress level (0-100). A larger deviation implies higher stress.
-      3.  **Provide Confidence & SNR**: Give a confidence score for your analysis (%) and an estimated Signal-to-Noise Ratio (SNR, in dB).
-      4.  **Write AI Summary**: Write a concise summary (2-3 sentences) explaining the results, referencing the comparison to the baseline if one was used.
+      Calculated Stress Level: ${stressResult.score.toFixed(1)}/100 (${stressResult.level})
+      ${stressResult.stressType ? `Stress Type: ${stressResult.stressType}` : ''}
 
-      Your output MUST be a single, valid JSON object with no other text. Use the exact keys from the schema.`;
-      
+      Your task:
+      1. Provide a confidence score (0-100%) for the analysis based on the quality of the biomarkers.
+      2. Estimate Signal-to-Noise Ratio (SNR in dB) based on HNR and other indicators.
+      3. Write a concise, helpful summary (2-3 sentences) explaining what these biomarkers indicate about the speaker's vocal stress, referencing the baseline comparison if available.
+
+      Your output MUST be a single, valid JSON object with these exact keys:
+      {
+        "confidence": <number 0-100>,
+        "snr": <number in dB>,
+        "ai_summary": "<2-3 sentence explanation>"
+      }`;
+
       const response = await model.generateContent(prompt);
       const responseText = response.response.text();
       
-      // Clean to valid JSON (handles fenced code blocks)
+      // Clean to valid JSON
       let cleanedText = (responseText || '').trim();
       if (cleanedText.startsWith('```json')) {
         cleanedText = cleanedText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
       } else if (cleanedText.startsWith('```')) {
         cleanedText = cleanedText.replace(/^```\s*/, '').replace(/\s*```$/, '');
       }
-      if (!cleanedText) {
-        throw new Error('Empty response from Gemini API');
+
+      if (cleanedText) {
+        try {
+          const geminiResponse = JSON.parse(cleanedText);
+          biomarkers.confidence = geminiResponse.confidence || 95;
+          biomarkers.snr = geminiResponse.snr || 0;
+          biomarkers.ai_summary = geminiResponse.ai_summary || stressResult.explanation;
+        } catch (e) {
+          // Fallback if Gemini response parsing fails
+          biomarkers.confidence = 95;
+          biomarkers.snr = biomarkers.hnr; // Use HNR as SNR estimate
+          biomarkers.ai_summary = stressResult.explanation;
+        }
+      } else {
+        // Fallback values
+        biomarkers.confidence = 95;
+        biomarkers.snr = biomarkers.hnr;
+        biomarkers.ai_summary = stressResult.explanation;
       }
 
-      let resultJson: RawBiomarkerData;
-      try {
-        resultJson = JSON.parse(cleanedText);
-      } catch (parseError) {
-        throw new Error(`Invalid JSON response from Gemini: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
-      }
       const analysisResult: AnalysisData = {
-          stressLevel: resultJson.stress_level,
-          biomarkers: formatBiomarkers(resultJson),
-          confidence: resultJson.confidence,
-          snr: resultJson.snr,
-          audioUrl: URL.createObjectURL(audioBlob),
-          aiSummary: resultJson.ai_summary,
+        stressLevel: biomarkers.stress_level,
+        biomarkers: formatBiomarkers(biomarkers),
+        confidence: biomarkers.confidence,
+        snr: biomarkers.snr,
+        audioUrl: URL.createObjectURL(audioBlob),
+        aiSummary: biomarkers.ai_summary,
       };
 
       setRecordingState('COMPLETE');
@@ -328,9 +493,9 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
     } catch (error) {
       setRecordingState('ERROR');
       if (error instanceof Error) {
-        if (error.message.includes('Not enough clear speech')) {
+        if (error.message.includes('Not enough clear speech') || error.message.includes('did not extract')) {
           setPermissionError("We couldn't detect clear speech. Please try speaking a bit louder and closer to your device.");
-        } else if (error.message.includes('Backend')) {
+        } else if (error.message.includes('Backend') || error.message.includes('Praat')) {
           setPermissionError("Our analysis service is temporarily unavailable. Please try again in a moment.");
         } else {
           setPermissionError("Something went wrong during analysis. Please try recording again.");
@@ -480,68 +645,183 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
       const wavBlob = await webmBlobToWavMono16k(combinedWavBlob);
       const featuresForAnalysis = await extractFeaturesWithPraat(wavBlob, 'http://localhost:8000');
       
-      const featuresString = `
-      - RMS (energy/loudness): ${featuresForAnalysis.rms.toFixed(4)}
-      - ZCR (noise/sibilance): ${featuresForAnalysis.zcr.toFixed(4)}
-      - Spectral Centroid (brightness): ${featuresForAnalysis.spectralCentroid.toFixed(2)}
-      - Spectral Flatness (tonality): ${featuresForAnalysis.spectralFlatness.toFixed(4)}
-      - MFCCs (spectral shape): [${featuresForAnalysis.mfcc.map((c: number) => c.toFixed(2)).join(', ')}]
-      `;
+      // Print extracted Praat features to console
+      console.log('=== Praat Extracted Features (Multi-Clip Session) ===');
+      console.log('Basic Features:');
+      console.log('  RMS (energy/loudness):', featuresForAnalysis.rms);
+      console.log('  ZCR (noise/sibilance):', featuresForAnalysis.zcr);
+      console.log('  Spectral Centroid (brightness):', featuresForAnalysis.spectralCentroid);
+      console.log('  Spectral Flatness (tonality):', featuresForAnalysis.spectralFlatness);
+      console.log('  MFCCs (spectral shape):', featuresForAnalysis.mfcc);
+      console.log('\nPraat Advanced Features (Real Extractions):');
+      console.log('  F0 Mean (pitch):', featuresForAnalysis.f0_mean, 'Hz');
+      console.log('  F0 Range:', featuresForAnalysis.f0_range, 'Hz');
+      console.log('  Jitter:', featuresForAnalysis.jitter, '%');
+      console.log('  Shimmer:', featuresForAnalysis.shimmer, '%');
+      console.log('  HNR (Harmonics-to-Noise):', featuresForAnalysis.hnr, 'dB');
+      console.log('  F1 (First Formant):', featuresForAnalysis.f1, 'Hz');
+      console.log('  F2 (Second Formant):', featuresForAnalysis.f2, 'Hz');
+      console.log('  Speech Rate:', featuresForAnalysis.speech_rate, 'WPM');
+      console.log('====================================================');
       
-      const baselineString = baselineData ? `The user's personal CALM BASELINE voice features are: ${JSON.stringify(JSON.parse(baselineData), null, 2)}` : "No personal baseline is available. Analyze based on general population data.";
+      // Check if Praat extracted the advanced features
+      const hasPraatFeatures = featuresForAnalysis.f0_mean !== undefined && 
+                                featuresForAnalysis.f0_mean > 0 &&
+                                featuresForAnalysis.jitter !== undefined;
+      
+      if (!hasPraatFeatures) {
+        throw new Error('Praat did not extract required biomarkers. Please ensure the audio contains clear speech.');
+      }
 
+      // Use real Praat features directly - no estimation needed!
+      const biomarkers: RawBiomarkerData = {
+        stress_level: 0, // Will be calculated by stress analysis algorithm
+        f0_mean: featuresForAnalysis.f0_mean || 0,
+        f0_range: featuresForAnalysis.f0_range || 0,
+        jitter: featuresForAnalysis.jitter || 0,
+        shimmer: featuresForAnalysis.shimmer || 0,
+        hnr: featuresForAnalysis.hnr || 0,
+        f1: featuresForAnalysis.f1 || 0,
+        f2: featuresForAnalysis.f2 || 0,
+        speech_rate: featuresForAnalysis.speech_rate || 0,
+        confidence: 95, // High confidence since these are real measurements
+        snr: 0, // Will be estimated if needed
+        ai_summary: '', // Will be generated by Gemini
+      };
+
+      // Calculate stress level using the stress analysis algorithm
+      const { calculateStressLevel } = await import('../utils/stressAnalysis');
+      const baselineDataObj = baselineData ? JSON.parse(baselineData) : null;
+      
+      // Convert to MeasureValues format
+      const measureValues = {
+        f0Mean: biomarkers.f0_mean,
+        f0Range: biomarkers.f0_range,
+        jitter: biomarkers.jitter,
+        shimmer: biomarkers.shimmer,
+        hnr: biomarkers.hnr,
+        f1: biomarkers.f1,
+        f2: biomarkers.f2,
+        speechRate: biomarkers.speech_rate,
+      };
+
+      // Calculate stress level
+      // Validate baseline data before using it - only use if all critical values are present and valid
+      let baselineMeasureValues: MeasureValues | null = null;
+      if (baselineDataObj) {
+        const hasValidBaseline = (
+          baselineDataObj.f0_mean > 0 &&
+          baselineDataObj.jitter > 0 &&
+          baselineDataObj.shimmer > 0 &&
+          baselineDataObj.hnr > 0 &&
+          baselineDataObj.speech_rate > 0 &&
+          baselineDataObj.f0_range > 0 &&
+          isFinite(baselineDataObj.f0_mean) &&
+          isFinite(baselineDataObj.jitter) &&
+          isFinite(baselineDataObj.shimmer) &&
+          isFinite(baselineDataObj.hnr) &&
+          isFinite(baselineDataObj.speech_rate) &&
+          isFinite(baselineDataObj.f0_range)
+        );
+
+        if (hasValidBaseline) {
+          baselineMeasureValues = {
+            f0Mean: baselineDataObj.f0_mean,
+            f0Range: baselineDataObj.f0_range,
+            jitter: baselineDataObj.jitter,
+            shimmer: baselineDataObj.shimmer,
+            hnr: baselineDataObj.hnr,
+            f1: baselineDataObj.f1 || 0,
+            f2: baselineDataObj.f2 || 0,
+            speechRate: baselineDataObj.speech_rate,
+          };
+        } else {
+          console.warn('Baseline data is incomplete or invalid. Falling back to population-based analysis.');
+        }
+      }
+
+      const stressResult = calculateStressLevel(
+        measureValues,
+        'mixed', // profile type
+        baselineMeasureValues
+      );
+
+      biomarkers.stress_level = stressResult.score;
+
+      // Get AI summary from Gemini (just for explanation, not for feature extraction)
       const ai = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.API_KEY);
       const model = ai.getGenerativeModel({ model: 'gemini-2.5-pro' });
       
-      const prompt = `You are a world-class expert in Voice Stress Analysis (VSA). I have two sets of acoustic features from a voice sample: a potential calm baseline, and the current sample. Your task is to compare them to determine the stress level.
+      const baselineString = baselineData ? 
+        `The user's personal CALM BASELINE voice biomarkers are: ${JSON.stringify(baselineDataObj, null, 2)}` : 
+        "No personal baseline is available. Analysis is based on general population norms.";
+
+      const prompt = `You are a world-class expert in Voice Stress Analysis (VSA). I have real, measured vocal biomarkers from a voice sample (extracted using Praat phonetics software) and a stress level calculation.
 
       ${baselineString}
 
-      The CURRENT voice sample's features (extracted using Praat phonetics analysis) are:
-      ${featuresString}
+      The CURRENT voice sample's REAL biomarkers (extracted using Praat):
+      - F0 Mean (pitch): ${biomarkers.f0_mean.toFixed(2)} Hz
+      - F0 Range: ${biomarkers.f0_range.toFixed(2)} Hz
+      - Jitter: ${biomarkers.jitter.toFixed(2)}%
+      - Shimmer: ${biomarkers.shimmer.toFixed(2)}%
+      - HNR (Harmonics-to-Noise Ratio): ${biomarkers.hnr.toFixed(2)} dB
+      - F1 (First Formant): ${biomarkers.f1.toFixed(2)} Hz
+      - F2 (Second Formant): ${biomarkers.f2.toFixed(2)} Hz
+      - Speech Rate: ${biomarkers.speech_rate.toFixed(1)} WPM
 
-      Based on this data, perform these tasks:
-      1.  **Compare and Infer Biomarkers**: Critically compare the CURRENT features to the BASELINE (if available). Based on the *differences*, estimate plausible values for the following VSA biomarkers. Stress often manifests as *deviations* from a baseline (e.g., higher RMS and spectral centroid -> higher F0). If no baseline is available, use general population norms.
-          - f0_mean (Hz): Avg pitch.
-          - f0_range (Hz): Pitch variability.
-          - jitter (%): Frequency perturbation.
-          - shimmer (%): Amplitude perturbation.
-          - hnr (dB): Harmonics-to-Noise Ratio.
-          - f1 (Hz), f2 (Hz): Formants.
-          - speech_rate (WPM): Words per minute.
-      2.  **Determine Stress Level**: Based on the deviation from baseline, provide an overall stress level (0-100). A larger deviation implies higher stress.
-      3.  **Provide Confidence & SNR**: Give a confidence score for your analysis (%) and an estimated Signal-to-Noise Ratio (SNR, in dB).
-      4.  **Write AI Summary**: Write a concise summary (2-3 sentences) explaining the results, referencing the comparison to the baseline if one was used.
+      Calculated Stress Level: ${stressResult.score.toFixed(1)}/100 (${stressResult.level})
+      ${stressResult.stressType ? `Stress Type: ${stressResult.stressType}` : ''}
 
-      Your output MUST be a single, valid JSON object with no other text. Use the exact keys from the schema.`;
-      
+      Your task:
+      1. Provide a confidence score (0-100%) for the analysis based on the quality of the biomarkers.
+      2. Estimate Signal-to-Noise Ratio (SNR in dB) based on HNR and other indicators.
+      3. Write a concise, helpful summary (2-3 sentences) explaining what these biomarkers indicate about the speaker's vocal stress, referencing the baseline comparison if available.
+
+      Your output MUST be a single, valid JSON object with these exact keys:
+      {
+        "confidence": <number 0-100>,
+        "snr": <number in dB>,
+        "ai_summary": "<2-3 sentence explanation>"
+      }`;
+
       const response = await model.generateContent(prompt);
       const responseText = response.response.text();
       
-      // Clean to valid JSON (handles fenced code blocks)
+      // Clean to valid JSON
       let cleanedText = (responseText || '').trim();
       if (cleanedText.startsWith('```json')) {
         cleanedText = cleanedText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
       } else if (cleanedText.startsWith('```')) {
         cleanedText = cleanedText.replace(/^```\s*/, '').replace(/\s*```$/, '');
       }
-      if (!cleanedText) {
-        throw new Error('Empty response from Gemini API');
+
+      if (cleanedText) {
+        try {
+          const geminiResponse = JSON.parse(cleanedText);
+          biomarkers.confidence = geminiResponse.confidence || 95;
+          biomarkers.snr = geminiResponse.snr || 0;
+          biomarkers.ai_summary = geminiResponse.ai_summary || stressResult.explanation;
+        } catch (e) {
+          // Fallback if Gemini response parsing fails
+          biomarkers.confidence = 95;
+          biomarkers.snr = biomarkers.hnr; // Use HNR as SNR estimate
+          biomarkers.ai_summary = stressResult.explanation;
+        }
+      } else {
+        // Fallback values
+        biomarkers.confidence = 95;
+        biomarkers.snr = biomarkers.hnr;
+        biomarkers.ai_summary = stressResult.explanation;
       }
 
-      let resultJson: RawBiomarkerData;
-      try {
-        resultJson = JSON.parse(cleanedText);
-      } catch (parseError) {
-        throw new Error(`Invalid JSON response from Gemini: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
-      }
       const analysisResult: AnalysisData = {
-          stressLevel: resultJson.stress_level,
-          biomarkers: formatBiomarkers(resultJson),
-          confidence: resultJson.confidence,
-          snr: resultJson.snr,
-          audioUrl: URL.createObjectURL(combinedWavBlob),
-          aiSummary: resultJson.ai_summary,
+        stressLevel: biomarkers.stress_level,
+        biomarkers: formatBiomarkers(biomarkers),
+        confidence: biomarkers.confidence,
+        snr: biomarkers.snr,
+        audioUrl: URL.createObjectURL(combinedWavBlob),
+        aiSummary: biomarkers.ai_summary,
       };
 
       // Reset session state
@@ -579,7 +859,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
   const headerText = "Voice Stress Analysis";
 
   const Header = () => (
-    <header className="fixed top-0 left-0 right-0 h-[90px] flex items-center justify-between px-4 z-10 max-w-2xl mx-auto bg-background-primary/95 backdrop-blur-sm">
+    <header className="fixed top-0 left-0 right-0 h-[90px] flex items-center justify-between px-4 z-50 max-w-2xl mx-auto">
         <div className="w-11 h-11" />
         <div className="text-center flex-1">
             <h1 className="text-lg font-medium text-white">{headerText}</h1>
@@ -608,17 +888,32 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
               </button>
             </div>
         </div>
-        <button onClick={() => setShowHelp(true)} className="glass-base w-11 h-11 rounded-full flex items-center justify-center transition-all hover:bg-purple-primary/20">
-            <QuestionMarkCircle className="w-5 h-5 text-white" />
-        </button>
+        <div className="flex items-center gap-2">
+            <button 
+                onClick={() => setShowHelp(true)} 
+                className="glass-base w-11 h-11 rounded-full flex items-center justify-center transition-all hover:bg-purple-primary/20"
+                title="Help"
+            >
+                <QuestionMarkCircle className="w-5 h-5 text-white" />
+            </button>
+            {onClose && (
+                <button 
+                    onClick={onClose} 
+                    className="glass-base w-11 h-11 rounded-full flex items-center justify-center transition-all hover:bg-purple-primary/20"
+                    title="Close"
+                >
+                    <X className="w-5 h-5 text-white" />
+                </button>
+            )}
+        </div>
     </header>
   );
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 pt-[100px] pb-[60px] relative overflow-hidden">
+    <div className="min-h-screen w-full flex flex-col items-center justify-start p-4 pt-[100px] pb-[60px] relative overflow-y-auto">
         <Header />
         
-        <GlassCard className="w-full max-w-sm mx-auto p-4 z-10" variant="purple">
+        <GlassCard className="w-full max-w-sm mx-auto p-4 z-10 mt-4" variant="purple">
             <div className="text-center">
                 {recordingState === 'RECORDING' && (
                     <p className="text-2xl font-mono text-white tabular-nums">
@@ -669,7 +964,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
                 }}
             >
                 <motion.div animate={{ scale: recordingState === 'RECORDING' ? [1, 1.2, 1] : 1 }} transition={{ duration: 0.8, repeat: recordingState === 'RECORDING' ? Infinity : 0 }}>
-                    <Microphone className="w-16 h-16 text-white" />
+                    <MicrophoneFilled className="w-16 h-16 text-white" />
                 </motion.div>
             </motion.button>
         </div>
@@ -689,7 +984,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-sm font-medium text-white">AI Assistant</h3>
                 <div className="flex items-center space-x-2">
-                  <Microphone className={`w-4 h-4 ${geminiMuted ? 'text-red-400' : 'text-green-400'}`} />
+                  <MicrophoneFilled className={`w-4 h-4 ${geminiMuted ? 'text-red-400' : 'text-green-400'}`} />
                   <span className="text-xs text-gray-300">
                     {geminiMuted ? 'Muted' : 'Live'}
                   </span>
@@ -716,9 +1011,11 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
                   </div>
                 )}
                 
-                {geminiTranscript && !geminiMuted && (
-                  <div className="bg-black/20 rounded-lg p-2">
-                    <p className="text-xs text-gray-300">{geminiTranscript}</p>
+                {geminiConnected && geminiTranscript && !geminiMuted && (
+                  <div className="bg-purple-500/10 rounded-lg p-3 border border-purple-400/20 max-h-[200px] overflow-y-auto">
+                    <p className="text-sm text-white whitespace-pre-wrap leading-relaxed">
+                      {geminiTranscript}
+                    </p>
                   </div>
                 )}
                 

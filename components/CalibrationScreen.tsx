@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { calibrationQuotes } from '../constants';
 import { webmBlobToWavMono16k } from '../utils/audio';
 import { extractFeaturesWithPraat } from '../services/praat';
-import { Microphone, RefreshIcon } from './Icons';
+import { Microphone, MicrophoneFilled, RefreshIcon } from './Icons';
 import { motion, AnimatePresence } from 'framer-motion';
+import { BeamsBackground } from './ui/beams-background';
 
 interface CalibrationScreenProps {
   onComplete: (baselineJson: string) => void;
@@ -216,9 +217,20 @@ const CalibrationScreen: React.FC<CalibrationScreenProps> = ({ onComplete, onClo
       exit={{ opacity: 0 }} 
       className="fixed inset-0 z-40 flex flex-col items-center justify-between p-4 pt-12 pb-8"
       style={{
-        background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 25%, #0f3460 50%, #533483 75%, #8b5cf6 100%)'
+        backgroundColor: 'transparent'
       }}
     >
+      <BeamsBackground intensity="medium" className="!z-30" />
+      <div style={{
+        position: 'relative',
+        zIndex: 10,
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'space-between'
+      }}>
         <button onClick={onClose} className="absolute top-4 right-4 z-50 w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-2xl hover:bg-white/20">&times;</button>
         
         <div className="text-center">
@@ -258,7 +270,7 @@ const CalibrationScreen: React.FC<CalibrationScreenProps> = ({ onComplete, onClo
                     animate={{ scale: status === 'RECORDING' ? 1.1 : 1 }}
                     transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                 >
-                    <Microphone className="w-10 h-10 text-white" />
+                    <MicrophoneFilled className="w-10 h-10 text-white" />
                 </motion.button>
                 
                 {canProceed && currentSample < SAMPLES_NEEDED && (
@@ -300,6 +312,7 @@ const CalibrationScreen: React.FC<CalibrationScreenProps> = ({ onComplete, onClo
         </div>
         
         {permissionError && <div className="fixed bottom-0 left-0 right-0 p-3 bg-error-red/90 text-center text-white text-sm z-50">{permissionError}</div>}
+      </div>
     </motion.div>
   );
 };

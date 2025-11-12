@@ -1,9 +1,19 @@
 export type PraatFeatures = {
+	// Basic features
 	rms: number;
 	zcr: number;
 	spectralCentroid: number;
 	spectralFlatness: number;
 	mfcc: number[];
+	// Praat advanced features (directly extracted)
+	f0_mean?: number;
+	f0_range?: number;
+	jitter?: number;
+	shimmer?: number;
+	hnr?: number;
+	f1?: number;
+	f2?: number;
+	speech_rate?: number;
 };
 
 export async function extractFeaturesWithPraat(wavBlob: Blob, baseUrl = "http://localhost:8000"): Promise<PraatFeatures> {
