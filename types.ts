@@ -23,6 +23,11 @@ export interface AnalysisData {
   questionnaireAnswers?: { [questionIndex: number]: string }; // Optional questionnaire answers
 }
 
+export interface ModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
 export interface RawBiomarkerData {
   stress_level: number;
   f0_mean: number;

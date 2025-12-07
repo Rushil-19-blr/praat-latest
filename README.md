@@ -56,14 +56,14 @@ chmod +x start-app.sh
    cd backend
    python start.py
    ```
-   The backend will be available at `http://localhost:5000`
+   The backend will be available at `http://localhost:8000`
 
 2. **Start the Frontend:**
    ```bash
    npm install
    npm run dev
    ```
-   The frontend will be available at `http://localhost:5173`
+   The frontend will be available at `http://localhost:3000`
 
 ## 🔧 Configuration
 
@@ -162,7 +162,7 @@ voice-stress-analysis-interface/
 const formData = new FormData();
 formData.append('audio', audioBlob, 'recording.webm');
 
-const response = await fetch('http://localhost:5000/api/analyze-audio', {
+const response = await fetch('http://localhost:8000/api/analyze-audio', {
   method: 'POST',
   body: formData,
 });
@@ -201,11 +201,11 @@ const response = await fetch('http://localhost:5000/api/analyze-audio', {
 2. **Audio analysis fails**
    - Verify microphone permissions
    - Ensure audio file is valid and contains speech
-   - Check that the backend is running on port 5000
+   - Check that the backend is running on port 8000
 
 3. **CORS errors**
    - The backend is configured with CORS support
-   - Ensure frontend is running on localhost:5173
+   - Ensure frontend is running on localhost:3000
 
 4. **Gemini API errors**
    - Verify your API key is set in the `.env` file

@@ -85,14 +85,13 @@ const TeacherChatModal: React.FC<TeacherChatModalProps> = ({
           console.log('Creating/getting channel for student:', selectedStudentId);
           try {
             // Create or get the channel for this specific student
-            // Pass teacherId as createdBy to ensure teacher is the creator
-            const studentChannel = await createChannel(teacherId, selectedStudentId, teacherId);
+            const studentChannel = await createChannel(teacherId, selectedStudentId);
             console.log('Channel created/retrieved:', studentChannel.id);
-            
+
             // Ensure the channel is properly watched and both members are added
             const currentMembers = studentChannel.state?.members || {};
             const memberIds = Object.keys(currentMembers);
-            
+
             if (memberIds.length < 2 || !memberIds.includes(teacherId) || !memberIds.includes(selectedStudentId)) {
               // Force add members if they're missing
               try {
@@ -108,19 +107,19 @@ const TeacherChatModal: React.FC<TeacherChatModalProps> = ({
                 console.log('Members may already be in channel:', addError);
               }
             }
-            
+
             // Watch the channel again to ensure it's fully initialized and ready for messaging
             await studentChannel.watch();
-            
+
             // Verify channel is ready
             console.log('Channel state after initialization:', {
               id: studentChannel.id,
               members: Object.keys(studentChannel.state?.members || {}),
               ready: studentChannel.state?.initialized
             });
-            
+
             setActiveChannel(studentChannel);
-            
+
             // Now query all channels to update the list
             const channelFilters = {
               type: 'messaging',
@@ -132,7 +131,7 @@ const TeacherChatModal: React.FC<TeacherChatModalProps> = ({
               state: true,
             });
             setChannels(channelQueryResponse);
-            
+
             // Ensure the student channel is still active
             const foundChannel = channelQueryResponse.find(ch => ch.id === studentChannel.id);
             if (foundChannel) {
@@ -156,13 +155,13 @@ const TeacherChatModal: React.FC<TeacherChatModalProps> = ({
               state: true,
             });
             setChannels(channelQueryResponse);
-            
+
             // Try to find existing channel with this student
             const existingChannel = channelQueryResponse.find(channel => {
               const studentId = getStudentIdFromChannelMembers(channel);
               return studentId === selectedStudentId;
             });
-            
+
             if (existingChannel) {
               setActiveChannel(existingChannel);
             } else if (channelQueryResponse.length > 0) {
@@ -181,7 +180,7 @@ const TeacherChatModal: React.FC<TeacherChatModalProps> = ({
             state: true,
           });
           setChannels(channelQueryResponse);
-          
+
           // Set the first channel as active if available
           if (channelQueryResponse.length > 0) {
             setActiveChannel(channelQueryResponse[0]);
@@ -290,16 +289,15 @@ const TeacherChatModal: React.FC<TeacherChatModalProps> = ({
                         lastMessage = `[${lastMessageObj.type}]`;
                       }
                     }
-                    
+
                     return (
                       <div
                         key={channel.id}
                         onClick={() => selectChannel(channel)}
-                        className={`p-4 cursor-pointer hover:bg-white/5 transition-colors border-l-2 ${
-                          activeChannel?.id === channel.id
-                            ? 'border-purple-primary bg-purple-primary/10'
-                            : 'border-transparent'
-                        }`}
+                        className={`p-4 cursor-pointer hover:bg-white/5 transition-colors border-l-2 ${activeChannel?.id === channel.id
+                          ? 'border-purple-primary bg-purple-primary/10'
+                          : 'border-transparent'
+                          }`}
                       >
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 bg-purple-primary/20 rounded-full flex items-center justify-center">
@@ -472,7 +470,7 @@ const TeacherChatModal: React.FC<TeacherChatModalProps> = ({
           >
             <h3 className="text-lg font-semibold text-white mb-2">Edit Nickname</h3>
             <p className="text-sm text-text-muted mb-4">Student Code: {editingStudentId}</p>
-            
+
             <input
               type="text"
               value={nicknameInput}
@@ -488,7 +486,7 @@ const TeacherChatModal: React.FC<TeacherChatModalProps> = ({
               className="w-full px-4 py-3 bg-surface border border-white/10 rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-purple-primary mb-4"
               autoFocus
             />
-            
+
             <div className="flex gap-3 justify-end">
               <button
                 onClick={handleCancelEdit}

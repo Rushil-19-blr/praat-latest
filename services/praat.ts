@@ -16,7 +16,7 @@ export type PraatFeatures = {
 	speech_rate?: number;
 };
 
-export async function extractFeaturesWithPraat(wavBlob: Blob, baseUrl = "http://localhost:8000"): Promise<PraatFeatures> {
+export async function extractFeaturesWithPraat(wavBlob: Blob, baseUrl = import.meta.env.VITE_API_URL || "http://localhost:8000"): Promise<PraatFeatures> {
 	const form = new FormData();
 	form.append('file', wavBlob, 'audio.wav');
 	const res = await fetch(`${baseUrl}/extract_features`, { method: 'POST', body: form });

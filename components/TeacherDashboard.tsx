@@ -30,7 +30,7 @@ const StressChart: React.FC<{ data: number[]; id?: string }> = ({ data, id = 'de
         .join(' ');
 
     const latestValue = data[data.length - 1];
-    
+
     // Determine color based on latest stress level
     const getLineColor = () => {
         if (latestValue < 34) return "#22C55E"; // green
@@ -73,14 +73,15 @@ const getBorderColor = (stressLevel: number): string => {
 };
 
 // --- Student Widget Component ---
-const StudentWidget: React.FC<{ 
-    student: Student; 
-    onClick: () => void; 
-    onChatClick: () => void; 
+const StudentWidget: React.FC<{
+    student: Student;
+    onClick: () => void;
+    onChatClick: () => void;
     onEditNickname: (studentId: string) => void;
     isHighAlert?: boolean;
 }> = ({ student, onClick, onChatClick, onEditNickname, isHighAlert = false }) => {
-    const hasAnalysis = student.analysisHistory.length > 0;
+    const hasAnalysis = student.analysisHistory.length > 1; // Only show if more than 1 analysis
+    const hasPendingAnalysis = student.analysisHistory.length === 1; // Check for pending first analysis
     const latestAnalysis = hasAnalysis ? student.analysisHistory[student.analysisHistory.length - 1] : null;
     const stressLevel = latestAnalysis?.stressLevel || 0;
     const stressHistory = student.analysisHistory.map(a => a.stressLevel);
@@ -122,7 +123,7 @@ const StudentWidget: React.FC<{
     // Red color scheme for High Alerts
     const alertBorderColor = isHighAlert ? 'border-red-500/80' : '';
     const alertBgGradient = isHighAlert ? 'bg-gradient-to-br from-red-900/20 to-red-800/10' : '';
-    
+
     return (
         <motion.div
             onClick={onClick}
@@ -139,7 +140,7 @@ const StudentWidget: React.FC<{
                 >
                     <MessageCircle className={`w-4 h-4 ${isHighAlert ? 'text-red-400' : 'text-purple-primary'}`} />
                 </button>
-                
+
                 {/* Edit button in top left corner */}
                 <button
                     onClick={handleEditClick}
@@ -148,7 +149,7 @@ const StudentWidget: React.FC<{
                 >
                     <Pencil className={`w-4 h-4 ${isHighAlert ? 'text-red-400' : 'text-purple-primary'}`} />
                 </button>
-                
+
                 <p className="text-3xl font-bold text-text-primary text-center px-8 break-words">{getDisplayName(student.code)}</p>
                 {hasAnalysis ? (
                     <div className="flex items-center justify-center gap-4 flex-1">
@@ -177,8 +178,12 @@ const StudentWidget: React.FC<{
                     </div>
                 ) : (
                     <div className="flex flex-col items-center justify-center gap-2 flex-1">
-                        <p className="text-text-muted text-sm text-center">No analysis yet</p>
-                        <p className="text-text-muted/70 text-xs text-center">Student has not completed<br />voice analysis</p>
+                        <p className="text-text-muted text-sm text-center">{hasPendingAnalysis ? "Analysis Pending" : "No analysis yet"}</p>
+                        <p className="text-text-muted/70 text-xs text-center">
+                            {hasPendingAnalysis
+                                ? "First analysis completed.\nAwaiting second session."
+                                : "Student has not completed\nvoice analysis"}
+                        </p>
                     </div>
                 )}
             </GlassCard>
@@ -188,19 +193,19 @@ const StudentWidget: React.FC<{
 
 
 // --- High Alerts Section Component (Stress > 80%) ---
-const HighAlertsSection: React.FC<{ 
-    students: Student[], 
+const HighAlertsSection: React.FC<{
+    students: Student[],
     onSelectStudent: (id: string) => void,
     onChatClick: (studentId: string) => void,
     onEditNickname: (studentId: string) => void
 }> = ({ students, onSelectStudent, onChatClick, onEditNickname }) => {
     const highAlertStudents = students.filter(s => {
-        // Only include students with analysis history and stress > 80%
-        if (s.analysisHistory.length === 0) return false;
+        // Only include students with > 1 analysis history and stress >= 67%
+        if (s.analysisHistory.length <= 1) return false;
         const latestStress = s.analysisHistory[s.analysisHistory.length - 1].stressLevel;
-        return latestStress > 80; // Only show high alerts (stress > 80%)
+        return latestStress >= 67; // Only show high alerts (stress >= 67%)
     })
-        .sort((a, b) => b.analysisHistory[b.analysisHistory.length-1].stressLevel - a.analysisHistory[a.analysisHistory.length-1].stressLevel);
+        .sort((a, b) => b.analysisHistory[b.analysisHistory.length - 1].stressLevel - a.analysisHistory[a.analysisHistory.length - 1].stressLevel);
 
     if (highAlertStudents.length === 0) return null;
 
@@ -214,7 +219,7 @@ const HighAlertsSection: React.FC<{
                 <div className="flex gap-4 min-w-max">
                     {highAlertStudents.map(student => (
                         <div key={student.code} className="flex-shrink-0 w-[280px]">
-                            <StudentWidget 
+                            <StudentWidget
                                 student={student}
                                 onClick={() => onSelectStudent(student.code)}
                                 onChatClick={() => onChatClick(student.code)}
@@ -238,76 +243,57 @@ const HighAlertsSection: React.FC<{
     );
 };
 
-// --- High Risk Alerts Component (Legacy - for backwards compatibility) ---
-const HighRiskAlerts: React.FC<{ students: Student[], onSelectStudent: (id: string) => void }> = ({ students, onSelectStudent }) => {
+// --- High Risk Students Widget for Main Dashboard (All Classes) ---
+const HighRiskStudentsWidget: React.FC<{
+    students: Student[],
+    onSelectStudent: (id: string) => void,
+    onChatClick: (studentId: string) => void,
+    onEditNickname: (studentId: string) => void
+}> = ({ students, onSelectStudent, onChatClick, onEditNickname }) => {
     const highRiskStudents = students.filter(s => {
-        // Only include students with analysis history
-        if (s.analysisHistory.length === 0) return false;
+        // Only include students with > 1 analysis history and stress >= 67%
+        if (s.analysisHistory.length <= 1) return false;
         const latestStress = s.analysisHistory[s.analysisHistory.length - 1].stressLevel;
-        return latestStress >= 75 && latestStress <= 80; // Show moderate-high risk (75-80%)
+        return latestStress >= 67; // Show all high-risk students (stress >= 67%)
     })
-        .sort((a, b) => b.analysisHistory[b.analysisHistory.length-1].stressLevel - a.analysisHistory[a.analysisHistory.length-1].stressLevel);
+        .sort((a, b) => b.analysisHistory[b.analysisHistory.length - 1].stressLevel - a.analysisHistory[a.analysisHistory.length - 1].stressLevel);
 
-    if(highRiskStudents.length === 0) return null;
+    if (highRiskStudents.length === 0) return null;
 
     return (
         <div className="mb-8">
-            <h2 className="text-xl font-bold uppercase text-text-muted tracking-wider mb-4 px-2">HIGH-RISK STUDENTS ALERT</h2>
-            <div className="bg-[#2a2418] rounded-2xl p-4">
-                <div className="grid grid-cols-2 gap-4">
-                    {highRiskStudents.map(student => {
-                        const latestStress = student.analysisHistory[student.analysisHistory.length - 1].stressLevel;
-                        
-                        // Determine color based on stress level thresholds
-                        const getPrimaryColor = (): "danger" | "warning" | "success" => {
-                            if (latestStress < 34) return "success";
-                            if (latestStress < 67) return "warning";
-                            return "danger";
-                        };
-
-                        const stressHistory = student.analysisHistory.map(a => a.stressLevel);
-
-                        return (
-                            <motion.div
-                                key={student.code}
+            <h2 className="text-xl font-bold uppercase text-red-500 tracking-wider mb-4 px-2 flex items-center gap-2">
+                <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                HIGH-RISK STUDENTS ALERT
+            </h2>
+            <div className="overflow-x-auto scrollbar-hide pb-4">
+                <div className="flex gap-4 min-w-max">
+                    {highRiskStudents.map(student => (
+                        <div key={student.code} className="flex-shrink-0 w-[280px]">
+                            <StudentWidget
+                                student={student}
                                 onClick={() => onSelectStudent(student.code)}
-                                className={`bg-surface rounded-xl p-6 cursor-pointer flex flex-col items-center justify-center gap-4 min-h-[180px] border-2 ${getBorderColor(latestStress)}`}
-                                whileHover={{ scale: 1.02, y: -2 }}
-                                transition={{ type: 'spring', stiffness: 300 }}
-                            >
-                                <p className="text-3xl font-bold text-text-primary">{student.code}</p>
-                                <div className="flex items-center justify-center gap-3 flex-1">
-                                    <div className="flex items-center justify-center">
-                                        <Gauge
-                                            value={latestStress}
-                                            size={80}
-                                            strokeWidth={6}
-                                            gradient={true}
-                                            primary={getPrimaryColor()}
-                                            showValue={true}
-                                            showPercentage={true}
-                                            unit="%"
-                                            tickMarks={true}
-                                            glowEffect={true}
-                                            transition={{ length: 800, delay: 0 }}
-                                            className={{
-                                                svgClassName: "text-white",
-                                                textClassName: "fill-white"
-                                            }}
-                                        />
-                                    </div>
-                                    <div className="w-16 h-10 flex-shrink-0">
-                                        <StressChart data={stressHistory} id={student.code} />
-                                    </div>
-                                </div>
-                            </motion.div>
-                        );
-                    })}
+                                onChatClick={() => onChatClick(student.code)}
+                                onEditNickname={onEditNickname}
+                                isHighAlert={true}
+                            />
+                        </div>
+                    ))}
                 </div>
             </div>
+            <style>{`
+                .scrollbar-hide::-webkit-scrollbar {
+                    display: none;
+                }
+                .scrollbar-hide {
+                    -ms-overflow-style: none;
+                    scrollbar-width: none;
+                }
+            `}</style>
         </div>
     );
 };
+
 
 interface ClassSummary {
     id: string;
@@ -331,7 +317,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
     const [selectedStudentForChat, setSelectedStudentForChat] = useState<string | null>(null);
     const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
     const [nicknameInput, setNicknameInput] = useState<string>('');
-    
+
     // Teacher ID (hardcoded - same as admin code)
     const teacherId = '9999';
 
@@ -372,7 +358,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
 
     const classSummaries = useMemo<ClassSummary[]>(() => {
         const classes = new Map<string, { totalStress: number; studentList: Student[]; analyzedCount: number }>();
-        
+
         students.forEach(student => {
             const classId = `${student.class}-${student.section}`;
             if (!classes.has(classId)) {
@@ -380,9 +366,9 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
             }
             const classData = classes.get(classId)!;
             classData.studentList.push(student);
-            
-            // Only add to stress calculation if student has analysis history
-            if (student.analysisHistory.length > 0) {
+
+            // Only add to stress calculation if student has > 1 analysis history
+            if (student.analysisHistory.length > 1) {
                 classData.totalStress += student.analysisHistory[student.analysisHistory.length - 1].stressLevel;
                 classData.analyzedCount += 1;
             }
@@ -394,25 +380,25 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
             studentCount: data.studentList.length,
             averageStress: data.analyzedCount > 0 ? Math.round(data.totalStress / data.analyzedCount) : 0,
             students: data.studentList
-        })).sort((a,b) => a.id.localeCompare(b.id));
+        })).sort((a, b) => a.id.localeCompare(b.id));
 
     }, [students]);
 
     const selectedClass = useMemo(() => {
         return classSummaries.find(c => c.id === selectedClassId) || null;
     }, [selectedClassId, classSummaries]);
-        
+
     const containerVariants = {
         hidden: { opacity: 0, y: 20 },
         visible: { opacity: 1, y: 0, transition: { staggerChildren: 0.07 } }
     };
-    
+
     const pageTransition = {
         type: "tween",
         ease: "anticipate",
         duration: 0.5
     };
-    
+
     const pageVariants = {
         initial: { opacity: 0, x: -50 },
         animate: { opacity: 1, x: 0 },
@@ -422,10 +408,10 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
     return (
         <div className="min-h-screen w-full p-4 max-w-4xl mx-auto">
             <header className="flex items-center justify-between pt-4 pb-6">
-                 <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
                     {selectedClassId && (
-                        <motion.button 
-                            onClick={() => setSelectedClassId(null)} 
+                        <motion.button
+                            onClick={() => setSelectedClassId(null)}
                             className="w-10 h-10 bg-surface rounded-full flex items-center justify-center hover:bg-surface/80 transition-colors"
                             initial={{ scale: 0 }}
                             animate={{ scale: 1 }}
@@ -443,7 +429,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    <button 
+                    <button
                         className="w-10 h-10 bg-surface rounded-full flex items-center justify-center hover:bg-purple-primary/20 transition-colors cursor-pointer relative"
                         onClick={() => setIsChatOpen(true)}
                         title="Messages"
@@ -456,10 +442,10 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
                             scale: [1, 1.05, 1],
                             rotate: [0, 3, -3, 0],
                         }}
-                        whileHover={{ 
+                        whileHover={{
                             scale: 1.15,
                         }}
-                        whileTap={{ 
+                        whileTap={{
                             scale: 0.9,
                             rotate: 360,
                         }}
@@ -488,15 +474,15 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
                             }
                         }}
                     >
-                        <LiquidButton 
+                        <LiquidButton
                             onClick={onRefresh}
                             title="Refresh Data"
                             className="w-10 h-10 rounded-full flex items-center justify-center p-0 relative"
                         >
-                            <motion.svg 
-                                className="w-5 h-5" 
-                                fill="none" 
-                                stroke="currentColor" 
+                            <motion.svg
+                                className="w-5 h-5"
+                                fill="none"
+                                stroke="currentColor"
                                 viewBox="0 0 24 24"
                                 animate={{
                                     rotate: [0, 360],
@@ -513,7 +499,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
                             </motion.svg>
                         </LiquidButton>
                     </motion.div>
-                    <LiquidButton 
+                    <LiquidButton
                         onClick={() => {
                             if (window.confirm('Are you sure you want to sign out?')) {
                                 onSignOut();
@@ -530,10 +516,21 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
             <main>
                 <AnimatePresence mode="wait">
                     {!selectedClass ? (
-                         <MotionDiv
+                        <MotionDiv
                             key="class-grid"
                             variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={pageTransition}
-                         >
+                        >
+                            {/* High Risk Students Widget - All Classes */}
+                            <HighRiskStudentsWidget
+                                students={students}
+                                onSelectStudent={onSelectStudent}
+                                onChatClick={(studentId) => {
+                                    setSelectedStudentForChat(studentId);
+                                    setIsChatOpen(true);
+                                }}
+                                onEditNickname={handleEditNickname}
+                            />
+
                             <h2 className="text-xl font-bold uppercase text-text-muted tracking-wider mb-4 px-2">All Classes</h2>
                             {classSummaries.length === 0 ? (
                                 <div className="text-center py-12">
@@ -542,7 +539,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
                                     </div>
                                     <h3 className="text-3xl font-semibold text-text-primary mb-2">No Students Yet</h3>
                                     <p className="text-xl font-normal text-text-muted mb-4">Students will appear here once they complete their first voice analysis session.</p>
-                                    <button 
+                                    <button
                                         onClick={onRefresh}
                                         className="px-4 py-2 bg-purple-primary text-white rounded-lg hover:bg-purple-dark transition-colors text-sm font-medium"
                                     >
@@ -572,14 +569,14 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
                             )}
                         </MotionDiv>
                     ) : (
-                         <MotionDiv
+                        <MotionDiv
                             key="student-list"
                             variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={pageTransition}
                             className="space-y-8"
-                         >
+                        >
                             {/* High Alerts Section - Prominently displayed at top */}
-                            <HighAlertsSection 
-                                students={selectedClass.students} 
+                            <HighAlertsSection
+                                students={selectedClass.students}
                                 onSelectStudent={onSelectStudent}
                                 onChatClick={(studentId) => {
                                     setSelectedStudentForChat(studentId);
@@ -587,11 +584,11 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
                                 }}
                                 onEditNickname={handleEditNickname}
                             />
-                            
-                            <HighRiskAlerts students={selectedClass.students} onSelectStudent={onSelectStudent} />
+
+
 
                             <div>
-                                 <h2 className="text-xl font-bold uppercase text-text-muted tracking-wider mb-4 px-2">ALL STUDENTS IN CLASS</h2>
+                                <h2 className="text-xl font-bold uppercase text-text-muted tracking-wider mb-4 px-2">ALL STUDENTS IN CLASS</h2>
                                 <MotionDiv
                                     variants={containerVariants}
                                     initial="hidden"
@@ -599,8 +596,8 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
                                     className="grid grid-cols-2 gap-4"
                                 >
                                     {selectedClass.students.map(student => (
-                                        <StudentWidget 
-                                            key={student.code} 
+                                        <StudentWidget
+                                            key={student.code}
                                             student={student}
                                             onClick={() => onSelectStudent(student.code)}
                                             onChatClick={() => {
@@ -649,7 +646,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
                     >
                         <h3 className="text-lg font-semibold text-white mb-2">Edit Nickname</h3>
                         <p className="text-sm text-text-muted mb-4">Student Code: {editingStudentId}</p>
-                        
+
                         <input
                             type="text"
                             value={nicknameInput}
@@ -665,7 +662,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
                             className="w-full px-4 py-3 bg-surface border border-white/10 rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-purple-primary mb-4"
                             autoFocus
                         />
-                        
+
                         <div className="flex gap-3 justify-end">
                             <button
                                 onClick={handleCancelEdit}

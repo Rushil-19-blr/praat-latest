@@ -22,7 +22,7 @@ const StudentChatModal: React.FC<StudentChatModalProps> = ({
   const [activeChannel, setActiveChannel] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isCreatingChannel, setIsCreatingChannel] = useState(false);
-  
+
   // Teacher ID (hardcoded - same as admin code)
   const teacherId = '9999';
 
@@ -41,18 +41,61 @@ const StudentChatModal: React.FC<StudentChatModalProps> = ({
         await connectUser(studentId, studentName);
       }
 
-      // Query channels where the student is a member
-      const channelFilters = {
-        type: 'messaging',
-        members: { $in: [studentId] }
-      };
+      let channelQueryResponse: any[] = [];
 
-      const channelSort = [{ last_message_at: -1 }];
+      // First, try to query channels where the student is a member
+      try {
+        const channelFilters = {
+          type: 'messaging',
+          members: { $in: [studentId] }
+        };
 
-      const channelQueryResponse = await client.queryChannels(channelFilters, channelSort, {
-        watch: true,
-        state: true,
-      });
+        const channelSort = [{ last_message_at: -1 }];
+
+        channelQueryResponse = await client.queryChannels(channelFilters, channelSort, {
+          watch: true,
+          state: true,
+        });
+      } catch (queryError: any) {
+        console.warn('Channel query failed, trying direct channel access:', queryError);
+        // If query fails (e.g., error code 70 - access denied), try to get channel directly by ID
+      }
+
+      // If no channels found via query, try to get the specific channel by ID
+      // This handles the case where teacher created the channel but student hasn't been added as member yet
+      if (channelQueryResponse.length === 0) {
+        const channelId = `teacher-${teacherId}-student-${studentId}`;
+        try {
+          const existingChannel = client.channel('messaging', channelId);
+
+          // Try to watch the channel - this will fail if it doesn't exist or student doesn't have access
+          await existingChannel.watch();
+
+          // Check if student is a member
+          const currentMembers = existingChannel.state?.members || {};
+          const memberIds = Object.keys(currentMembers);
+
+          if (!memberIds.includes(studentId)) {
+            // Student is not a member, try to add them
+            try {
+              await existingChannel.addMembers([studentId]);
+              // Watch again after adding member
+              await existingChannel.watch();
+            } catch (addError) {
+              console.warn('Could not add student to channel:', addError);
+              // Continue anyway - the channel might still be accessible
+            }
+          }
+
+          // If we successfully watched the channel, add it to the list
+          if (existingChannel.state?.initialized) {
+            channelQueryResponse = [existingChannel];
+          }
+        } catch (directError: any) {
+          console.log('Direct channel access failed (channel may not exist yet):', directError);
+          // Channel doesn't exist yet - that's fine, student can create it
+        }
+      }
 
       setChannels(channelQueryResponse);
 
@@ -80,8 +123,8 @@ const StudentChatModal: React.FC<StudentChatModalProps> = ({
         await connectUser(studentId, studentName);
       }
 
-      // Create channel with teacher (student as creator)
-      const newChannel = await createChannel(teacherId, studentId, studentId);
+      // Create channel with teacher
+      const newChannel = await createChannel(teacherId, studentId);
 
       // Refresh channel list
       await initializeStudentChat();
@@ -175,16 +218,15 @@ const StudentChatModal: React.FC<StudentChatModalProps> = ({
                         lastMessage = `[${lastMessageObj.type}]`;
                       }
                     }
-                    
+
                     return (
                       <div
                         key={channel.id}
                         onClick={() => selectChannel(channel)}
-                        className={`p-4 cursor-pointer hover:bg-white/5 transition-colors border-l-2 ${
-                          activeChannel?.id === channel.id
-                            ? 'border-purple-primary bg-purple-primary/10'
-                            : 'border-transparent'
-                        }`}
+                        className={`p-4 cursor-pointer hover:bg-white/5 transition-colors border-l-2 ${activeChannel?.id === channel.id
+                          ? 'border-purple-primary bg-purple-primary/10'
+                          : 'border-transparent'
+                          }`}
                       >
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 bg-purple-primary/20 rounded-full flex items-center justify-center">

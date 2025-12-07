@@ -371,7 +371,7 @@ const App: React.FC = () => {
       }
     }
     
-    setAppState('RESULTS');
+    handleNextToSuggestions();
   }, []);
   
   const handleCalibrationComplete = useCallback((baselineJson: string) => {
@@ -407,7 +407,8 @@ const App: React.FC = () => {
   }, []);
 
   const handleSuggestionsBack = useCallback(() => {
-    setAppState('RESULTS');
+    setAnalysisData(null);
+    setAppState('DASHBOARD');
   }, []);
 
   const handleSuggestionsClose = useCallback(() => {
