@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { VoicePoweredOrb } from './ui/voice-powered-orb';
 import { BeamsBackground } from './ui/beams-background';
 import CalibrationSuccessPopup from './CalibrationSuccessPopup';
+import { resetSensitivityState } from '../utils/sensitivityAdaptation';
 
 interface VoiceCalibrationScreenProps {
   onCalibrationComplete: (baselineJson: string) => void;
@@ -181,7 +182,6 @@ const VoiceCalibrationScreen: React.FC<VoiceCalibrationScreenProps> = ({
       console.log('  F0 Range:', features.f0_range, 'Hz');
       console.log('  Jitter:', features.jitter, '%');
       console.log('  Shimmer:', features.shimmer, '%');
-      console.log('  HNR (Harmonics-to-Noise):', features.hnr, 'dB');
       console.log('  F1 (First Formant):', features.f1, 'Hz');
       console.log('  F2 (Second Formant):', features.f2, 'Hz');
       console.log('  Speech Rate:', features.speech_rate, 'WPM');
@@ -201,7 +201,6 @@ const VoiceCalibrationScreen: React.FC<VoiceCalibrationScreenProps> = ({
         f0_range: features.f0_range || 0,
         jitter: features.jitter || 0,
         shimmer: features.shimmer || 0,
-        hnr: features.hnr || 0,
         f1: features.f1 || 0,
         f2: features.f2 || 0,
         speech_rate: features.speech_rate || 0,
@@ -210,6 +209,11 @@ const VoiceCalibrationScreen: React.FC<VoiceCalibrationScreenProps> = ({
       
       const baselineJson = JSON.stringify(baselineData);
       localStorage.setItem('voiceBaseline', baselineJson);
+      
+      // Reset adaptive sensitivity state when new baseline is created
+      // This ensures sensitivity starts conservative for the new baseline
+      resetSensitivityState();
+      
       setHasBaseline(true);
       setRecordingState('COMPLETE');
       

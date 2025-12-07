@@ -5,6 +5,7 @@ import { BeamsBackground } from './ui/beams-background';
 import { ChevronLeft, Info, Play, Pause, Bookmark, Microphone, MessageCircle, FileText, getBiomarkerIcon } from './Icons';
 import { motion, animate, AnimatePresence, type Variants } from 'framer-motion';
 import { Gauge } from './ui/gauge-1';
+import SelfReportSlider from './SelfReportSlider';
 
 interface AnalysisResultsScreenProps {
   analysisData: AnalysisData;
@@ -16,6 +17,7 @@ interface AnalysisResultsScreenProps {
   studentHistory?: AnalysisData[]; // For teacher view trends chart
   onReportClick?: () => void; // Callback for report icon click (will pass selected analysis)
   onDateClick?: (analysis: AnalysisData) => void; // Callback when clicking a date on the chart
+  onSelfReportSubmit?: (score: number) => void;
 }
 
 const StressIndicator: React.FC<{ stressLevel: number }> = ({ stressLevel }) => {
@@ -587,7 +589,7 @@ const BiomarkerWidget: React.FC<{ biomarker: Biomarker, isExpanded?: boolean, on
 };
 
 
-const AnalysisResultsScreen: React.FC<AnalysisResultsScreenProps> = ({ analysisData, onNewRecording, onClose, onNext, isTeacherView = false, onChatClick, studentHistory, onReportClick, onDateClick }) => {
+const AnalysisResultsScreen: React.FC<AnalysisResultsScreenProps> = ({ analysisData, onNewRecording, onClose, onNext, isTeacherView = false, onChatClick, studentHistory, onReportClick, onDateClick, onSelfReportSubmit }) => {
   const [selectedBiomarker, setSelectedBiomarker] = useState<Biomarker | null>(null);
 
   const containerVariants = {
@@ -615,9 +617,9 @@ const AnalysisResultsScreen: React.FC<AnalysisResultsScreenProps> = ({ analysisD
     }
   };
 
-  // Filter out HNR and Speech Rate biomarkers
+  // Filter out Speech Rate biomarker (handled separately in the UI)
   const filteredBiomarkers = analysisData.biomarkers.filter(
-    bm => bm.name !== 'HNR' && bm.name !== 'Speech Rate'
+    bm => bm.name !== 'Speech Rate'
   );
   
   // Split biomarkers: Acoustic measures are first 4 (F0 Mean, F0 Range, Jitter, Shimmer)
@@ -744,6 +746,15 @@ const AnalysisResultsScreen: React.FC<AnalysisResultsScreenProps> = ({ analysisD
                 </div>
             </motion.div>
             
+            {!isTeacherView && (
+              <motion.div variants={itemVariants}>
+                <SelfReportSlider
+                  initialScore={analysisData.selfReportScore}
+                  onSubmit={onSelfReportSubmit}
+                />
+              </motion.div>
+            )}
+
             {!isTeacherView && (
                 <motion.div className="space-y-4 pt-4" variants={itemVariants}>
                      <button className="w-full h-14 rounded-2xl flex items-center justify-center font-bold text-white bg-gradient-to-r from-purple-dark to-purple-primary shadow-lg shadow-purple-dark/30 hover:scale-[1.02] transition-transform">

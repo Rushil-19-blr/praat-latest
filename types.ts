@@ -8,7 +8,7 @@ export interface Biomarker {
   status: 'green' | 'orange' | 'red';
   detail: string;
   explanation: string;
-  icon: 'SineWave' | 'Range' | 'WavyLine' | 'Amplitude' | 'Signal' | 'Curve1' | 'Curve2' | 'Speedometer';
+  icon: 'SineWave' | 'Range' | 'WavyLine' | 'Amplitude' | 'Curve1' | 'Curve2' | 'Speedometer';
   normalizedValue: number; // Value from 0 to 1 for visualizations
 }
 
@@ -21,6 +21,14 @@ export interface AnalysisData {
   aiSummary: string;
   date: string;
   questionnaireAnswers?: { [questionIndex: number]: string }; // Optional questionnaire answers
+  liveSessionAnswers?: { questionText: string; studentAnswer: string }[]; // Live Gemini conversation Q&A
+  selfReportScore?: number;
+  counselorReport?: string; // Persisted generated report
+}
+
+export interface ModalProps {
+  isOpen: boolean;
+  onClose: () => void;
 }
 
 export interface RawBiomarkerData {
@@ -29,7 +37,6 @@ export interface RawBiomarkerData {
   f0_range: number;
   jitter: number;
   shimmer: number;
-  hnr: number;
   f1: number;
   f2: number;
   speech_rate: number;
@@ -55,4 +62,79 @@ export interface ClassSummary {
   studentCount: number;
   averageStress: number;
   students: Student[];
+}
+
+// ===== Personalization Types =====
+
+export interface StudentProfile {
+  studentId: string;
+  name: string;
+  age?: number;
+  grade?: number;
+  section?: string;
+  subjectsOfFocus?: string[];
+  createdAt: string;
+}
+
+export type PreAnalysisQuestionType = 'scale-1-5' | 'yes-no' | 'multiple-choice';
+export type PreAnalysisCategory = 'stress' | 'sleep' | 'focus' | 'social' | 'academic' | 'general';
+
+export interface PreAnalysisQuestion {
+  id: string;
+  text: string;
+  type: PreAnalysisQuestionType;
+  options?: string[];
+  category: PreAnalysisCategory;
+}
+
+export interface PreAnalysisSession {
+  sessionId: string;
+  date: string;
+  questions: PreAnalysisQuestion[];
+  answers: { [questionId: string]: string | number };
+}
+
+export interface LiveSessionQuestion {
+  questionId: string;
+  questionText: string;
+  timestamp: string;
+  studentAnswer: string;
+}
+
+export interface CounselorReport {
+  sessionId: string;
+  generatedAt: string;
+  preAnalysisSummary: string;
+  liveSessionSummary: string;
+  keyInsights: string[];
+  concernAreas: string[];
+  recommendations: string[];
+  overallAssessment: string;
+}
+
+export interface SessionData {
+  sessionId: string;
+  date: string;
+  preAnalysisSession?: PreAnalysisSession;
+  liveSessionQuestions?: LiveSessionQuestion[];
+  voiceAnalysis?: {
+    stressLevel: number;
+    biomarkers: Biomarker[];
+    aiSummary: string;
+  };
+  counselorReport?: CounselorReport;
+}
+
+export interface LearningAnalytics {
+  topicsStruggledWith: string[];
+  averageSessionDuration: number;
+  consistencyScore: number;
+  totalSessions: number;
+  averageStressLevel: number;
+}
+
+export interface StudentHistory {
+  profile: StudentProfile;
+  sessions: SessionData[];
+  learningAnalytics?: LearningAnalytics;
 }

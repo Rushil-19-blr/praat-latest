@@ -150,27 +150,6 @@ def extract_praat_features(samples: np.ndarray, sample_rate: int) -> dict:
 			jitter = 0.0
 			shimmer = 0.0
 		
-		# Calculate HNR (Harmonics-to-Noise Ratio)
-		hnr = 0.0
-		try:
-			harmonicity = sound.to_harmonicity_cc(
-				time_step=0.01,
-				minimum_pitch=75.0,
-				maximum_pitch=600.0
-			)
-			if harmonicity:
-				# Get mean harmonicity value
-				hnr = harmonicity.get_mean()
-				if hnr is not None and hnr > -100:  # Praat returns very negative values for unvoiced
-					hnr = float(hnr)
-				else:
-					hnr = 0.0
-			else:
-				hnr = 0.0
-		except Exception as e:
-			print(f"Warning: Could not extract HNR: {str(e)}")
-			hnr = 0.0
-		
 		# Estimate speech rate (rough estimate based on voiced segments)
 		speech_rate = 0.0
 		if len(f0_values) > 0:
@@ -189,7 +168,6 @@ def extract_praat_features(samples: np.ndarray, sample_rate: int) -> dict:
 			"f0_range": f0_range,
 			"jitter": jitter,
 			"shimmer": shimmer,
-			"hnr": hnr,
 			"f1": f1_mean,
 			"f2": f2_mean,
 			"speech_rate": speech_rate,
@@ -202,7 +180,6 @@ def extract_praat_features(samples: np.ndarray, sample_rate: int) -> dict:
 			"f0_range": 0.0,
 			"jitter": 0.0,
 			"shimmer": 0.0,
-			"hnr": 0.0,
 			"f1": 0.0,
 			"f2": 0.0,
 			"speech_rate": 0.0,
@@ -284,7 +261,7 @@ def extract_features():
 		basic = compute_basic_features(samples, sample_rate)
 		mfcc = compute_mfcc(samples, sample_rate, num_coeffs=13)
 		
-		# Extract advanced Praat features (F0, jitter, shimmer, HNR, formants)
+		# Extract advanced Praat features (F0, jitter, shimmer, formants)
 		praat_features = extract_praat_features(samples, sample_rate)
 		
 		# Print extracted features to terminal/console
@@ -302,7 +279,6 @@ def extract_features():
 		print(f"  F0 Range: {praat_features['f0_range']:.2f} Hz")
 		print(f"  Jitter: {praat_features['jitter']:.2f}%")
 		print(f"  Shimmer: {praat_features['shimmer']:.2f}%")
-		print(f"  HNR (Harmonics-to-Noise): {praat_features['hnr']:.2f} dB")
 		print(f"  F1 (First Formant): {praat_features['f1']:.2f} Hz")
 		print(f"  F2 (Second Formant): {praat_features['f2']:.2f} Hz")
 		print(f"  Speech Rate: {praat_features['speech_rate']:.1f} WPM")
@@ -325,7 +301,6 @@ def extract_features():
 			"f0_range": praat_features["f0_range"],
 			"jitter": praat_features["jitter"],
 			"shimmer": praat_features["shimmer"],
-			"hnr": praat_features["hnr"],
 			"f1": praat_features["f1"],
 			"f2": praat_features["f2"],
 			"speech_rate": praat_features["speech_rate"],

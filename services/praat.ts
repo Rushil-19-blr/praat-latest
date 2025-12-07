@@ -10,7 +10,6 @@ export type PraatFeatures = {
 	f0_range?: number;
 	jitter?: number;
 	shimmer?: number;
-	hnr?: number;
 	f1?: number;
 	f2?: number;
 	speech_rate?: number;

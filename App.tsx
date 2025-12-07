@@ -21,7 +21,7 @@ import StreamChatProvider from './components/StreamChatProvider';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BeamsBackground } from './components/ui/beams-background';
 import { GlassFilter } from './components/ui/liquid-radio';
-import type { AnalysisData, Student } from './types';
+import type { AnalysisData, Student, PreAnalysisSession } from './types';
 import type { QuestionnaireAnswers } from './components/PreRecordingQuestionnaire';
 // Import storage utilities - makes clearAllStorage() available globally
 import './utils/storageUtils';
@@ -37,7 +37,8 @@ const App: React.FC = () => {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [userType, setUserType] = useState<'student' | 'teacher'>('student');
   const [questionnaireAnswers, setQuestionnaireAnswers] = useState<QuestionnaireAnswers | null>(null);
-  
+  const [preAnalysisSession, setPreAnalysisSession] = useState<PreAnalysisSession | null>(null);
+
   // Signup flow state
   const [selectedClass, setSelectedClass] = useState<number | null>(null);
   const [selectedSection, setSelectedSection] = useState<string | null>(null);
@@ -68,7 +69,7 @@ const App: React.FC = () => {
     if (storedBaseline) {
       setBaselineData(storedBaseline);
     }
-    
+
     // Load real student data from localStorage on initial mount
     loadStudentData();
   }, [loadStudentData]);
@@ -83,12 +84,12 @@ const App: React.FC = () => {
   // Sign-in handlers
   const handleSignIn = useCallback(async (code: string, password: string, userType: 'student' | 'teacher') => {
     setUserType(userType);
-    
+
     if (userType === 'teacher') {
       // Teacher authentication with admin credentials
       const adminCode = '9999';
       const adminPassword = 'admin123';
-      
+
       if (code === adminCode && password === adminPassword) {
         localStorage.setItem('isTeacherSignedIn', 'true');
         // Reload student data to get latest students including newly created ones
@@ -101,7 +102,7 @@ const App: React.FC = () => {
       // Student authentication - check all student accounts
       let studentAccountsData = localStorage.getItem('studentAccounts');
       let studentAccounts: any[] = [];
-      
+
       // Backward compatibility: Migrate old userData to studentAccounts if it exists
       if (!studentAccountsData) {
         const oldUserData = localStorage.getItem('userData');
@@ -134,16 +135,16 @@ const App: React.FC = () => {
           studentAccounts = [];
         }
       }
-      
+
       if (studentAccounts.length === 0) {
         throw new Error('No account found. Please create an account first.');
       }
-      
+
       // Find the account matching the provided credentials
-      const matchingAccount = studentAccounts.find((account: any) => 
+      const matchingAccount = studentAccounts.find((account: any) =>
         account.accountNumber === code && account.password === password
       );
-      
+
       if (matchingAccount) {
         // Store the current user's data for the session
         localStorage.setItem('userData', JSON.stringify(matchingAccount));
@@ -218,11 +219,11 @@ const App: React.FC = () => {
       accountNumber: accountNumber,
       password: password
     };
-    
+
     // Get existing student accounts or create new array
     const studentAccountsData = localStorage.getItem('studentAccounts');
     let studentAccounts: any[] = [];
-    
+
     if (studentAccountsData) {
       try {
         const parsed = JSON.parse(studentAccountsData);
@@ -242,10 +243,10 @@ const App: React.FC = () => {
         studentAccounts = [];
       }
     }
-    
+
     // Check if account already exists (shouldn't happen, but just in case)
     const accountIndex = studentAccounts.findIndex(acc => acc.accountNumber === accountNumber);
-    
+
     if (accountIndex === -1) {
       // Add new account to the array
       studentAccounts.push(newAccountData);
@@ -255,19 +256,19 @@ const App: React.FC = () => {
       studentAccounts[accountIndex] = newAccountData;
       localStorage.setItem('studentAccounts', JSON.stringify(studentAccounts));
     }
-    
+
     // Store current user data for the session (auto-sign in after successful signup)
     localStorage.setItem('isSignedUp', 'true');
     localStorage.setItem('isSignedIn', 'true');
     localStorage.setItem('userData', JSON.stringify(newAccountData));
-    
+
     // Add student to allStudentsData immediately so teacher can see them
     const allStudentsData = localStorage.getItem('allStudentsData');
     let studentsData: Student[] = allStudentsData ? JSON.parse(allStudentsData) : [];
-    
+
     // Check if student already exists (shouldn't happen, but just in case)
     const studentIndex = studentsData.findIndex(s => s.code === accountNumber);
-    
+
     if (studentIndex === -1) {
       // Create new student entry with empty analysisHistory
       const newStudent: Student = {
@@ -279,14 +280,14 @@ const App: React.FC = () => {
         analysisHistory: [] // Empty initially
       };
       studentsData.push(newStudent);
-      
+
       // Save updated students data
       localStorage.setItem('allStudentsData', JSON.stringify(studentsData));
-      
+
       // Update local state
       setStudents(studentsData);
     }
-    
+
     setAppState('SUCCESS');
   }, [selectedClass, selectedSection, enrollmentNumber, accountNumber]);
 
@@ -296,18 +297,29 @@ const App: React.FC = () => {
 
   const handleStartSession = useCallback(() => setAppState('QUESTIONNAIRE'), []);
   const handleStartCalibration = useCallback(() => setAppState('CALIBRATION_FLOW'), []);
-  
-  const handleQuestionnaireSubmit = useCallback((answers: QuestionnaireAnswers) => {
+
+  const handleQuestionnaireSubmit = useCallback((answers: QuestionnaireAnswers, questions?: any[]) => {
     setQuestionnaireAnswers(answers);
+
+    // Construct PreAnalysisSession object
+    const session: PreAnalysisSession = {
+      sessionId: `preanalysis_${Date.now()}`,
+      date: new Date().toISOString(),
+      questions: questions || [],
+      answers: answers as { [questionId: string]: string | number }
+    };
+    setPreAnalysisSession(session);
+
     // Optionally store in localStorage for future reference
     localStorage.setItem('questionnaireAnswers', JSON.stringify(answers));
+    localStorage.setItem('currentPreAnalysisSession', JSON.stringify(session));
     setAppState('RECORDING');
   }, []);
 
   const handleQuestionnaireBack = useCallback(() => {
     setAppState('DASHBOARD');
   }, []);
-  
+
   const handleCloseModal = useCallback(() => setAppState('DASHBOARD'), []);
 
 
@@ -316,15 +328,15 @@ const App: React.FC = () => {
     // Get questionnaire answers from localStorage if available
     const storedAnswers = localStorage.getItem('questionnaireAnswers');
     const questionnaireAnswers = storedAnswers ? JSON.parse(storedAnswers) : null;
-    
-    const analysisDataWithDate = { 
-      ...rest, 
-      aiSummary, 
+
+    const analysisDataWithDate = {
+      ...rest,
+      aiSummary,
       date: new Date().toISOString(),
       questionnaireAnswers: questionnaireAnswers || undefined
     };
     setAnalysisData(analysisDataWithDate);
-    
+
     // Save analysis data to student's history
     const userData = localStorage.getItem('userData');
     if (userData) {
@@ -334,14 +346,14 @@ const App: React.FC = () => {
         const studentName = parsedUserData.enrollment || 'Unknown Student';
         const studentClass = parsedUserData.class || 10;
         const studentSection = parsedUserData.section || 'A';
-        
+
         // Get existing students data
         const allStudentsData = localStorage.getItem('allStudentsData');
         let studentsData: Student[] = allStudentsData ? JSON.parse(allStudentsData) : [];
-        
+
         // Find existing student or create new one
         let studentIndex = studentsData.findIndex(s => s.code === studentCode);
-        
+
         if (studentIndex === -1) {
           // Create new student
           const newStudent: Student = {
@@ -360,20 +372,48 @@ const App: React.FC = () => {
           const latestStress = data.stressLevel;
           studentsData[studentIndex].riskLevel = latestStress > 70 ? 'high' : latestStress > 40 ? 'moderate' : 'low';
         }
-        
+
         // Save updated students data
         localStorage.setItem('allStudentsData', JSON.stringify(studentsData));
-        
+
         // Update local state
         setStudents(studentsData);
       } catch (error) {
         console.error('Error saving student data:', error);
       }
     }
-    
-    setAppState('RESULTS');
+
+    handleNextToSuggestions();
   }, []);
-  
+
+  const handleSelfReportSubmit = useCallback((score: number) => {
+    setAnalysisData(prev => prev ? { ...prev, selfReportScore: score } : prev);
+    try {
+      const userData = localStorage.getItem('userData');
+      if (!userData) {
+        return;
+      }
+      const { accountNumber } = JSON.parse(userData);
+      if (!accountNumber) return;
+
+      const allStudentsData = localStorage.getItem('allStudentsData');
+      if (!allStudentsData) return;
+      const students: Student[] = JSON.parse(allStudentsData);
+      const studentIndex = students.findIndex(s => s.code === accountNumber);
+      if (studentIndex === -1 || students[studentIndex].analysisHistory.length === 0) return;
+
+      const latestIndex = students[studentIndex].analysisHistory.length - 1;
+      students[studentIndex].analysisHistory[latestIndex] = {
+        ...students[studentIndex].analysisHistory[latestIndex],
+        selfReportScore: score,
+      };
+      localStorage.setItem('allStudentsData', JSON.stringify(students));
+      setStudents(students);
+    } catch (error) {
+      console.error('Failed to store self-report score', error);
+    }
+  }, []);
+
   const handleCalibrationComplete = useCallback((baselineJson: string) => {
     localStorage.setItem('voiceBaseline', baselineJson);
     setBaselineData(baselineJson);
@@ -390,7 +430,7 @@ const App: React.FC = () => {
     setAnalysisData(null);
     setAppState('DASHBOARD');
   }, []);
-  
+
   const handleNewRecordingFromResults = useCallback(() => {
     setAnalysisData(null);
     setAppState('RECORDING');
@@ -407,7 +447,8 @@ const App: React.FC = () => {
   }, []);
 
   const handleSuggestionsBack = useCallback(() => {
-    setAppState('RESULTS');
+    setAnalysisData(null);
+    setAppState('DASHBOARD');
   }, []);
 
   const handleSuggestionsClose = useCallback(() => {
@@ -438,262 +479,264 @@ const App: React.FC = () => {
       <GlassFilter />
       <BeamsBackground intensity="medium" />
       <div className="min-h-screen w-full overflow-hidden relative">
-      <AnimatePresence initial={false}>
-        {/* Sign-in Screen */}
-        {appState === 'SIGNIN' && (
-          <motion.div
-            key="signin"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="w-full h-full"
-          >
-            <SignInScreen 
-              onSignIn={handleSignIn}
-              onCreateAccount={handleCreateAccount}
+        <AnimatePresence initial={false}>
+          {/* Sign-in Screen */}
+          {appState === 'SIGNIN' && (
+            <motion.div
+              key="signin"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="w-full h-full"
+            >
+              <SignInScreen
+                onSignIn={handleSignIn}
+                onCreateAccount={handleCreateAccount}
+              />
+            </motion.div>
+          )}
+
+          {/* Signup Flow Components */}
+          {appState === 'SIGNUP' && (
+            <motion.div
+              key="signup"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="w-full h-full flex items-center justify-center pt-16"
+            >
+              <ConnectTheDots
+                onConnect={handleClassSectionConnect}
+                isEnabled={true}
+              />
+            </motion.div>
+          )}
+
+          {appState === 'ENROLLMENT' && (
+            <motion.div
+              key="enrollment"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="w-full h-full flex items-center justify-center pt-16"
+            >
+              <EnrollmentNumber onSubmit={handleEnrollmentSubmit} />
+            </motion.div>
+          )}
+
+          {appState === 'SCRATCH_CARD' && (
+            <motion.div
+              key="scratch-card"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="w-full h-full flex items-center justify-center pt-16"
+            >
+              <ScratchCard
+                accountNumber={accountNumber}
+                onComplete={handleScratchCardComplete}
+              />
+            </motion.div>
+          )}
+
+          {appState === 'PASSWORD_SETUP' && (
+            <motion.div
+              key="password-setup"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="w-full h-full flex items-center justify-center pt-16"
+            >
+              <PasswordSetup
+                accountNumber={accountNumber}
+                onSubmit={handlePasswordSetupComplete}
+              />
+            </motion.div>
+          )}
+
+          {appState === 'DASHBOARD' && (
+            <motion.div
+              key="dashboard"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="w-full h-full"
+            >
+              <Dashboard
+                onStartVoiceSession={handleStartSession}
+                onStartCalibration={handleStartCalibration}
+                onSignOut={handleSignOut}
+              />
+            </motion.div>
+          )}
+
+          {appState === 'QUESTIONNAIRE' && (
+            <motion.div
+              key="questionnaire"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="w-full h-full"
+            >
+              <PreRecordingQuestionnaire
+                onSubmit={handleQuestionnaireSubmit}
+                onBack={handleQuestionnaireBack}
+              />
+            </motion.div>
+          )}
+
+          {appState === 'TEACHER_DASHBOARD' && (
+            <motion.div
+              key="teacher-dashboard"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="w-full h-full"
+            >
+              <TeacherDashboard
+                students={students}
+                onSelectStudent={handleSelectStudent}
+                onSignOut={handleSignOut}
+                onRefresh={loadStudentData}
+              />
+            </motion.div>
+          )}
+
+          {appState === 'STUDENT_DETAIL' && selectedStudent && (
+            <motion.div
+              key="student-detail"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="w-full h-full"
+            >
+              <StudentDetailScreen
+                student={selectedStudent}
+                onBack={handleBackToTeacherDashboard}
+                isTeacherView={true}
+                onReportClick={handleReportClick}
+              />
+            </motion.div>
+          )}
+
+          {appState === 'STUDENT_REPORT' && selectedStudent && analysisData && (
+            <motion.div
+              key="student-report"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="w-full h-full"
+            >
+              <StudentReportScreen
+                student={selectedStudent}
+                analysisData={analysisData}
+                onBack={handleReportBack}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Popup Components */}
+        <AnimatePresence>
+          {showConfirmation && selectedClass && selectedSection && (
+            <ConfirmationPopup
+              classNumber={selectedClass}
+              section={selectedSection}
+              onConfirm={handleConfirmationConfirm}
+              onRetry={handleConfirmationRetry}
             />
-          </motion.div>
-        )}
+          )}
+        </AnimatePresence>
 
-        {/* Signup Flow Components */}
-        {appState === 'SIGNUP' && (
-          <motion.div
-            key="signup"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="w-full h-full flex items-center justify-center pt-16"
-          >
-            <ConnectTheDots 
-              onConnect={handleClassSectionConnect}
-              isEnabled={true}
-            />
-          </motion.div>
-        )}
-
-        {appState === 'ENROLLMENT' && (
-          <motion.div
-            key="enrollment"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="w-full h-full flex items-center justify-center pt-16"
-          >
-            <EnrollmentNumber onSubmit={handleEnrollmentSubmit} />
-          </motion.div>
-        )}
-
-        {appState === 'SCRATCH_CARD' && (
-          <motion.div
-            key="scratch-card"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="w-full h-full flex items-center justify-center pt-16"
-          >
-            <ScratchCard 
+        <AnimatePresence>
+          {appState === 'SUCCESS' && (
+            <SuccessPopup
               accountNumber={accountNumber}
-              onComplete={handleScratchCardComplete}
+              onProceed={handleSuccessProceed}
             />
-          </motion.div>
-        )}
+          )}
+        </AnimatePresence>
 
-        {appState === 'PASSWORD_SETUP' && (
-          <motion.div
-            key="password-setup"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="w-full h-full flex items-center justify-center pt-16"
-          >
-            <PasswordSetup 
-              accountNumber={accountNumber}
-              onSubmit={handlePasswordSetupComplete}
+
+        <AnimatePresence>
+          {appState === 'RECORDING' && (
+            <VoiceAnalysisModal
+              onClose={handleCloseModal}
+              onAnalysisReady={handleAnalysisComplete}
+              baselineData={baselineData}
+              audioBlob={recordedAudioBlob}
+              preAnalysisSession={preAnalysisSession || undefined}
             />
-          </motion.div>
-        )}
+          )}
+        </AnimatePresence>
 
-        {appState === 'DASHBOARD' && (
-           <motion.div
-             key="dashboard"
-             initial={{ opacity: 0 }}
-             animate={{ opacity: 1 }}
-             exit={{ opacity: 0 }}
-             transition={{ duration: 0.3 }}
-             className="w-full h-full"
-           >
-            <Dashboard 
-              onStartVoiceSession={handleStartSession}
-              onStartCalibration={handleStartCalibration}
-              onSignOut={handleSignOut}
-            />
-          </motion.div>
-        )}
+        <AnimatePresence>
+          {appState === 'CALIBRATION_FLOW' && (
+            <motion.div
+              key="calibration-screen"
+              className="fixed inset-0 z-50 bg-background-primary overflow-y-auto"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <VoiceCalibrationScreen
+                onClose={handleCloseModal}
+                onCalibrationComplete={handleVoiceCalibrationComplete}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        {appState === 'QUESTIONNAIRE' && (
-          <motion.div
-            key="questionnaire"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="w-full h-full"
-          >
-            <PreRecordingQuestionnaire
-              onSubmit={handleQuestionnaireSubmit}
-              onBack={handleQuestionnaireBack}
-            />
-          </motion.div>
-        )}
+        <AnimatePresence>
+          {appState === 'RESULTS' && analysisData && (
+            <motion.div
+              key="results-page"
+              className="fixed inset-0 z-50 bg-background-primary overflow-y-auto"
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              variants={pageVariants}
+            >
+              <AnalysisResultsScreen
+                analysisData={analysisData}
+                onNewRecording={handleNewRecordingFromResults}
+                onClose={handleResultsClose}
+                onNext={handleNextToSuggestions}
+                onSelfReportSubmit={handleSelfReportSubmit}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        {appState === 'TEACHER_DASHBOARD' && (
-          <motion.div
-            key="teacher-dashboard"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="w-full h-full"
-          >
-            <TeacherDashboard 
-              students={students}
-              onSelectStudent={handleSelectStudent}
-              onSignOut={handleSignOut}
-              onRefresh={loadStudentData}
-            />
-          </motion.div>
-        )}
-
-        {appState === 'STUDENT_DETAIL' && selectedStudent && (
-          <motion.div
-            key="student-detail"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="w-full h-full"
-          >
-            <StudentDetailScreen 
-              student={selectedStudent}
-              onBack={handleBackToTeacherDashboard}
-              isTeacherView={true}
-              onReportClick={handleReportClick}
-            />
-          </motion.div>
-        )}
-
-        {appState === 'STUDENT_REPORT' && selectedStudent && analysisData && (
-          <motion.div
-            key="student-report"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="w-full h-full"
-          >
-            <StudentReportScreen
-              student={selectedStudent}
-              analysisData={analysisData}
-              onBack={handleReportBack}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Popup Components */}
-      <AnimatePresence>
-        {showConfirmation && selectedClass && selectedSection && (
-          <ConfirmationPopup
-            classNumber={selectedClass}
-            section={selectedSection}
-            onConfirm={handleConfirmationConfirm}
-            onRetry={handleConfirmationRetry}
-          />
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {appState === 'SUCCESS' && (
-          <SuccessPopup
-            accountNumber={accountNumber}
-            onProceed={handleSuccessProceed}
-          />
-        )}
-      </AnimatePresence>
-      
-
-      <AnimatePresence>
-        {appState === 'RECORDING' && (
-          <VoiceAnalysisModal 
-            onClose={handleCloseModal} 
-            onAnalysisReady={handleAnalysisComplete}
-            baselineData={baselineData}
-            audioBlob={recordedAudioBlob}
-          />
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {appState === 'CALIBRATION_FLOW' && (
-          <motion.div
-            key="calibration-screen"
-            className="fixed inset-0 z-50 bg-background-primary overflow-y-auto"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <VoiceCalibrationScreen 
-              onClose={handleCloseModal} 
-              onCalibrationComplete={handleVoiceCalibrationComplete}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {appState === 'RESULTS' && analysisData && (
-          <motion.div
-            key="results-page"
-            className="fixed inset-0 z-50 bg-background-primary overflow-y-auto"
-            initial="initial"
-            animate="animate"
-            exit="exit"
-            variants={pageVariants}
-          >
-            <AnalysisResultsScreen 
-              analysisData={analysisData} 
-              onNewRecording={handleNewRecordingFromResults}
-              onClose={handleResultsClose}
-              onNext={handleNextToSuggestions}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {appState === 'SUGGESTIONS' && analysisData && (
-          <motion.div
-            key="suggestions-page"
-            className="fixed inset-0 z-50 bg-background-primary overflow-y-auto"
-            initial="initial"
-            animate="animate"
-            exit="exit"
-            variants={pageVariants}
-          >
-            <PostAnalysisSuggestionsScreen 
-              analysisData={analysisData} 
-              onBack={handleSuggestionsBack}
-              onClose={handleSuggestionsClose}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+        <AnimatePresence>
+          {appState === 'SUGGESTIONS' && analysisData && (
+            <motion.div
+              key="suggestions-page"
+              className="fixed inset-0 z-50 bg-background-primary overflow-y-auto"
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              variants={pageVariants}
+            >
+              <PostAnalysisSuggestionsScreen
+                analysisData={analysisData}
+                onBack={handleSuggestionsBack}
+                onClose={handleSuggestionsClose}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </StreamChatProvider>
   );
