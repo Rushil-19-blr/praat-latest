@@ -382,7 +382,11 @@ const App: React.FC = () => {
         console.error('Error saving student data:', error);
       }
     }
+<<<<<<< HEAD
 
+=======
+    
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
     handleNextToSuggestions();
   }, []);
 

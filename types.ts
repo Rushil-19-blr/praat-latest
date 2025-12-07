@@ -31,6 +31,11 @@ export interface ModalProps {
   onClose: () => void;
 }
 
+export interface ModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
 export interface RawBiomarkerData {
   stress_level: number;
   f0_mean: number;

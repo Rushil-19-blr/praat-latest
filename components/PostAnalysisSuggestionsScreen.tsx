@@ -4,7 +4,11 @@ import GlassCard from './GlassCard';
 import { ChevronLeft } from './Icons';
 import { motion } from 'framer-motion';
 import { LiquidButton } from './ui/liquid-button';
+<<<<<<< HEAD
 import { InfinityLoader } from '@/components/ui/infinity-loader';
+=======
+import { Component as AiLoader } from '@/components/ui/ai-loader';
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 interface PostAnalysisSuggestionsScreenProps {
@@ -50,6 +54,7 @@ const generateSuggestionsWithGemini = async (
     // Determine stress category
     const stressCategory = stressLevel < 34 ? 'low' : stressLevel < 67 ? 'moderate' : 'high';
 
+<<<<<<< HEAD
     // Build student context from LIVE SESSION answers (priority) and questionnaire
     let studentContext = '';
 
@@ -73,6 +78,9 @@ const generateSuggestionsWithGemini = async (
     }
 
     const prompt = `You are a wellness expert AND personal mentor providing hyper-personalized stress management suggestions.
+=======
+    const prompt = `You are a wellness expert providing personalized stress management suggestions based on vocal stress analysis.
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
 
 STRESS LEVEL: ${stressLevel}/100 (${stressCategory} stress)
 AI ANALYSIS SUMMARY: ${aiSummary || 'No additional summary available'}
@@ -445,12 +453,18 @@ const PostAnalysisSuggestionsScreen: React.FC<PostAnalysisSuggestionsScreenProps
           <div className="bg-surface rounded-2xl p-6">
             <h2 className="text-2xl font-bold text-white mb-6 text-left">Personalized Suggestions</h2>
 
+<<<<<<< HEAD
             {showLoader ? (
               <div className="flex items-center justify-center py-8">
                 <InfinityLoader
                   statusText="Generating personalized suggestions..."
                   isComplete={loaderComplete}
                 />
+=======
+            {loading ? (
+              <div className="flex items-center justify-center py-8">
+                <AiLoader />
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
               </div>
             ) : (
               <>

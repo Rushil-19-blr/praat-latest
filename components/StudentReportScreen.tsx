@@ -4,7 +4,11 @@ import { ChevronLeft, FileText } from './Icons';
 import GlassCard from './GlassCard';
 import type { AnalysisData, Student } from '../types';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+<<<<<<< HEAD
 import { InfinityLoader } from '@/components/ui/infinity-loader';
+=======
+import { Component as AiLoader } from '@/components/ui/ai-loader';
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
 
 interface StudentReportScreenProps {
   student: Student;
@@ -189,8 +193,11 @@ const generateAIReportWithGemini = async (student: Student, analysisData: Analys
 const StudentReportScreen: React.FC<StudentReportScreenProps> = ({ student, analysisData, onBack }) => {
   const [report, setReport] = useState<string>('');
   const [loading, setLoading] = useState(true);
+<<<<<<< HEAD
   const [showLoader, setShowLoader] = useState(true);
   const [loaderComplete, setLoaderComplete] = useState(false);
+=======
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
   const lastAnalysisDateRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -201,6 +208,7 @@ const StudentReportScreen: React.FC<StudentReportScreenProps> = ({ student, anal
     lastAnalysisDateRef.current = analysisData.date;
 
     const loadReport = async () => {
+<<<<<<< HEAD
       // Use persisted report if available
       if (analysisData.counselorReport) {
         setReport(analysisData.counselorReport);
@@ -209,6 +217,8 @@ const StudentReportScreen: React.FC<StudentReportScreenProps> = ({ student, anal
         return;
       }
 
+=======
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
       setLoading(true);
       // Show fallback immediately while loading? Or just loader. Let's show loader.
       try {
@@ -217,8 +227,12 @@ const StudentReportScreen: React.FC<StudentReportScreenProps> = ({ student, anal
       } catch (e) {
         setReport(generateFallbackReport(student, analysisData));
       } finally {
+<<<<<<< HEAD
         setLoaderComplete(true);
         setTimeout(() => { setLoading(false); setShowLoader(false); }, 1000);
+=======
+        setLoading(false);
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
       }
     };
 
@@ -361,12 +375,19 @@ const StudentReportScreen: React.FC<StudentReportScreenProps> = ({ student, anal
           transition={{ duration: 0.4 }}
         >
           <GlassCard className="p-6 md:p-8">
+<<<<<<< HEAD
             {showLoader ? (
               <div className="flex flex-col items-center justify-center py-12">
                 <InfinityLoader
                   statusText="Generating personalized report..."
                   isComplete={loaderComplete}
                 />
+=======
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <AiLoader />
+                <p className="mt-4 text-text-secondary text-sm">Generating personalized report...</p>
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
               </div>
             ) : (
               <div className="prose prose-invert max-w-none">

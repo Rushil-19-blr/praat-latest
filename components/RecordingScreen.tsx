@@ -27,6 +27,7 @@ interface RecordingScreenProps {
   preAnalysisSession?: PreAnalysisSession; // Pre-analysis session data for personalization
 }
 
+<<<<<<< HEAD
 const clampScore = (value: number) => Math.min(100, Math.max(0, value));
 const blendGeminiScore = (baseScore: number, suggested?: number) => {
   if (typeof suggested !== 'number' || Number.isNaN(suggested)) {
@@ -49,6 +50,8 @@ const ensureRecordingQuality = (features: PraatFeatures, wavSize: number) => {
   }
 };
 
+=======
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
 const RecordingScreen: React.FC<RecordingScreenProps> = ({
   onAnalysisComplete,
   baselineData,
@@ -166,7 +169,11 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
     // Stop any ongoing speech first
     stopSpeech();
 
+<<<<<<< HEAD
     const statement = sessionAffirmations[currentStatementIndex];
+=======
+    const statement = repeatStatements[currentStatementIndex];
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
     if (!statement) return;
 
     setIsPlayingStatement(true);
@@ -177,7 +184,11 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
     } finally {
       setIsPlayingStatement(false);
     }
+<<<<<<< HEAD
   }, [mode, currentStatementIndex, isPlayingStatement, sessionAffirmations]);
+=======
+  }, [mode, currentStatementIndex, isPlayingStatement]);
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
 
   // Auto-play first statement only when session starts
   const sessionStartedRef = useRef(false);
@@ -269,6 +280,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
     recordingStateRef.current = recordingState;
   }, [recordingState]);
 
+<<<<<<< HEAD
   // Keep ref for muted state to access in animation loop
   const isMicMutedRef = useRef(isMicMuted);
   useEffect(() => {
@@ -281,6 +293,10 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
     const isActive = recordingStateRef.current === 'RECORDING' || (shouldUseGemini && geminiConnected);
 
     if (!isActive || !analyserRef.current || !waveformCanvasRef.current) return;
+=======
+  const drawWaveform = useCallback(() => {
+    if (recordingStateRef.current !== 'RECORDING' || !analyserRef.current || !waveformCanvasRef.current) return;
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
 
     const canvas = waveformCanvasRef.current;
     const ctx = canvas.getContext('2d');
@@ -309,6 +325,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
         sum += Math.abs(dataArray[index] - 128);
       }
       barHeights[i] = (sum / sliceWidth) / 128.0;
+<<<<<<< HEAD
     }
 
     // Check for voice activity (simple volume threshold)
@@ -331,6 +348,8 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
           }
         }
       }
+=======
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
     }
 
     const gradient = ctx.createLinearGradient(0, 0, 0, height);
@@ -348,6 +367,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
 
     animationFrameRef.current = requestAnimationFrame(drawWaveform);
   }, []);
+<<<<<<< HEAD
 
   // Ref to store generated options to avoid closure staleness
   const generatedSmartOptionsRef = useRef<string[]>([]);
@@ -430,6 +450,8 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
       sendText(option);
     }
   };
+=======
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
 
   const startRecording = () => {
     if (!stream || recordingState !== 'IDLE') return;
@@ -487,9 +509,13 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
   const analyzeAudioWithPraatAndGemini = async (audioBlob: Blob) => {
     try {
       const wavBlob = await webmBlobToWavMono16k(audioBlob);
+<<<<<<< HEAD
       const featuresForAnalysis = await extractFeaturesWithPraat(wavBlob, 'http://localhost:8000');
       ensureRecordingQuality(featuresForAnalysis, wavBlob.size);
       ensureRecordingQuality(featuresForAnalysis, wavBlob.size);
+=======
+      const featuresForAnalysis = await extractFeaturesWithPraat(wavBlob);
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
 
       // Print extracted Praat features to console
       console.log('=== Praat Extracted Features ===');
@@ -529,6 +555,10 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
         f0_range: featuresForAnalysis.f0_range || 0,
         jitter: featuresForAnalysis.jitter || 0,
         shimmer: featuresForAnalysis.shimmer || 0,
+<<<<<<< HEAD
+=======
+        hnr: 0, // HNR ignored as per request
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
         f1: featuresForAnalysis.f1 || 0,
         f2: featuresForAnalysis.f2 || 0,
         speech_rate: featuresForAnalysis.speech_rate || 0,
@@ -547,6 +577,10 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
         f0Range: biomarkers.f0_range,
         jitter: biomarkers.jitter,
         shimmer: biomarkers.shimmer,
+<<<<<<< HEAD
+=======
+        hnr: 0, // HNR ignored
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
         f1: biomarkers.f1,
         f2: biomarkers.f2,
         speechRate: biomarkers.speech_rate,
@@ -889,7 +923,11 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
 
       // Convert to mono 16kHz for analysis
       const wavBlob = await webmBlobToWavMono16k(combinedWavBlob);
+<<<<<<< HEAD
       const featuresForAnalysis = await extractFeaturesWithPraat(wavBlob, 'http://localhost:8000');
+=======
+      const featuresForAnalysis = await extractFeaturesWithPraat(wavBlob);
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
 
       // Print extracted Praat features to console
       console.log('=== Praat Extracted Features (Multi-Clip Session) ===');
@@ -928,6 +966,10 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
         f0_range: featuresForAnalysis.f0_range || 0,
         jitter: featuresForAnalysis.jitter || 0,
         shimmer: featuresForAnalysis.shimmer || 0,
+<<<<<<< HEAD
+=======
+        hnr: 0, // HNR ignored
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
         f1: featuresForAnalysis.f1 || 0,
         f2: featuresForAnalysis.f2 || 0,
         speech_rate: featuresForAnalysis.speech_rate || 0,
@@ -946,6 +988,10 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
         f0Range: biomarkers.f0_range,
         jitter: biomarkers.jitter,
         shimmer: biomarkers.shimmer,
+<<<<<<< HEAD
+=======
+        hnr: 0, // HNR ignored
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
         f1: biomarkers.f1,
         f2: biomarkers.f2,
         speechRate: biomarkers.speech_rate,
@@ -1195,13 +1241,18 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
         {/* Voice Powered Orb - replaces the purple ring */}
         <div className="absolute inset-0 pointer-events-none rounded-full overflow-hidden z-0">
           <VoicePoweredOrb
+<<<<<<< HEAD
             enableVoiceControl={recordingState === 'RECORDING' || (isSessionActive && mode === 'ai' && !isMicMuted)}
+=======
+            enableVoiceControl={recordingState === 'RECORDING'}
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
             externalAudioStream={stream}
             hue={0}
             voiceSensitivity={2.5}
             maxRotationSpeed={1.5}
             maxHoverIntensity={1.0}
             className="w-full h-full"
+<<<<<<< HEAD
             onVoiceDetected={(isDetected) => {
               if (isDetected && smartOptions.length > 0) {
                 // Clear smart options when user starts speaking
@@ -1209,6 +1260,8 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
                 lastVoiceActivityTimeRef.current = Date.now();
               }
             }}
+=======
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
           />
         </div>
 
@@ -1243,6 +1296,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
           </motion.div>
         )}
       </AnimatePresence>
+<<<<<<< HEAD
 
       {/* AI Mode - Gemini Live Overlay */}
       {mode === 'ai' && (
@@ -1271,6 +1325,23 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
               </div>
             </div>
 
+=======
+
+      {/* AI Mode - Gemini Live Overlay */}
+      {mode === 'ai' && (
+        <div className="w-full max-w-sm mx-auto mt-6">
+          <GlassCard className="p-3">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-medium text-white">AI Assistant</h3>
+              <div className="flex items-center space-x-2">
+                <MicrophoneFilled className={`w-4 h-4 ${geminiMuted ? 'text-red-400' : 'text-green-400'}`} />
+                <span className="text-xs text-gray-300">
+                  {geminiMuted ? 'Muted' : 'Live'}
+                </span>
+              </div>
+            </div>
+
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
             <div className="space-y-2">
               <div className="flex items-center space-x-2">
                 <motion.div
@@ -1279,11 +1350,19 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
                   className={`w-2 h-2 rounded-full ${geminiConnected ? 'bg-green-400' : 'bg-yellow-400'}`}
                 />
                 <p className="text-xs text-gray-300">
+<<<<<<< HEAD
                   {geminiConnected ? (isMicMuted ? "Connected (Muted)" : "Listening...") : "Connecting..."}
                 </p>
               </div>
 
               {geminiConnected && !hasConversationStarted && !geminiTranscript && !isMicMuted && !geminiError && (
+=======
+                  {geminiConnected ? (geminiMuted ? "Connected (Muted)" : "Listening...") : "Connecting..."}
+                </p>
+              </div>
+
+              {geminiConnected && !geminiTranscript && !geminiMuted && !geminiError && (
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
                 <div className="bg-purple-500/20 rounded-lg p-3 border border-purple-400/30">
                   <p className="text-sm text-white text-center">
                     Say hello to begin the conversation
@@ -1291,6 +1370,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
                 </div>
               )}
 
+<<<<<<< HEAD
               {geminiConnected && isMicMuted && !geminiError && (
                 <div className="bg-orange-500/20 rounded-lg p-3 border border-orange-400/30">
                   <p className="text-sm text-orange-300 text-center">
@@ -1300,6 +1380,9 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
               )}
 
               {geminiConnected && geminiTranscript && !isMicMuted && (
+=======
+              {geminiConnected && geminiTranscript && !geminiMuted && (
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
                 <div className="bg-purple-500/10 rounded-lg p-3 border border-purple-400/20 max-h-[200px] overflow-y-auto">
                   <p className="text-sm text-white whitespace-pre-wrap leading-relaxed">
                     {geminiTranscript}
@@ -1341,7 +1424,11 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
 
               <div className="bg-purple-500/20 rounded-lg p-4 border border-purple-400/30 min-h-[80px] flex items-center justify-center">
                 <p className="text-base text-white leading-relaxed">
+<<<<<<< HEAD
                   {sessionAffirmations[currentStatementIndex]}
+=======
+                  {repeatStatements[currentStatementIndex]}
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
                 </p>
               </div>
 
@@ -1355,7 +1442,11 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
               )}
 
               <p className="text-xs text-gray-400 mt-2">
+<<<<<<< HEAD
                 Statement {currentStatementIndex + 1} of {sessionAffirmations.length}
+=======
+                Statement {currentStatementIndex + 1} of {repeatStatements.length}
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
               </p>
             </div>
           </GlassCard>
@@ -1411,6 +1502,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
       </AnimatePresence>
 
       {permissionError && <div className="fixed bottom-0 left-0 right-0 p-4 bg-error-red/80 text-center text-white text-sm z-50">{permissionError}</div>}
+<<<<<<< HEAD
 
       {/* Smart Options Overlay */}
       <SmartOptions
@@ -1418,6 +1510,8 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
         onSelect={handleOptionSelect}
         isVisible={smartOptions.length > 0 && mode === 'ai' && isSessionActive}
       />
+=======
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
     </div>
   );
 };

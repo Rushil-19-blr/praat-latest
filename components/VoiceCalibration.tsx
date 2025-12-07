@@ -54,11 +54,11 @@ const VoiceCalibration: React.FC<VoiceCalibrationProps> = ({ onComplete, onError
 
   const drawWaveform = useCallback(() => {
     if (status !== 'RECORDING' || !analyserRef.current || !waveformCanvasRef.current) return;
-    
+
     const canvas = waveformCanvasRef.current;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    
+
     const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
     analyserRef.current.getByteTimeDomainData(dataArray);
 
@@ -78,7 +78,7 @@ const VoiceCalibration: React.FC<VoiceCalibrationProps> = ({ onComplete, onError
       }
       barHeights[i] = (sum / sliceWidth) / 128.0;
     }
-    
+
     const gradient = ctx.createLinearGradient(0, 0, 0, height);
     gradient.addColorStop(0.2, '#A855F7');
     gradient.addColorStop(1, '#FFFFFF');
@@ -100,7 +100,7 @@ const VoiceCalibration: React.FC<VoiceCalibrationProps> = ({ onComplete, onError
     mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
     mediaRecorderRef.current.ondataavailable = (event) => audioChunksRef.current.push(event.data);
     mediaRecorderRef.current.start();
-    
+
     if (!audioContextRef.current) {
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
     }
@@ -108,7 +108,7 @@ const VoiceCalibration: React.FC<VoiceCalibrationProps> = ({ onComplete, onError
     analyserRef.current = audioContextRef.current.createAnalyser();
     analyserRef.current.fftSize = 256;
     source.connect(analyserRef.current);
-    
+
     animationFrameRef.current = requestAnimationFrame(drawWaveform);
   };
 
@@ -120,7 +120,7 @@ const VoiceCalibration: React.FC<VoiceCalibrationProps> = ({ onComplete, onError
       const ctx = waveformCanvasRef.current.getContext('2d');
       ctx?.clearRect(0, 0, waveformCanvasRef.current.width, waveformCanvasRef.current.height);
     }
-    
+
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       mediaRecorderRef.current.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
@@ -144,8 +144,8 @@ const VoiceCalibration: React.FC<VoiceCalibrationProps> = ({ onComplete, onError
       // Convert to WAV format
       const wav = await webmBlobToWavMono16k(audioBlob);
       // Extract features using Praat
-      const features = await extractFeaturesWithPraat(wav, 'http://localhost:8000');
-      
+      const features = await extractFeaturesWithPraat(wav);
+
       // Save baseline features (no stress levels)
       const baselineData = {
         rms: features.rms,
@@ -155,17 +155,17 @@ const VoiceCalibration: React.FC<VoiceCalibrationProps> = ({ onComplete, onError
         mfcc: features.mfcc,
         timestamp: new Date().toISOString()
       };
-      
+
       const baselineJson = JSON.stringify(baselineData);
       localStorage.setItem('voiceBaseline', baselineJson);
       setHasBaseline(true);
       setStatus('SUCCESS');
-      
+
       // Show success message briefly, then reset
       setTimeout(() => {
         setStatus('IDLE');
       }, 2000);
-      
+
       if (onComplete) {
         onComplete(baselineJson);
       }
@@ -300,7 +300,7 @@ const VoiceCalibration: React.FC<VoiceCalibrationProps> = ({ onComplete, onError
           background: #10b981;
         }
       `}</style>
-      
+
       <h3 className="calibration-title">Voice Calibration</h3>
       <p className="calibration-description">
         Record a baseline voice sample to establish your voice profile. You can re-calibrate anytime.
@@ -312,10 +312,10 @@ const VoiceCalibration: React.FC<VoiceCalibrationProps> = ({ onComplete, onError
         </div>
       )}
 
-      <canvas 
-        ref={waveformCanvasRef} 
-        width="280" 
-        height="60" 
+      <canvas
+        ref={waveformCanvasRef}
+        width="280"
+        height="60"
         className="calibration-canvas"
       />
 
