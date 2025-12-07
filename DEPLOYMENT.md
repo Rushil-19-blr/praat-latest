@@ -22,7 +22,24 @@ We recommend **Render** for the backend because it natively supports Python and 
 7.  Click **"Create Web Service"**.
 8.  **Wait for deployment**. Once finished, copy the **URL** (e.g., `https://awaaz-backend.onrender.com`). You will need this for the frontend!
 
-## 2. Frontend Deployment (Netlify)
+## 2. Frontend Deployment (Vercel) - *Alternative to Netlify*
+
+Vercel is another excellent choice for the frontend.
+
+1.  **Sign up/Log in to [Vercel](https://vercel.com/)**.
+2.  Click **"Add New..."** -> **"Project"**.
+3.  Import your GitHub repository.
+4.  **Configure Project**:
+    *   **Framework Preset**: It should auto-detect **Vite**.
+    *   **Root Directory**: `./` (default)
+5.  **Environment Variables**:
+    *   Expand the **"Environment Variables"** section.
+    *   Add:
+        *   `VITE_API_URL`: Your backend URL (e.g., `https://awaaz-backend.onrender.com`).
+        *   `VITE_GEMINI_API_KEY`: Your Gemini API Key.
+6.  Click **"Deploy"**.
+
+## 3. Frontend Deployment (Netlify)
 
 Netlify is excellent for the React frontend.
 
