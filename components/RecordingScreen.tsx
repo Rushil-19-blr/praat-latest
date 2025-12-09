@@ -3,7 +3,10 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { MeasureValues } from '../utils/stressAnalysis';
 import { webmBlobToWavMono16k } from '../utils/audio';
 import { extractFeaturesWithPraat, type PraatFeatures } from '../services/praat';
+<<<<<<< HEAD
 import { BACKEND_URL } from '../config';
+=======
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
 import { useGeminiLive } from '../hooks/useGeminiLive';
 import type { AnalysisData, RecordingState, RawBiomarkerData, SessionData, PreAnalysisSession, CounselorReport, LiveSessionQuestion } from '../types';
 import { formatBiomarkers, repeatStatements } from '../constants';
@@ -28,6 +31,10 @@ interface RecordingScreenProps {
   preAnalysisSession?: PreAnalysisSession; // Pre-analysis session data for personalization
 }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
 const clampScore = (value: number) => Math.min(100, Math.max(0, value));
 const blendGeminiScore = (baseScore: number, suggested?: number) => {
   if (typeof suggested !== 'number' || Number.isNaN(suggested)) {
@@ -50,6 +57,11 @@ const ensureRecordingQuality = (features: PraatFeatures, wavSize: number) => {
   }
 };
 
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
 const RecordingScreen: React.FC<RecordingScreenProps> = ({
   onAnalysisComplete,
   baselineData,
@@ -167,7 +179,15 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
     // Stop any ongoing speech first
     stopSpeech();
 
+<<<<<<< HEAD
     const statement = sessionAffirmations[currentStatementIndex];
+=======
+<<<<<<< HEAD
+    const statement = sessionAffirmations[currentStatementIndex];
+=======
+    const statement = repeatStatements[currentStatementIndex];
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
     if (!statement) return;
 
     setIsPlayingStatement(true);
@@ -178,7 +198,15 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
     } finally {
       setIsPlayingStatement(false);
     }
+<<<<<<< HEAD
   }, [mode, currentStatementIndex, isPlayingStatement, sessionAffirmations]);
+=======
+<<<<<<< HEAD
+  }, [mode, currentStatementIndex, isPlayingStatement, sessionAffirmations]);
+=======
+  }, [mode, currentStatementIndex, isPlayingStatement]);
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
 
   // Auto-play first statement only when session starts
   const sessionStartedRef = useRef(false);
@@ -270,6 +298,10 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
     recordingStateRef.current = recordingState;
   }, [recordingState]);
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
   // Keep ref for muted state to access in animation loop
   const isMicMutedRef = useRef(isMicMuted);
   useEffect(() => {
@@ -282,6 +314,13 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
     const isActive = recordingStateRef.current === 'RECORDING' || (shouldUseGemini && geminiConnected);
 
     if (!isActive || !analyserRef.current || !waveformCanvasRef.current) return;
+<<<<<<< HEAD
+=======
+=======
+  const drawWaveform = useCallback(() => {
+    if (recordingStateRef.current !== 'RECORDING' || !analyserRef.current || !waveformCanvasRef.current) return;
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
 
     const canvas = waveformCanvasRef.current;
     const ctx = canvas.getContext('2d');
@@ -310,6 +349,10 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
         sum += Math.abs(dataArray[index] - 128);
       }
       barHeights[i] = (sum / sliceWidth) / 128.0;
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
     }
 
     // Check for voice activity (simple volume threshold)
@@ -332,6 +375,11 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
           }
         }
       }
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
     }
 
     const gradient = ctx.createLinearGradient(0, 0, 0, height);
@@ -349,6 +397,10 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
 
     animationFrameRef.current = requestAnimationFrame(drawWaveform);
   }, []);
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
 
   // Ref to store generated options to avoid closure staleness
   const generatedSmartOptionsRef = useRef<string[]>([]);
@@ -431,6 +483,11 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
       sendText(option);
     }
   };
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
 
   const startRecording = () => {
     if (!stream || recordingState !== 'IDLE') return;
@@ -488,9 +545,19 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
   const analyzeAudioWithPraatAndGemini = async (audioBlob: Blob) => {
     try {
       const wavBlob = await webmBlobToWavMono16k(audioBlob);
+<<<<<<< HEAD
       const featuresForAnalysis = await extractFeaturesWithPraat(wavBlob, BACKEND_URL);
       ensureRecordingQuality(featuresForAnalysis, wavBlob.size);
       ensureRecordingQuality(featuresForAnalysis, wavBlob.size);
+=======
+<<<<<<< HEAD
+      const featuresForAnalysis = await extractFeaturesWithPraat(wavBlob, 'http://localhost:8000');
+      ensureRecordingQuality(featuresForAnalysis, wavBlob.size);
+      ensureRecordingQuality(featuresForAnalysis, wavBlob.size);
+=======
+      const featuresForAnalysis = await extractFeaturesWithPraat(wavBlob);
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
 
       // Print extracted Praat features to console
       console.log('=== Praat Extracted Features ===');
@@ -530,6 +597,13 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
         f0_range: featuresForAnalysis.f0_range || 0,
         jitter: featuresForAnalysis.jitter || 0,
         shimmer: featuresForAnalysis.shimmer || 0,
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+        hnr: 0, // HNR ignored as per request
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
         f1: featuresForAnalysis.f1 || 0,
         f2: featuresForAnalysis.f2 || 0,
         speech_rate: featuresForAnalysis.speech_rate || 0,
@@ -548,6 +622,13 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
         f0Range: biomarkers.f0_range,
         jitter: biomarkers.jitter,
         shimmer: biomarkers.shimmer,
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+        hnr: 0, // HNR ignored
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
         f1: biomarkers.f1,
         f2: biomarkers.f2,
         speechRate: biomarkers.speech_rate,
@@ -890,7 +971,15 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
 
       // Convert to mono 16kHz for analysis
       const wavBlob = await webmBlobToWavMono16k(combinedWavBlob);
+<<<<<<< HEAD
       const featuresForAnalysis = await extractFeaturesWithPraat(wavBlob, BACKEND_URL);
+=======
+<<<<<<< HEAD
+      const featuresForAnalysis = await extractFeaturesWithPraat(wavBlob, 'http://localhost:8000');
+=======
+      const featuresForAnalysis = await extractFeaturesWithPraat(wavBlob);
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
 
       // Print extracted Praat features to console
       console.log('=== Praat Extracted Features (Multi-Clip Session) ===');
@@ -929,6 +1018,13 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
         f0_range: featuresForAnalysis.f0_range || 0,
         jitter: featuresForAnalysis.jitter || 0,
         shimmer: featuresForAnalysis.shimmer || 0,
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+        hnr: 0, // HNR ignored
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
         f1: featuresForAnalysis.f1 || 0,
         f2: featuresForAnalysis.f2 || 0,
         speech_rate: featuresForAnalysis.speech_rate || 0,
@@ -947,6 +1043,13 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
         f0Range: biomarkers.f0_range,
         jitter: biomarkers.jitter,
         shimmer: biomarkers.shimmer,
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+        hnr: 0, // HNR ignored
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
         f1: biomarkers.f1,
         f2: biomarkers.f2,
         speechRate: biomarkers.speech_rate,
@@ -1196,13 +1299,25 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
         {/* Voice Powered Orb - replaces the purple ring */}
         <div className="absolute inset-0 pointer-events-none rounded-full overflow-hidden z-0">
           <VoicePoweredOrb
+<<<<<<< HEAD
             enableVoiceControl={recordingState === 'RECORDING' || (isSessionActive && mode === 'ai' && !isMicMuted)}
+=======
+<<<<<<< HEAD
+            enableVoiceControl={recordingState === 'RECORDING' || (isSessionActive && mode === 'ai' && !isMicMuted)}
+=======
+            enableVoiceControl={recordingState === 'RECORDING'}
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
             externalAudioStream={stream}
             hue={0}
             voiceSensitivity={2.5}
             maxRotationSpeed={1.5}
             maxHoverIntensity={1.0}
             className="w-full h-full"
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
             onVoiceDetected={(isDetected) => {
               if (isDetected && smartOptions.length > 0) {
                 // Clear smart options when user starts speaking
@@ -1210,6 +1325,11 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
                 lastVoiceActivityTimeRef.current = Date.now();
               }
             }}
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
           />
         </div>
 
@@ -1237,7 +1357,18 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
         </motion.button>
       </div>
 
+<<<<<<< HEAD
 
+=======
+      <AnimatePresence>
+        {recordingState === 'RECORDING' && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="absolute bottom-[60px] w-full max-w-xs" >
+            <canvas ref={waveformCanvasRef} width="280" height="80" className="mx-auto rounded-xl"></canvas>
+          </motion.div>
+        )}
+      </AnimatePresence>
+<<<<<<< HEAD
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
 
       {/* AI Mode - Gemini Live Overlay */}
       {mode === 'ai' && (
@@ -1266,6 +1397,26 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
               </div>
             </div>
 
+<<<<<<< HEAD
+=======
+=======
+
+      {/* AI Mode - Gemini Live Overlay */}
+      {mode === 'ai' && (
+        <div className="w-full max-w-sm mx-auto mt-6">
+          <GlassCard className="p-3">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-medium text-white">AI Assistant</h3>
+              <div className="flex items-center space-x-2">
+                <MicrophoneFilled className={`w-4 h-4 ${geminiMuted ? 'text-red-400' : 'text-green-400'}`} />
+                <span className="text-xs text-gray-300">
+                  {geminiMuted ? 'Muted' : 'Live'}
+                </span>
+              </div>
+            </div>
+
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
             <div className="space-y-2">
               <div className="flex items-center space-x-2">
                 <motion.div
@@ -1274,11 +1425,25 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
                   className={`w-2 h-2 rounded-full ${geminiConnected ? 'bg-green-400' : 'bg-yellow-400'}`}
                 />
                 <p className="text-xs text-gray-300">
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
                   {geminiConnected ? (isMicMuted ? "Connected (Muted)" : "Listening...") : "Connecting..."}
                 </p>
               </div>
 
               {geminiConnected && !hasConversationStarted && !geminiTranscript && !isMicMuted && !geminiError && (
+<<<<<<< HEAD
+=======
+=======
+                  {geminiConnected ? (geminiMuted ? "Connected (Muted)" : "Listening...") : "Connecting..."}
+                </p>
+              </div>
+
+              {geminiConnected && !geminiTranscript && !geminiMuted && !geminiError && (
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
                 <div className="bg-purple-500/20 rounded-lg p-3 border border-purple-400/30">
                   <p className="text-sm text-white text-center">
                     Say hello to begin the conversation
@@ -1286,6 +1451,10 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
                 </div>
               )}
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
               {geminiConnected && isMicMuted && !geminiError && (
                 <div className="bg-orange-500/20 rounded-lg p-3 border border-orange-400/30">
                   <p className="text-sm text-orange-300 text-center">
@@ -1295,6 +1464,12 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
               )}
 
               {geminiConnected && geminiTranscript && !isMicMuted && (
+<<<<<<< HEAD
+=======
+=======
+              {geminiConnected && geminiTranscript && !geminiMuted && (
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
                 <div className="bg-purple-500/10 rounded-lg p-3 border border-purple-400/20 max-h-[200px] overflow-y-auto">
                   <p className="text-sm text-white whitespace-pre-wrap leading-relaxed">
                     {geminiTranscript}
@@ -1336,7 +1511,15 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
 
               <div className="bg-purple-500/20 rounded-lg p-4 border border-purple-400/30 min-h-[80px] flex items-center justify-center">
                 <p className="text-base text-white leading-relaxed">
+<<<<<<< HEAD
                   {sessionAffirmations[currentStatementIndex]}
+=======
+<<<<<<< HEAD
+                  {sessionAffirmations[currentStatementIndex]}
+=======
+                  {repeatStatements[currentStatementIndex]}
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
                 </p>
               </div>
 
@@ -1350,7 +1533,15 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
               )}
 
               <p className="text-xs text-gray-400 mt-2">
+<<<<<<< HEAD
                 Statement {currentStatementIndex + 1} of {sessionAffirmations.length}
+=======
+<<<<<<< HEAD
+                Statement {currentStatementIndex + 1} of {sessionAffirmations.length}
+=======
+                Statement {currentStatementIndex + 1} of {repeatStatements.length}
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
               </p>
             </div>
           </GlassCard>
@@ -1406,6 +1597,10 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
       </AnimatePresence>
 
       {permissionError && <div className="fixed bottom-0 left-0 right-0 p-4 bg-error-red/80 text-center text-white text-sm z-50">{permissionError}</div>}
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
 
       {/* Smart Options Overlay */}
       <SmartOptions
@@ -1413,6 +1608,11 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
         onSelect={handleOptionSelect}
         isVisible={smartOptions.length > 0 && mode === 'ai' && isSessionActive}
       />
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
     </div>
   );
 };

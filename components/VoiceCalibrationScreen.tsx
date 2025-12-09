@@ -168,7 +168,11 @@ const VoiceCalibrationScreen: React.FC<VoiceCalibrationScreenProps> = ({
       const wavBlob = await webmBlobToWavMono16k(audioBlob);
 
       // Extract features using Praat
+<<<<<<< HEAD
       const features = await extractFeaturesWithPraat(wavBlob, BACKEND_URL);
+=======
+      const features = await extractFeaturesWithPraat(wavBlob);
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
 
       // Print extracted Praat features to console
       console.log('=== Praat Extracted Features (Calibration) ===');
@@ -210,11 +214,19 @@ const VoiceCalibrationScreen: React.FC<VoiceCalibrationScreenProps> = ({
 
       const baselineJson = JSON.stringify(baselineData);
       localStorage.setItem('voiceBaseline', baselineJson);
+<<<<<<< HEAD
 
       // Reset adaptive sensitivity state when new baseline is created
       // This ensures sensitivity starts conservative for the new baseline
       resetSensitivityState();
 
+=======
+      
+      // Reset adaptive sensitivity state when new baseline is created
+      // This ensures sensitivity starts conservative for the new baseline
+      resetSensitivityState();
+      
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
       setHasBaseline(true);
       setRecordingState('COMPLETE');
 

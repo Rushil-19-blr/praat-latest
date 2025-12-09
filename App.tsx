@@ -400,7 +400,15 @@ const App: React.FC = () => {
         console.error('Error saving student data:', error);
       }
     }
+<<<<<<< HEAD
 
+=======
+<<<<<<< HEAD
+
+=======
+    
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
     handleNextToSuggestions();
   }, []);
 

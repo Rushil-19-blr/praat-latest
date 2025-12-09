@@ -27,6 +27,13 @@ export enum StressLevel {
 export interface MeasureValues {
     jitter: number;
     shimmer: number;
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+    hnr: number;
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
     f0Mean: number;
     f0Range: number;
     speechRate: number;
@@ -64,10 +71,24 @@ const VOCAL_PROFILES: { [key: string]: VocalProfile } = {
 
 const JITTER_THRESHOLDS = { normal: 1.04, mild: 2.0, moderate: 5.0, severe: 8.0 };
 const SHIMMER_THRESHOLDS = { normal: 3.81, mild: 6.0, moderate: 12.0, severe: 18.0 };
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
 const ENHANCED_WEIGHTS = { jitter: 2.5, shimmer: 2.5, f0Mean: 1.8, f0Range: 1.3, speechRate: 1.6, f1: 0.4, f2: 0.4, interactions: 1.2 };
 type SensitivityConfig = { factor: number; offset: number; exponent: number };
 const POPULATION_SENSITIVITY: SensitivityConfig = { factor: 0.75, offset: -10, exponent: 0.95 };
 const BASELINE_SENSITIVITY: SensitivityConfig = { factor: 0.9, offset: -3, exponent: 0.85 };
+<<<<<<< HEAD
+=======
+=======
+const HNR_THRESHOLDS = { excellent: 20, good: 15, moderate: 10, poor: 5 };
+const ENHANCED_WEIGHTS = { jitter: 2.5, shimmer: 2.5, hnr: 0, f0Mean: 1.8, f0Range: 1.3, speechRate: 1.6, f1: 0.4, f2: 0.4, interactions: 1.2 };
+type SensitivityConfig = { factor: number; offset: number; exponent: number };
+const POPULATION_SENSITIVITY: SensitivityConfig = { factor: 0.75, offset: -10, exponent: 0.95 };
+const BASELINE_SENSITIVITY: SensitivityConfig = { factor: 0.8, offset: -6, exponent: 0.88 };
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
 
 const clampScore = (value: number) => Math.min(100, Math.max(0, value));
 const applySensitivityAdjustment = (value: number, config: SensitivityConfig) => {
@@ -107,6 +128,67 @@ const calculatePopulationScores = (values: MeasureValues, profile: VocalProfile)
         const excess = Math.min(shimmer - SHIMMER_THRESHOLDS.moderate, SHIMMER_THRESHOLDS.severe - SHIMMER_THRESHOLDS.moderate);
         const maxExcess = SHIMMER_THRESHOLDS.severe - SHIMMER_THRESHOLDS.moderate;
         return 7 + (3 * Math.pow(excess / maxExcess, 0.7));
+    };
+
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
+    const calculateF0Score = (f0: number, profile: VocalProfile): number => {
+        const { optimal, normal, caution } = profile.f0Mean;
+        if (f0 >= normal[0] && f0 <= normal[1]) {
+            const distFromOptimal = Math.abs(f0 - optimal);
+            const normalRange = (normal[1] - normal[0]) / 2;
+            return 1.5 * (distFromOptimal / normalRange);
+        }
+        if (f0 >= caution[0] && f0 <= caution[1]) {
+            const inLowerCaution = f0 < normal[0];
+            const dist = inLowerCaution ? (normal[0] - f0) : (f0 - normal[1]);
+            const cautionRange = inLowerCaution ? (normal[0] - caution[0]) : (caution[1] - normal[1]);
+            return 1.5 + (4.5 * Math.pow(dist / cautionRange, 1.2));
+        }
+        return 6 + (4 * Math.min(1, Math.abs(f0 - optimal) / (optimal * 0.8)));
+    };
+
+    const calculateF0RangeScore = (range: number, profile: VocalProfile): number => {
+        const { optimal, normal, caution } = profile.f0Range;
+        if (range >= normal[0] && range <= normal[1]) {
+            const distFromOptimal = Math.abs(range - optimal);
+            const normalRange = (normal[1] - normal[0]) / 2;
+            return 1.0 * (distFromOptimal / normalRange);
+        }
+        if (range >= caution[0] && range <= caution[1]) {
+            const inLowerCaution = range < normal[0];
+            const dist = inLowerCaution ? (normal[0] - range) : (range - normal[1]);
+            const cautionRange = inLowerCaution ? (normal[0] - caution[0]) : (caution[1] - normal[1]);
+            const multiplier = inLowerCaution ? 1.5 : 1.0;
+            return 1 + (multiplier * 4 * Math.pow(dist / cautionRange, 1.1));
+        }
+        return 5 + (5 * Math.min(1, Math.abs(range - optimal) / optimal));
+    };
+
+    const calculateSpeechRateScore = (rate: number, profile: VocalProfile): number => {
+        const { optimal, normal, caution } = profile.speechRate;
+        if (rate >= normal[0] && rate <= normal[1]) {
+            const distFromOptimal = Math.abs(rate - optimal);
+            const normalRange = (normal[1] - normal[0]) / 2;
+            return 1.0 * (distFromOptimal / normalRange);
+        }
+        if (rate >= caution[0] && rate <= caution[1]) {
+            const inLowerCaution = rate < normal[0];
+            const dist = inLowerCaution ? (normal[0] - rate) : (rate - normal[1]);
+            const cautionRange = inLowerCaution ? (normal[0] - caution[0]) : (caution[1] - normal[1]);
+            const multiplier = inLowerCaution ? 1.0 : 1.3;
+            return 1 + (multiplier * 5 * Math.pow(dist / cautionRange, 1.15));
+        }
+        return 6 + (4 * Math.min(1, Math.abs(rate - optimal) / (optimal * 0.4)));
+    };
+
+<<<<<<< HEAD
+=======
+=======
+    const calculateHNRScore = (hnr: number): number => {
+        return 0; // HNR removed from calculation as per request
     };
 
     const calculateF0Score = (f0: number, profile: VocalProfile): number => {
@@ -159,6 +241,8 @@ const calculatePopulationScores = (values: MeasureValues, profile: VocalProfile)
         return 6 + (4 * Math.min(1, Math.abs(rate - optimal) / (optimal * 0.4)));
     };
 
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
     const calculateFormantScore = (formant: number, profile: VocalProfile, formantNum: 1 | 2): number => {
         const range = formantNum === 1 ? profile.f1 : profile.f2;
         const { optimal, normal } = range;
@@ -175,6 +259,13 @@ const calculatePopulationScores = (values: MeasureValues, profile: VocalProfile)
     return {
         jitter: calculateJitterScore(values.jitter),
         shimmer: calculateShimmerScore(values.shimmer),
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+        hnr: calculateHNRScore(values.hnr),
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
         f0Mean: calculateF0Score(values.f0Mean, profile),
         f0Range: calculateF0RangeScore(values.f0Range, profile),
         speechRate: calculateSpeechRateScore(values.speechRate, profile),
@@ -222,7 +313,15 @@ const calculateStressFromPopulation = (values: MeasureValues, profileType: Profi
 // V3.0: PERSONAL BASELINE-BASED ANALYSIS
 // ============================================================================
 
+<<<<<<< HEAD
 const BASELINE_WEIGHTS = { jitter: 2.8, shimmer: 2.8, f0Mean: 2.5, f0Range: 2.2, speechRate: 2.0, interactions: 1.5 };
+=======
+<<<<<<< HEAD
+const BASELINE_WEIGHTS = { jitter: 2.8, shimmer: 2.8, f0Mean: 2.5, f0Range: 2.2, speechRate: 2.0, interactions: 1.5 };
+=======
+const BASELINE_WEIGHTS = { jitter: 2.8, shimmer: 2.8, hnr: 0, f0Mean: 2.2, f0Range: 1.8, speechRate: 2.0, interactions: 1.5 };
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
 
 const calculateDeviationScores = (current: MeasureValues, baseline: MeasureValues) => {
     const safeRatio = (a: number, b: number) => (b > 0 ? a / b : 1);
@@ -240,10 +339,23 @@ const calculateDeviationScores = (current: MeasureValues, baseline: MeasureValue
     // Improved thresholds: More gradual contribution starting from smaller deviations
     // This prevents overly low scores when all biomarkers are slightly within normal ranges
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
     // Jitter: Higher is worse. Now starts contributing once it exceeds ~1.1x (10% increase) over baseline
     if (jitterRatio > 1.1) {
         if (jitterRatio > 1.3) {
             scores.jitter = 5 * Math.log10(jitterRatio / 1.3 * 9 + 1);
+<<<<<<< HEAD
+=======
+=======
+    // Jitter: Higher is worse. Now starts contributing once it exceeds ~1.2x (20% increase) over baseline
+    if (jitterRatio > 1.2) {
+        if (jitterRatio > 1.35) {
+            scores.jitter = 5 * Math.log10(jitterRatio / 1.35 * 9 + 1);
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
         } else {
             // Gradual contribution for 1.1x to 1.3x range
             const progress = (jitterRatio - 1.1) / (1.3 - 1.1); // 0 to 1
@@ -251,10 +363,23 @@ const calculateDeviationScores = (current: MeasureValues, baseline: MeasureValue
         }
     }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
     // Shimmer: Higher is worse. Same relaxed thresholds as jitter (starts at ~1.1x)
     if (shimmerRatio > 1.1) {
         if (shimmerRatio > 1.3) {
             scores.shimmer = 5 * Math.log10(shimmerRatio / 1.3 * 9 + 1);
+<<<<<<< HEAD
+=======
+=======
+    // Shimmer: Higher is worse. Same relaxed thresholds as jitter (starts at ~1.2x)
+    if (shimmerRatio > 1.2) {
+        if (shimmerRatio > 1.35) {
+            scores.shimmer = 5 * Math.log10(shimmerRatio / 1.35 * 9 + 1);
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
         } else {
             // Gradual contribution for 1.1x to 1.3x range
             const progress = (shimmerRatio - 1.1) / (1.3 - 1.1);
@@ -262,6 +387,7 @@ const calculateDeviationScores = (current: MeasureValues, baseline: MeasureValue
         }
     }
 
+<<<<<<< HEAD
     // F0 Mean: Both higher and lower are bad. Already contributes for any deviation.
     // Increased sensitivity to be more responsive to pitch changes
     scores.f0Mean = 9 * Math.pow(Math.abs(f0MeanDeviation), 0.65); // More responsive to pitch changes
@@ -269,6 +395,28 @@ const calculateDeviationScores = (current: MeasureValues, baseline: MeasureValue
     // F0 Range: Both higher (agitated) and lower (monotone) are bad. Monotone is worse.
     const f0RangePenalty = f0RangeDeviation < 0 ? 1.4 : 1; // Slightly reduced penalty
     scores.f0Range = 9 * Math.pow(Math.abs(f0RangeDeviation), 0.7) * f0RangePenalty; // More responsive to pitch variability changes
+=======
+<<<<<<< HEAD
+    // F0 Mean: Both higher and lower are bad. Already contributes for any deviation.
+    // Increased sensitivity to be more responsive to pitch changes
+    scores.f0Mean = 9 * Math.pow(Math.abs(f0MeanDeviation), 0.65); // More responsive to pitch changes
+
+    // F0 Range: Both higher (agitated) and lower (monotone) are bad. Monotone is worse.
+    const f0RangePenalty = f0RangeDeviation < 0 ? 1.4 : 1; // Slightly reduced penalty
+    scores.f0Range = 9 * Math.pow(Math.abs(f0RangeDeviation), 0.7) * f0RangePenalty; // More responsive to pitch variability changes
+=======
+    // HNR: Removed from calculation
+    scores.hnr = 0;
+
+    // F0 Mean: Both higher and lower are bad. Already contributes for any deviation.
+    // Fine-tuned sensitivity to prevent over-scoring small variations
+    scores.f0Mean = 7 * Math.pow(Math.abs(f0MeanDeviation), 0.8); // Further reduced sensitivity
+
+    // F0 Range: Both higher (agitated) and lower (monotone) are bad. Monotone is worse.
+    const f0RangePenalty = f0RangeDeviation < 0 ? 1.4 : 1; // Slightly reduced penalty
+    scores.f0Range = 7 * Math.pow(Math.abs(f0RangeDeviation), 0.9) * f0RangePenalty; // Further reduced sensitivity
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
 
     // Speech Rate: Both higher and lower are bad. Already contributes for any deviation.
     // Fine-tuned sensitivity
@@ -319,12 +467,28 @@ const generateBaselineExplanation = (level: StressLevel, scores: any): { explana
     return { explanation, stressType };
 };
 
+<<<<<<< HEAD
 const calculateStressFromBaseline = (current: MeasureValues, baseline: MeasureValues, sensitivityMultiplier: number = 1.0): StressResultType => {
+=======
+<<<<<<< HEAD
+const calculateStressFromBaseline = (current: MeasureValues, baseline: MeasureValues, sensitivityMultiplier: number = 1.0): StressResultType => {
+=======
+const calculateStressFromBaseline = (current: MeasureValues, baseline: MeasureValues): StressResultType => {
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
     const scores = calculateDeviationScores(current, baseline);
     const interactionScore = calculateBaselineInteraction(scores);
 
     // Fix: Iterate over actual score keys, not weight keys
+<<<<<<< HEAD
     const scoreKeys = ['jitter', 'shimmer', 'f0Mean', 'f0Range', 'speechRate'] as const;
+=======
+<<<<<<< HEAD
+    const scoreKeys = ['jitter', 'shimmer', 'f0Mean', 'f0Range', 'speechRate'] as const;
+=======
+    const scoreKeys = ['jitter', 'shimmer', 'hnr', 'f0Mean', 'f0Range', 'speechRate'] as const;
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
 
     let totalWeightedScore = scoreKeys.reduce((acc, key) => {
         const weight = BASELINE_WEIGHTS[key];
@@ -335,9 +499,21 @@ const calculateStressFromBaseline = (current: MeasureValues, baseline: MeasureVa
     totalWeightedScore += interactionScore * BASELINE_WEIGHTS.interactions;
     totalWeight += BASELINE_WEIGHTS.interactions;
 
+<<<<<<< HEAD
     // Increased multiplier from 6.5 to 8.5 for better responsiveness
     // Apply adaptive sensitivity multiplier before sensitivity adjustment
     const rawScore = (totalWeightedScore / totalWeight) * 8.5 * sensitivityMultiplier;
+=======
+<<<<<<< HEAD
+    // Increased multiplier from 6.5 to 8.5 for better responsiveness
+    // Apply adaptive sensitivity multiplier before sensitivity adjustment
+    const rawScore = (totalWeightedScore / totalWeight) * 8.5 * sensitivityMultiplier;
+=======
+    // Fine-tuned multiplier: reduced from 10 to 6.5 to prevent over-scoring
+    // This provides a more balanced stress level calculation
+    const rawScore = (totalWeightedScore / totalWeight) * 6.5;
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
     const finalScore = applySensitivityAdjustment(rawScore, BASELINE_SENSITIVITY);
     let level: StressLevel;
     if (finalScore >= 67) level = StressLevel.High;
@@ -364,12 +540,26 @@ const isValidBaseline = (baseline: MeasureValues): boolean => {
         baseline.f0Mean > 0 &&
         baseline.jitter > 0 &&
         baseline.shimmer > 0 &&
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+        baseline.hnr > 0 &&
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
         baseline.speechRate > 0 &&
         baseline.f0Range > 0 &&
         // Ensure values are within reasonable ranges (not NaN or Infinity)
         isFinite(baseline.f0Mean) &&
         isFinite(baseline.jitter) &&
         isFinite(baseline.shimmer) &&
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+        isFinite(baseline.hnr) &&
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
         isFinite(baseline.speechRate) &&
         isFinite(baseline.f0Range)
     );
@@ -388,12 +578,26 @@ const isValidBaseline = (baseline: MeasureValues): boolean => {
 export const calculateStressLevel = (
     values: MeasureValues,
     profileType: ProfileType = 'mixed',
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
     baselineValues: MeasureValues | null = null,
     sensitivityMultiplier: number = 1.0
 ): StressResultType => {
     // Only use baseline mode if baseline values are valid
     if (baselineValues && isValidBaseline(baselineValues)) {
         return calculateStressFromBaseline(values, baselineValues, sensitivityMultiplier);
+<<<<<<< HEAD
+=======
+=======
+    baselineValues: MeasureValues | null = null
+): StressResultType => {
+    // Only use baseline mode if baseline values are valid
+    if (baselineValues && isValidBaseline(baselineValues)) {
+        return calculateStressFromBaseline(values, baselineValues);
+>>>>>>> b4c08fe80b3a594ecd80345650591c573fcd8297
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
     } else {
         // Fall back to population-based analysis if baseline is invalid or missing
         return calculateStressFromPopulation(values, profileType);

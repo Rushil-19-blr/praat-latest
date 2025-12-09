@@ -29,6 +29,14 @@ export interface AnalysisData {
 export interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
+<<<<<<< HEAD
+=======
+}
+
+export interface ModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
 }
 
 export interface RawBiomarkerData {

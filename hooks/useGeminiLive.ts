@@ -134,6 +134,7 @@ export const useGeminiLive = (stream: MediaStream | null, muted: boolean = true)
                                         const inputData = audioProcessingEvent.inputBuffer.getChannelData(0);
                                         const pcmBlob = createPcmBlob(inputData);
                                         sessionPromise.then((session) => {
+<<<<<<< HEAD
                                             // rigorous check: active session, matching the promise, and not in cleanup
                                             if (sessionRef.current === session) {
                                                 try {
@@ -141,6 +142,12 @@ export const useGeminiLive = (stream: MediaStream | null, muted: boolean = true)
                                                 } catch (e) {
                                                     // transport errors can occur if session is transitioning
                                                 }
+=======
+                                            try {
+                                                session.sendRealtimeInput({ event: 'input_audio_buffer.append', media: pcmBlob });
+                                            } catch (e) {
+                                                // transport errors can occur if session is transitioning
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
                                             }
                                         });
                                     } catch { }

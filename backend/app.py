@@ -21,8 +21,9 @@ if allowed_origins != '*':
 CORS(app, origins=allowed_origins, supports_credentials=True)
 
 # Stream Chat configuration
-STREAM_API_KEY = "kt3cr78evu5y"
-STREAM_API_SECRET = "kpfebwva7mvhp3wwwv8cynfgeemdrf7wkrexszr8zhz4p8nj2gnjr5jy4tadsamb"
+# Stream Chat configuration
+STREAM_API_KEY = os.environ.get("STREAM_API_KEY", "kt3cr78evu5y")
+STREAM_API_SECRET = os.environ.get("STREAM_API_SECRET", "kpfebwva7mvhp3wwwv8cynfgeemdrf7wkrexszr8zhz4p8nj2gnjr5jy4tadsamb")
 
 # Initialize Stream Chat server client
 stream_client = StreamChat(api_key=STREAM_API_KEY, api_secret=STREAM_API_SECRET)
@@ -324,4 +325,5 @@ if __name__ == "__main__":
 	import os
 	os.environ['FLASK_SKIP_DOTENV'] = '1'
 	
-	app.run(host="0.0.0.0", port=8000, debug=True)
+	port = int(os.environ.get("PORT", 8000))
+	app.run(host="0.0.0.0", port=port, debug=True)

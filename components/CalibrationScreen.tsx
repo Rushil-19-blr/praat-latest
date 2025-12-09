@@ -168,7 +168,11 @@ const CalibrationScreen: React.FC<CalibrationScreenProps> = ({ onComplete, onClo
       const feats: { rms: number; zcr: number; spectralCentroid: number; spectralFlatness: number; mfcc: number[] }[] = [];
       for (const blob of allRecordedBlobs.current) {
         const wav = await webmBlobToWavMono16k(blob);
+<<<<<<< HEAD
         const f = await extractFeaturesWithPraat(wav, BACKEND_URL);
+=======
+        const f = await extractFeaturesWithPraat(wav);
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
         feats.push(f);
       }
       if (feats.length < SAMPLES_NEEDED) {

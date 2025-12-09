@@ -145,7 +145,11 @@ const VoiceCalibration: React.FC<VoiceCalibrationProps> = ({ onComplete, onError
       // Convert to WAV format
       const wav = await webmBlobToWavMono16k(audioBlob);
       // Extract features using Praat
+<<<<<<< HEAD
       const features = await extractFeaturesWithPraat(wav, BACKEND_URL);
+=======
+      const features = await extractFeaturesWithPraat(wav);
+>>>>>>> 772dfd6a6af92a3a2e89c8abfbfd0ef96497a84c
 
       // Save baseline features (no stress levels)
       const baselineData = {
