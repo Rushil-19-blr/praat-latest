@@ -6,17 +6,17 @@ import NotificationPanel from './NotificationPanel';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface DashboardProps {
-  onStartVoiceSession: () => void;
-  onStartCalibration?: () => void;
-  onSignOut?: () => void;
+    onStartVoiceSession: () => void;
+    onStartCalibration?: () => void;
+    onSignOut?: () => void;
 }
 
 interface UserData {
-  class?: number;
-  section?: string;
-  enrollment?: string;
-  accountNumber?: string;
-  password?: string;
+    class?: number;
+    section?: string;
+    enrollment?: string;
+    accountNumber?: string;
+    password?: string;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalibration, onSignOut }) => {
@@ -41,7 +41,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
 
     const startSession = () => {
         onStartVoiceSession();
-        alert('Starting a new voice analysis session!');
     };
 
     const logout = () => {
@@ -318,17 +317,17 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                     <h1>AWAAZ</h1>
                 </div>
                 <div className="flex gap-2">
-                    <button 
-                        className="accounts-btn" 
+                    <button
+                        className="accounts-btn"
                         onClick={() => setIsChatOpen(true)}
                         title="Messages"
                     >
                         <MessageCircle className="accounts-icon" />
                         <span className="notification-dot"></span>
                     </button>
-                    <button 
+                    <button
                         ref={accountsButtonRef}
-                        className={`accounts-btn ${isModalOpen ? 'active' : ''}`} 
+                        className={`accounts-btn ${isModalOpen ? 'active' : ''}`}
                         onClick={() => setIsModalOpen(!isModalOpen)}
                     >
                         <motion.div
@@ -339,7 +338,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                                 <X className="accounts-icon" />
                             ) : (
                                 <svg className="accounts-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
                                 </svg>
                             )}
                         </motion.div>
@@ -355,8 +354,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                 <div className="session-section">
                     <button className="start-session-btn" onClick={startSession}>
                         <svg className="voice-icon" width="125" height="125" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M256 32c-44.2 0-80 35.8-80 80v160c0 44.2 35.8 80 80 80s80-35.8 80-80V112c0-44.2-35.8-80-80-80z" fill="#f472b6"/>
-                            <path d="M128 240v32c0 70.7 57.3 128 128 128s128-57.3 128-128v-32c0-8.8 7.2-16 16-16s16 7.2 16 16v32c0 83.5-63.8 152.1-145.5 159.5V496h65.5c8.8 0 16 7.2 16 16s-7.2 16-16 16h-160c-8.8 0-16-7.2-16-16s7.2-16 16-16h65.5v-64.5C160.8 424.1 97 355.5 97 272v-32c0-8.8 7.2-16 16-16s16 7.2 16 16z" fill="#f472b6"/>
+                            <path d="M256 32c-44.2 0-80 35.8-80 80v160c0 44.2 35.8 80 80 80s80-35.8 80-80V112c0-44.2-35.8-80-80-80z" fill="#f472b6" />
+                            <path d="M128 240v32c0 70.7 57.3 128 128 128s128-57.3 128-128v-32c0-8.8 7.2-16 16-16s16 7.2 16 16v32c0 83.5-63.8 152.1-145.5 159.5V496h65.5c8.8 0 16 7.2 16 16s-7.2 16-16 16h-160c-8.8 0-16-7.2-16-16s7.2-16 16-16h65.5v-64.5C160.8 424.1 97 355.5 97 272v-32c0-8.8 7.2-16 16-16s16 7.2 16 16z" fill="#f472b6" />
                         </svg>
                     </button>
                     <div className="session-text">Start a Session</div>
@@ -364,14 +363,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
 
                 {onStartCalibration && (
                     <div className="calibration-section">
-                        <button 
-                            onClick={onStartCalibration} 
+                        <button
+                            onClick={onStartCalibration}
                             className="calibration-btn"
                             title="Calibration"
                         >
                             <svg className="calibration-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
-                                <path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
-                                <path d="M17.3 11c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/>
+                                <path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
+                                <path d="M17.3 11c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z" />
                             </svg>
                             <span>Calibration</span>
                         </button>
@@ -396,25 +395,25 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                         />
                         <motion.div
                             className="modal-content"
-                            initial={{ 
-                                opacity: 0, 
+                            initial={{
+                                opacity: 0,
                                 scale: 0.8,
                                 y: -20,
                                 x: 20
                             }}
-                            animate={{ 
-                                opacity: 1, 
+                            animate={{
+                                opacity: 1,
                                 scale: 1,
                                 y: 0,
                                 x: 0
                             }}
-                            exit={{ 
-                                opacity: 0, 
+                            exit={{
+                                opacity: 0,
                                 scale: 0.8,
                                 y: -20,
                                 x: 20
                             }}
-                            transition={{ 
+                            transition={{
                                 duration: 0.3,
                                 ease: [0.4, 0, 0.2, 1]
                             }}
@@ -434,11 +433,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
             {/* Student Chat Modal */}
             {userData?.accountNumber && (
                 <StudentChatModal
-                isOpen={isChatOpen} 
-                onClose={() => setIsChatOpen(false)} 
+                    isOpen={isChatOpen}
+                    onClose={() => setIsChatOpen(false)}
                     studentId={userData.accountNumber}
                     studentName={userData.enrollment || `Student ${userData.accountNumber}`}
-            />
+                />
             )}
         </>
     );

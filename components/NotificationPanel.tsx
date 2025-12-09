@@ -20,13 +20,13 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ sessionDates = ne
       try {
         const parsedUserData = JSON.parse(userData);
         const studentCode = parsedUserData.accountNumber;
-        
+
         // Get all students data
         const allStudentsData = localStorage.getItem('allStudentsData');
         if (allStudentsData) {
           const studentsData = JSON.parse(allStudentsData);
           const student = studentsData.find((s: any) => s.code === studentCode);
-          
+
           if (student && student.analysisHistory) {
             // Extract dates from analysis history
             const dateSet = new Set<string>();
@@ -99,9 +99,8 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ sessionDates = ne
       <button
         ref={calendarButtonRef}
         onClick={() => setIsOpen(!isOpen)}
-        className={`relative flex items-center justify-center gap-3 px-6 py-3 rounded-full bg-white/10 hover:bg-white/20 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-purple-primary/50 ${
-          isOpen ? 'bg-purple-500/20 border border-purple-500/50 z-[60]' : ''
-        }`}
+        className={`relative flex items-center justify-center gap-3 px-6 py-3 rounded-full bg-white/10 hover:bg-white/20 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-purple-primary/50 ${isOpen ? 'bg-purple-500/20 border border-purple-500/50 z-[60]' : ''
+          }`}
         style={{ zIndex: isOpen ? 60 : 'auto' }}
         aria-label={isOpen ? "Close calendar" : "Open calendar"}
       >
@@ -130,30 +129,30 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ sessionDates = ne
               className="fixed inset-0 bg-black/60 z-50 backdrop-blur-sm"
               onClick={() => setIsOpen(false)}
             />
-            
+
             {/* Panel */}
             <motion.div
-              initial={{ 
+              initial={{
                 opacity: 0,
                 scale: 0.85,
                 y: 40,
                 x: 20
               }}
-              animate={{ 
+              animate={{
                 opacity: 1,
                 scale: 1,
                 y: 0,
                 x: 0
               }}
-              exit={{ 
+              exit={{
                 opacity: 0,
                 scale: 0.85,
                 y: 40,
                 x: 20
               }}
-              transition={{ 
-                type: 'spring', 
-                damping: 25, 
+              transition={{
+                type: 'spring',
+                damping: 25,
                 stiffness: 200,
                 duration: 0.3
               }}

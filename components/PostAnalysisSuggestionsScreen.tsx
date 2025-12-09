@@ -4,6 +4,7 @@ import GlassCard from './GlassCard';
 import { ChevronLeft } from './Icons';
 import { motion } from 'framer-motion';
 import { LiquidButton } from './ui/liquid-button';
+import { InfinityLoader } from '@/components/ui/infinity-loader';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 interface PostAnalysisSuggestionsScreenProps {
@@ -29,7 +30,9 @@ const positiveAffirmations = [
 const generateSuggestionsWithGemini = async (
   stressLevel: number,
   biomarkers: Biomarker[],
-  aiSummary?: string
+  aiSummary?: string,
+  questionnaireAnswers?: { [questionIndex: number]: string },
+  liveSessionAnswers?: { questionText: string; studentAnswer: string }[]
 ): Promise<{ immediate: string[]; longTerm: string[]; nextSession: number }> => {
   try {
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.API_KEY;
@@ -38,20 +41,42 @@ const generateSuggestionsWithGemini = async (
     }
 
     const ai = new GoogleGenerativeAI(apiKey);
-    const model = ai.getGenerativeModel({ model: 'gemini-2.5-pro' });
+    const model = ai.getGenerativeModel({ model: 'gemini-2.5-pro' }, { apiVersion: 'v1beta' });
 
     // Analyze problematic biomarkers
     const problematicBiomarkers = biomarkers.filter(b => b.status === 'red' || b.status === 'orange');
     const biomarkerDetails = problematicBiomarkers.map(b => `${b.name}: ${b.value} (${b.status})`).join(', ');
-    
+
     // Determine stress category
     const stressCategory = stressLevel < 34 ? 'low' : stressLevel < 67 ? 'moderate' : 'high';
-    
-    const prompt = `You are a wellness expert providing personalized stress management suggestions based on vocal stress analysis.
+
+    // Build student context from LIVE SESSION answers (priority) and questionnaire
+    let studentContext = '';
+
+    // Priority 1: Live conversation with Gemini (most valuable context)
+    if (liveSessionAnswers && liveSessionAnswers.length > 0) {
+      const liveContextLines = liveSessionAnswers.map(qa =>
+        `- Q: "${qa.questionText.substring(0, 80)}..."\n  A: "${qa.studentAnswer}"`
+      );
+      studentContext += `\n\n🎯 STUDENT'S LIVE CONVERSATION (HIGHEST PRIORITY CONTEXT):\n${liveContextLines.join('\n\n')}`;
+    }
+
+    // Priority 2: Pre-recording questionnaire answers
+    if (questionnaireAnswers && Object.keys(questionnaireAnswers).length > 0) {
+      const contextLines = Object.entries(questionnaireAnswers).map(([, answer]) => `- "${answer}"`);
+      studentContext += `\n\nPRE-SESSION QUESTIONNAIRE:\n${contextLines.join('\n')}`;
+    }
+
+    // Add instruction if we have any context
+    if (studentContext) {
+      studentContext += `\n\n⚠️ CRITICAL INSTRUCTION: The student mentioned SPECIFIC problems above. You MUST include at least 2 suggestions that DIRECTLY address their specific concerns with practical, actionable advice. Do NOT give generic wellness tips if specific issues were mentioned.`;
+    }
+
+    const prompt = `You are a wellness expert AND personal mentor providing hyper-personalized stress management suggestions.
 
 STRESS LEVEL: ${stressLevel}/100 (${stressCategory} stress)
 AI ANALYSIS SUMMARY: ${aiSummary || 'No additional summary available'}
-PROBLEMATIC BIOMARKERS: ${biomarkerDetails || 'None detected'}
+PROBLEMATIC BIOMARKERS: ${biomarkerDetails || 'None detected'}${studentContext}
 
 CRITICAL REQUIREMENTS - YOU MUST FOLLOW THESE EXACTLY:
 1. Generate EXACTLY 6 suggestions TOTAL - NO MORE, NO LESS
@@ -61,6 +86,12 @@ CRITICAL REQUIREMENTS - YOU MUST FOLLOW THESE EXACTLY:
 5. If you provide 3 immediate actions, provide exactly 3 long-term suggestions
 6. If you provide 2 immediate actions, provide exactly 4 long-term suggestions (but this is not preferred - aim for 3+3)
 7. If you provide 1 immediate action, provide exactly 5 long-term suggestions (but this is not preferred - aim for 3+3)
+
+LENGTH REQUIREMENTS - CRITICAL:
+- Each suggestion MUST be SHORT and CONCISE (maximum 8-10 words)
+- Be direct and straight to the point
+- No lengthy explanations or detailed instructions
+- Focus on the core action only
 
 PERSONALIZATION GUIDELINES:
 - High stress (67+): Focus on immediate relief techniques and professional support
@@ -75,16 +106,16 @@ Return ONLY valid JSON with no markdown, no explanations, no additional text. Fo
 
 Example (for high stress):
 {
-  "immediate": ["Find a quiet space and practice 5-10 minutes of deep breathing", "Take a warm shower or bath to help relax your body", "Listen to calming music or nature sounds"],
-  "longTerm": ["Prioritize getting 7-9 hours of quality sleep each night", "Start with light exercise and gradually increase intensity", "Consider speaking with a mental health professional"]
+  "immediate": ["Practice box breathing for 2 minutes", "Drink warm herbal tea", "Stretch neck and shoulders"],
+  "longTerm": ["Get 7-9 hours of sleep nightly", "Exercise 3-4 times per week", "Consider therapy or counseling"]
 }
 
-Generate personalized suggestions now - REMEMBER: EXACTLY 6 TOTAL (max 3 immediate, max 3 long-term):`;
+Generate personalized suggestions now - REMEMBER: EXACTLY 6 TOTAL (max 3 immediate, max 3 long-term), KEEP EACH SUGGESTION SHORT (8-10 words max):`;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
-    
+
     // Extract JSON from response (handle markdown code blocks if present)
     let jsonText = text.trim();
     if (jsonText.includes('```json')) {
@@ -92,38 +123,38 @@ Generate personalized suggestions now - REMEMBER: EXACTLY 6 TOTAL (max 3 immedia
     } else if (jsonText.includes('```')) {
       jsonText = jsonText.split('```')[1].split('```')[0].trim();
     }
-    
+
     const parsed = JSON.parse(jsonText);
-    
+
     // STRICT ENFORCEMENT: Ensure max 6 total suggestions, max 3 per category
     let immediate = Array.isArray(parsed.immediate) ? parsed.immediate : [];
     let longTerm = Array.isArray(parsed.longTerm) ? parsed.longTerm : [];
-    
+
     // Trim each category to max 3
     immediate = immediate.slice(0, 3);
     longTerm = longTerm.slice(0, 3);
-    
+
     // Calculate current total
     let total = immediate.length + longTerm.length;
-    
+
     // If total exceeds 6, trim long-term to fit
     if (total > 6) {
       longTerm = longTerm.slice(0, 6 - immediate.length);
       total = immediate.length + longTerm.length;
     }
-    
+
     // Ensure we have at least 2 in each category if we have room (but never exceed 6)
     if (total < 6) {
       if (immediate.length < 2 && total + 1 <= 6) {
-        immediate.push("Take a moment to practice deep breathing and center yourself");
+        immediate.push("Practice deep breathing");
         total++;
       }
       if (longTerm.length < 2 && total + 1 <= 6) {
-        longTerm.push("Establish a consistent daily routine that includes self-care");
+        longTerm.push("Establish consistent daily routine");
         total++;
       }
     }
-    
+
     // Final safety check: ensure we never exceed 6
     if (total > 6) {
       // Trim long-term first, then immediate if needed
@@ -136,7 +167,7 @@ Generate personalized suggestions now - REMEMBER: EXACTLY 6 TOTAL (max 3 immedia
         immediate = immediate.slice(0, immediate.length - remainingExcess);
       }
     }
-    
+
     // Determine next session based on stress level
     let nextSession = 14; // 2 weeks default
     if (stressLevel >= 67) {
@@ -144,7 +175,7 @@ Generate personalized suggestions now - REMEMBER: EXACTLY 6 TOTAL (max 3 immedia
     } else if (stressLevel >= 34) {
       nextSession = 7; // 1 week for moderate stress
     }
-    
+
     // Final return with strict limits
     return {
       immediate: immediate.slice(0, 3), // Max 3
@@ -166,60 +197,60 @@ const getFallbackSuggestions = (
 ): { immediate: string[]; longTerm: string[]; nextSession: number } => {
   const isHighStress = stressLevel >= 67;
   const isModerateStress = stressLevel >= 34 && stressLevel < 67;
-  
+
   let immediate: string[] = [];
   let longTerm: string[] = [];
-  
+
   if (isHighStress) {
     // High stress: 3 immediate + 3 long-term = 6 total
     immediate = [
-      "Find a quiet space and practice 5-10 minutes of deep breathing",
-      "Take a warm shower or bath to help relax your body",
-      "Listen to calming music or nature sounds"
+      "Practice box breathing for 2 minutes",
+      "Drink warm herbal tea",
+      "Stretch neck and shoulders"
     ];
     longTerm = [
-      "Prioritize getting 7-9 hours of quality sleep each night",
-      "Start with light exercise and gradually increase intensity",
-      "Consider speaking with a mental health professional"
+      "Get 7-9 hours of sleep nightly",
+      "Exercise 3-4 times per week",
+      "Consider therapy or counseling"
     ];
   } else if (isModerateStress) {
     // Moderate stress: 3 immediate + 3 long-term = 6 total
     immediate = [
-        "Take a 10-minute break to practice deep breathing",
-        "Go for a short walk outside to clear your mind",
-      "Listen to calming music or a guided meditation"
+      "Practice deep breathing for 5 minutes",
+      "Take a short walk outside",
+      "Listen to calming music"
     ];
     longTerm = [
-        "Establish a consistent sleep routine",
-        "Incorporate regular exercise (30 minutes, 3-4 times/week)",
-      "Practice daily mindfulness or meditation (10-15 minutes)"
+      "Maintain consistent sleep schedule",
+      "Exercise 30 minutes, 3-4 times weekly",
+      "Practice daily mindfulness meditation"
     ];
   } else {
     // Low stress: 3 immediate + 3 long-term = 6 total
     immediate = [
-      "Continue practicing mindfulness or meditation",
-      "Stay connected with supportive friends or family",
-      "Take a moment to appreciate your current positive state"
+      "Continue mindfulness practice",
+      "Connect with supportive friends",
+      "Appreciate your positive state"
     ];
     longTerm = [
-      "Keep a regular sleep schedule (7-9 hours)",
-      "Engage in regular physical activity you enjoy",
-      "Practice gratitude journaling daily"
+      "Maintain 7-9 hour sleep schedule",
+      "Engage in regular physical activity",
+      "Practice daily gratitude journaling"
     ];
   }
-  
+
   // STRICT ENFORCEMENT: Ensure exactly 6 total, max 3 per category
   // All cases already have 3+3=6, so we just need to ensure we don't exceed limits
   let finalImmediate = immediate.slice(0, 3);
   let finalLongTerm = longTerm.slice(0, 3);
-  
+
   // Ensure total never exceeds 6
   const total = finalImmediate.length + finalLongTerm.length;
   if (total > 6) {
     // Trim long-term to fit
     finalLongTerm = finalLongTerm.slice(0, 6 - finalImmediate.length);
   }
-  
+
   return {
     immediate: finalImmediate,
     longTerm: finalLongTerm,
@@ -227,10 +258,10 @@ const getFallbackSuggestions = (
   };
 };
 
-const PostAnalysisSuggestionsScreen: React.FC<PostAnalysisSuggestionsScreenProps> = ({ 
-  analysisData, 
+const PostAnalysisSuggestionsScreen: React.FC<PostAnalysisSuggestionsScreenProps> = ({
+  analysisData,
   onBack,
-  onClose 
+  onClose
 }) => {
   const [suggestions, setSuggestions] = useState<{ immediate: string[]; longTerm: string[]; nextSession: number }>({
     immediate: [],
@@ -238,41 +269,54 @@ const PostAnalysisSuggestionsScreen: React.FC<PostAnalysisSuggestionsScreenProps
     nextSession: 14
   });
   const [loading, setLoading] = useState(true);
+  const [showLoader, setShowLoader] = useState(true);
+  const [loaderComplete, setLoaderComplete] = useState(false);
   const stressLevel = analysisData.stressLevel;
   const affirmation = positiveAffirmations[Math.floor(Math.random() * positiveAffirmations.length)];
-  
+
+  // Track the last analysis date to prevent duplicate generation
+  const lastAnalysisDateRef = React.useRef<string | null>(null);
+
   // Generate suggestions using Gemini AI when component mounts
   useEffect(() => {
+    // Prevent duplicate generation for the same analysis
+    if (analysisData.date === lastAnalysisDateRef.current) {
+      return;
+    }
+    lastAnalysisDateRef.current = analysisData.date;
+
     const loadSuggestions = async () => {
       setLoading(true);
       try {
         const generated = await generateSuggestionsWithGemini(
           stressLevel,
           analysisData.biomarkers || [],
-          analysisData.aiSummary
+          analysisData.aiSummary,
+          analysisData.questionnaireAnswers,
+          analysisData.liveSessionAnswers
         );
-        
+
         // STRICT VALIDATION: Ensure max 6 total, max 3 per category
         let finalImmediate = generated.immediate.slice(0, 3);
         let finalLongTerm = generated.longTerm.slice(0, 3);
-        
+
         // Ensure total never exceeds 6
         const total = finalImmediate.length + finalLongTerm.length;
         if (total > 6) {
           // Trim long-term to fit
           finalLongTerm = finalLongTerm.slice(0, 6 - finalImmediate.length);
         }
-        
+
         // Debug log to verify count
         const finalTotal = finalImmediate.length + finalLongTerm.length;
         console.log(`[Suggestions] Immediate: ${finalImmediate.length}, Long-term: ${finalLongTerm.length}, Total: ${finalTotal}`);
-        
+
         if (finalTotal > 6) {
           console.error(`[ERROR] Suggestions exceed 6! Total: ${finalTotal}`);
           // Emergency fix
           finalLongTerm = finalLongTerm.slice(0, Math.max(0, 6 - finalImmediate.length));
         }
-        
+
         setSuggestions({
           immediate: finalImmediate,
           longTerm: finalLongTerm,
@@ -288,12 +332,13 @@ const PostAnalysisSuggestionsScreen: React.FC<PostAnalysisSuggestionsScreenProps
         );
         setSuggestions(fallback);
       } finally {
-        setLoading(false);
+        setLoaderComplete(true);
+        setTimeout(() => { setLoading(false); setShowLoader(false); }, 1000);
       }
     };
-    
+
     loadSuggestions();
-  }, [stressLevel, analysisData.biomarkers, analysisData.aiSummary]);
+  }, [stressLevel, analysisData.biomarkers, analysisData.aiSummary, analysisData.date]);
 
   // Save suggestions to localStorage for the todo list
   useEffect(() => {
@@ -302,7 +347,7 @@ const PostAnalysisSuggestionsScreen: React.FC<PostAnalysisSuggestionsScreenProps
       try {
         const parsedUserData = JSON.parse(userData);
         const studentCode = parsedUserData.accountNumber;
-        
+
         // Combine immediate and long-term suggestions
         const allSuggestions = [
           ...suggestions.immediate.map((s, idx) => ({
@@ -328,7 +373,7 @@ const PostAnalysisSuggestionsScreen: React.FC<PostAnalysisSuggestionsScreenProps
           nextSession: suggestions.nextSession
         };
         localStorage.setItem(suggestionsKey, JSON.stringify(suggestionsData));
-        
+
         // Dispatch custom event to notify todo list to refresh
         window.dispatchEvent(new Event('suggestionsUpdated'));
       } catch (error) {
@@ -339,8 +384,8 @@ const PostAnalysisSuggestionsScreen: React.FC<PostAnalysisSuggestionsScreenProps
 
   const Header = () => (
     <header className="fixed top-0 left-0 right-0 h-[60px] flex items-center justify-between px-4 z-20 max-w-2xl mx-auto bg-background-primary/95 backdrop-blur-sm">
-      <button 
-        onClick={onBack} 
+      <button
+        onClick={onBack}
         className="glass-base w-11 h-11 rounded-full flex items-center justify-center transition-all hover:bg-purple-primary/20"
       >
         <ChevronLeft className="w-5 h-5 text-white" />
@@ -352,34 +397,34 @@ const PostAnalysisSuggestionsScreen: React.FC<PostAnalysisSuggestionsScreenProps
 
   const containerVariants = {
     hidden: { opacity: 0, y: 20 },
-    visible: { 
-      opacity: 1, 
+    visible: {
+      opacity: 1,
       y: 0,
-      transition: { 
+      transition: {
         staggerChildren: 0.1,
         duration: 0.4
-      } 
+      }
     }
   };
 
   const itemVariants = {
     hidden: { opacity: 0, y: 15 },
-    visible: { 
-      opacity: 1, 
+    visible: {
+      opacity: 1,
       y: 0,
-      transition: { 
-        type: 'spring', 
+      transition: {
+        type: 'spring',
         stiffness: 200,
         damping: 20,
         duration: 0.4
-      } 
+      }
     }
   };
 
   return (
     <div className="min-h-screen w-full p-4 pt-[80px] pb-10 max-w-2xl mx-auto">
       <Header />
-      
+
       <motion.div
         className="space-y-6"
         variants={containerVariants}
@@ -399,36 +444,39 @@ const PostAnalysisSuggestionsScreen: React.FC<PostAnalysisSuggestionsScreenProps
         <motion.div variants={itemVariants}>
           <div className="bg-surface rounded-2xl p-6">
             <h2 className="text-2xl font-bold text-white mb-6 text-left">Personalized Suggestions</h2>
-            
-            {loading ? (
+
+            {showLoader ? (
               <div className="flex items-center justify-center py-8">
-                <div className="text-white">Generating personalized suggestions...</div>
+                <InfinityLoader
+                  statusText="Generating personalized suggestions..."
+                  isComplete={loaderComplete}
+                />
               </div>
             ) : (
               <>
-            {/* Immediate Actions */}
-            <div className="mb-6">
-              <h3 className="text-base font-bold text-purple-light mb-4 text-left">Immediate Actions</h3>
-              <div className="space-y-3">
+                {/* Immediate Actions */}
+                <div className="mb-6">
+                  <h3 className="text-base font-bold text-purple-light mb-4 text-left">Immediate Actions</h3>
+                  <div className="space-y-3">
                     {suggestions.immediate.slice(0, 3).map((suggestion, index) => (
-                  <div key={index} className="bg-background-secondary rounded-xl p-4">
-                    <p className="text-sm text-white leading-relaxed text-left">{suggestion}</p>
+                      <div key={index} className="bg-background-secondary rounded-xl p-4">
+                        <p className="text-sm text-white leading-relaxed text-left">{suggestion}</p>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
+                </div>
 
-            {/* Long-term Wellness */}
-            <div>
-              <h3 className="text-base font-bold text-purple-light mb-4 text-left">Long-term Wellness</h3>
-              <div className="space-y-3">
+                {/* Long-term Wellness */}
+                <div>
+                  <h3 className="text-base font-bold text-purple-light mb-4 text-left">Long-term Wellness</h3>
+                  <div className="space-y-3">
                     {suggestions.longTerm.slice(0, 3).map((suggestion, index) => (
-                  <div key={index} className="bg-background-secondary rounded-xl p-4">
-                    <p className="text-sm text-white leading-relaxed text-left">{suggestion}</p>
+                      <div key={index} className="bg-background-secondary rounded-xl p-4">
+                        <p className="text-sm text-white leading-relaxed text-left">{suggestion}</p>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
+                </div>
               </>
             )}
           </div>
@@ -436,7 +484,7 @@ const PostAnalysisSuggestionsScreen: React.FC<PostAnalysisSuggestionsScreenProps
 
         {/* Close/Finish Button */}
         <motion.div variants={itemVariants} className="pt-4">
-          <LiquidButton 
+          <LiquidButton
             onClick={onClose}
             className="w-full h-14 rounded-2xl flex items-center justify-center font-medium"
           >

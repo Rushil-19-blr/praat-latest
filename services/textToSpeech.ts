@@ -18,15 +18,15 @@ const useEdgeTTS = async (text: string, options: TTSOptions = {}): Promise<void>
   // Edge TTS voice options (neural voices - high quality)
   // en-US-AriaNeural (female), en-US-JennyNeural (female), en-US-GuyNeural (male)
   const voiceName = 'en-US-AriaNeural'; // Natural female voice
-  
+
   // Convert rate to SSML format (0.5x to 2.0x, default 1.0x)
   const rate = options.rate ?? 0.95; // Slightly slower for clarity
   const ratePercent = Math.round(rate * 100);
-  
+
   // Convert pitch to SSML format (-50% to +50%, default 0%)
   const pitch = options.pitch ?? 1.0;
   const pitchPercent = Math.round((pitch - 1.0) * 50);
-  
+
   // Create SSML for better control
   const ssml = `
     <speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="en-US">
@@ -81,44 +81,44 @@ const useEdgeTTS = async (text: string, options: TTSOptions = {}): Promise<void>
     }
 
     const audioBlob = await synthesizeResponse.blob();
-    
+
     // Play audio using Web Audio API
     return new Promise((resolve, reject) => {
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       const reader = new FileReader();
-      
+
       reader.onload = async () => {
         try {
           const arrayBuffer = reader.result as ArrayBuffer;
           const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-          
+
           const source = audioContext.createBufferSource();
           source.buffer = audioBuffer;
-          
+
           // Apply volume
           const gainNode = audioContext.createGain();
           gainNode.gain.value = options.volume ?? 1.0;
-          
+
           source.connect(gainNode);
           gainNode.connect(audioContext.destination);
-          
+
           source.onended = () => {
             audioContext.close();
             resolve();
           };
-          
+
           source.onerror = (e) => {
             audioContext.close();
             reject(e);
           };
-          
+
           source.start(0);
         } catch (error) {
           audioContext.close();
           reject(error);
         }
       };
-      
+
       reader.onerror = reject;
       reader.readAsArrayBuffer(audioBlob);
     });
@@ -135,10 +135,10 @@ const useEdgeTTS = async (text: string, options: TTSOptions = {}): Promise<void>
 const useEdgeTTSProxy = async (text: string, options: TTSOptions = {}): Promise<void> => {
   const voiceName = 'en-US-AriaNeural'; // Natural female voice
   const rate = options.rate ?? 0.95;
-  
+
   // Use a public Edge TTS service (no API key needed)
   const url = `https://edge.microsoft.com/tts/api/v1/synthesize`;
-  
+
   const requestBody = {
     ssml: `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="en-US"><voice name="${voiceName}"><prosody rate="${Math.round(rate * 100)}%">${text}</prosody></voice></speak>`,
     format: 'audio-24khz-48kbitrate-mono-mp3',
@@ -159,7 +159,7 @@ const useEdgeTTSProxy = async (text: string, options: TTSOptions = {}): Promise<
 
     // Actually, let's use a simpler approach - use a public Edge TTS endpoint
     const audioUrl = `https://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustClient=true&Text=${encodeURIComponent(text)}&Voice=${voiceName}&Rate=${Math.round(rate * 100)}`;
-    
+
     const audioResponse = await fetch(audioUrl, {
       method: 'GET',
       headers: {
@@ -172,43 +172,43 @@ const useEdgeTTSProxy = async (text: string, options: TTSOptions = {}): Promise<
     }
 
     const audioBlob = await audioResponse.blob();
-    
+
     // Play audio
     return new Promise((resolve, reject) => {
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       const reader = new FileReader();
-      
+
       reader.onload = async () => {
         try {
           const arrayBuffer = reader.result as ArrayBuffer;
           const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-          
+
           const source = audioContext.createBufferSource();
           source.buffer = audioBuffer;
-          
+
           const gainNode = audioContext.createGain();
           gainNode.gain.value = options.volume ?? 1.0;
-          
+
           source.connect(gainNode);
           gainNode.connect(audioContext.destination);
-          
+
           source.onended = () => {
             audioContext.close();
             resolve();
           };
-          
+
           source.onerror = (e) => {
             audioContext.close();
             reject(e);
           };
-          
+
           source.start(0);
         } catch (error) {
           audioContext.close();
           reject(error);
         }
       };
-      
+
       reader.onerror = reject;
       reader.readAsArrayBuffer(audioBlob);
     });
@@ -228,7 +228,7 @@ const useGoogleTranslateTTS = async (text: string, options: TTSOptions = {}): Pr
   const encodedText = encodeURIComponent(text);
   const lang = 'en';
   const speed = options.rate ? Math.min(Math.max(options.rate, 0.25), 4.0) : 1.0;
-  
+
   // Google Translate TTS endpoint (free, public)
   const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodedText}&tl=${lang}&client=tw-ob&ttsspeed=${speed}`;
 
@@ -246,43 +246,43 @@ const useGoogleTranslateTTS = async (text: string, options: TTSOptions = {}): Pr
     }
 
     const audioBlob = await response.blob();
-    
+
     // Play audio
     return new Promise((resolve, reject) => {
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       const reader = new FileReader();
-      
+
       reader.onload = async () => {
         try {
           const arrayBuffer = reader.result as ArrayBuffer;
           const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-          
+
           const source = audioContext.createBufferSource();
           source.buffer = audioBuffer;
-          
+
           const gainNode = audioContext.createGain();
           gainNode.gain.value = options.volume ?? 1.0;
-          
+
           source.connect(gainNode);
           gainNode.connect(audioContext.destination);
-          
+
           source.onended = () => {
             audioContext.close();
             resolve();
           };
-          
+
           source.onerror = (e) => {
             audioContext.close();
             reject(e);
           };
-          
+
           source.start(0);
         } catch (error) {
           audioContext.close();
           reject(error);
         }
       };
-      
+
       reader.onerror = reject;
       reader.readAsArrayBuffer(audioBlob);
     });
@@ -297,9 +297,9 @@ const useGoogleTranslateTTS = async (text: string, options: TTSOptions = {}): Pr
  */
 export const getNaturalVoice = (): SpeechSynthesisVoice | null => {
   const voices = window.speechSynthesis.getVoices();
-  
+
   if (voices.length === 0) return null;
-  
+
   // Priority list of high-quality voices by name (best first)
   const preferredVoiceNames = [
     'Google US English',
@@ -313,17 +313,17 @@ export const getNaturalVoice = (): SpeechSynthesisVoice | null => {
     'Victoria',
     'Moira',
   ];
-  
+
   // First, try to find exact matches from preferred list
   for (const preferredName of preferredVoiceNames) {
-    const voice = voices.find(v => 
+    const voice = voices.find(v =>
       v.name.includes(preferredName) || preferredName.includes(v.name.split(' ')[0])
     );
     if (voice && voice.lang.startsWith('en')) {
       return voice;
     }
   }
-  
+
   // Second, look for neural/premium/enhanced voices
   const premiumVoices = voices.filter(v => {
     const name = v.name.toLowerCase();
@@ -335,18 +335,18 @@ export const getNaturalVoice = (): SpeechSynthesisVoice | null => {
       (name.includes('google') && !v.localService)
     );
   });
-  
+
   if (premiumVoices.length > 0) {
     const englishPremium = premiumVoices.filter(v => v.lang.startsWith('en'));
     if (englishPremium.length > 0) return englishPremium[0];
   }
-  
+
   // Third, prefer non-local voices (often cloud-based and higher quality)
   const cloudVoices = voices.filter(v => !v.localService && v.lang.startsWith('en'));
   if (cloudVoices.length > 0) {
     return cloudVoices[0];
   }
-  
+
   // Fourth, any English voice
   const englishVoices = voices.filter(v => v.lang.startsWith('en'));
   if (englishVoices.length > 0) {
@@ -357,7 +357,7 @@ export const getNaturalVoice = (): SpeechSynthesisVoice | null => {
     });
     return femaleVoice || englishVoices[0];
   }
-  
+
   // Last resort: default voice
   return voices.find(v => v.default) || voices[0] || null;
 };
@@ -377,22 +377,22 @@ export const speakText = async (
     console.warn('Google Translate TTS failed, falling back to browser TTS:', error);
     // Fall through to browser TTS
   }
-  
+
   // Fallback to improved browser TTS
   return new Promise((resolve, reject) => {
     // Cancel any ongoing speech
     window.speechSynthesis.cancel();
-    
+
     const utterance = new SpeechSynthesisUtterance(text);
-    
+
     // Get best available voice
     const voices = window.speechSynthesis.getVoices();
     let voice = options.voice;
-    
+
     if (!voice) {
       voice = getNaturalVoice();
     }
-    
+
     // If voices not loaded yet, wait for them
     if (voices.length === 0 || !voice) {
       const loadVoices = () => {
@@ -405,13 +405,13 @@ export const speakText = async (
           reject(new Error('No voices available'));
         }
       };
-      
+
       window.speechSynthesis.addEventListener('voiceschanged', loadVoices, { once: true });
       // Trigger voice loading if it hasn't started
       window.speechSynthesis.getVoices();
       return;
     }
-    
+
     // Configure utterance
     const configureUtterance = (utt: SpeechSynthesisUtterance, opts: TTSOptions) => {
       utt.voice = voice;
@@ -420,15 +420,15 @@ export const speakText = async (
       utt.volume = opts.volume ?? 1.0;
       utt.lang = 'en-US';
     };
-    
+
     configureUtterance(utterance, options);
-    
+
     utterance.onend = () => resolve();
     utterance.onerror = (error) => {
       console.error('Browser TTS error:', error);
       reject(error);
     };
-    
+
     window.speechSynthesis.speak(utterance);
   });
 };

@@ -8,7 +8,15 @@ export const SYSTEM_PROMPT = {
 // Therapist persona system prompt for recorded therapy sessions
 export const THERAPIST_SYSTEM_PROMPT = {
   parts: [{
-    text: `You are a compassionate, insightful therapist who specializes in talking with students and teenagers. You will speak kindly, calmly, and nonjudgmentally. Your role is to listen, validate, and gently guide the student toward insight and practical coping strategies. Maintain confidentiality, emotional safety, and a supportive tone at all times.
+    text: `You are Aawaz Guide, a calm, non‑judgmental wellbeing companion for Indian students aged 10–18.
+You are not a doctor or therapist and must not diagnose or promise cures.
+Your goal is to help students check in with their feelings, feel heard, and find one small helpful next step.
+
+Reflect back what they said (“sounds like…”, “it seems that…”) before asking a new question.
+Start with very easy, low‑pressure questions (yes/no, 1–5 scales, simple either/or).
+If the student is very talkative and seems comfortable, you may gently ask more reflective questions.
+
+Use open questions sparingly and make them narrow, not huge (“What’s one small thing that felt okay today?” instead of “Tell me about your life”).
 
 While the screen is being recorded, do the following automatically during the session:
 
@@ -18,48 +26,26 @@ Pause between major topics to allow the student to respond — use short bridgin
 
 When the student speaks, reflect key phrases back briefly (one-sentence reflection) before asking the next question.
 
-After every 3–4 exchanges, offer a 1–2 sentence summary of what you've heard and one small practical suggestion (breathing, journaling, break-taking, or school action step).
+After every 3–4 exchanges, offer a 1–2 sentence summary of what you've heard and one small helpful next step.
 
 If a student mentions self-harm, severe harm, or safety concerns, use compassionate direct language, ask about immediate safety, and follow escalation instructions: "If you are in immediate danger or might hurt yourself, please call your local emergency number or the crisis hotline in your country." (Do not try to handle crises only via chat.)
 
 End the recording with a 2–3 sentence recap and one clear next step the student can take.
 
 Tone and style rules:
-
-Warm, calm, validating, curious.
-
-Avoid giving prescriptive commands; prefer collaborative language: "Would you consider…", "How might it feel to…", "What would help…".
-
-Use simple language appropriate for teenagers/students.
-
-Never diagnose; invite exploration instead (e.g., "It sounds like you might be feeling…").
-
-Cultural / accessibility notes:
-
-Use neutral, inclusive language (they/them acceptable if gender unknown).
-
-If the student uses shorthand or slang, reflect it back respectfully rather than correcting.
+- Calm, non-judgmental, warm.
+- Avoid giving prescriptive commands; prefer collaborative language.
+- Use simple language appropriate for teenagers/students.
+- Never diagnose; invite exploration instead.
+- Use neutral, inclusive language.
 
 SESSION START INSTRUCTIONS:
-IMPORTANT: When a recorded therapy-style check-in session begins, YOU MUST SPEAK FIRST. Do not wait for the student to speak. You should immediately:
-1. Briefly introduce yourself (1–2 sentences) as a supportive therapist
-2. Ask a gentle opening question to begin the conversation
-3. Keep your replies short and supportive
-4. Use open questions, reflections, and offer one small practical suggestion every few exchanges
+IMPORTANT: When a recorded check-in session begins, YOU MUST SPEAK FIRST. Do not wait for the student to speak. You should immediately:
+1. Briefly introduce yourself (1–2 sentences) as Aawaz Guide.
+2. Ask a gentle, easy opening question (yes/no or simple scale).
+3. Keep your replies short and supportive.
 
-Here are 10 sample therapist questions you should cycle through naturally during the conversation (use them as prompts, not a checklist — adapt wording to the student's responses):
-1. How have you been feeling lately — emotionally and mentally?
-2. Can you tell me about something that's been on your mind recently?
-3. What's been the most stressful part of school or life these days?
-4. How do you usually cope when you're feeling overwhelmed or anxious?
-5. Have you noticed any changes in your sleep, mood, or motivation?
-6. Who do you usually talk to when something's bothering you?
-7. Is there anything that's been making you feel proud or happy recently?
-8. If you could change one thing about your current situation, what would it be?
-9. What kind of support do you think would help you most right now?
-10. What are some things that usually help you relax or feel better after a tough day?
-
-Remember: pause and reflect, summarize every few exchanges, and offer a small practical suggestion during the session. Close with a 2–3 sentence recap and one clear next step.`
+Remember: pause and reflect, summarize every few exchanges, and offer a small helpful next step. Close with a 2–3 sentence recap.`
   }]
 };
 
@@ -116,16 +102,65 @@ export const calibrationQuotes = [
 
 // Statements for repeat-after-me activity
 export const repeatStatements = [
-  "The sun rises in the east and sets in the west.",
+  // General / Confidence
+  "I am confident in my ability to succeed.",
+  "I believe in myself and my potential.",
+  "I am becoming stronger and more resilient every day.",
+  "I have the power to create change in my life.",
+  "I am worthy of respect and kindness.",
+  "I choose to focus on the positive today.",
+  "My voice matters and deserves to be heard.",
+  "I am capable of achieving my goals.",
+  "I trust my intuition and my decisions.",
+  "I am proud of how far I have come.",
+
+  // Stress & Anxiety
   "I am calm and relaxed in this moment.",
-  "Take a deep breath and let it out slowly.",
-  "I can handle whatever comes my way today.",
-  "Every challenge is an opportunity to grow.",
-  "I am grateful for this peaceful moment.",
-  "My voice is steady and my mind is clear.",
-  "I feel confident and ready to proceed.",
-  "This is a safe space to express myself.",
-  "I trust in my ability to communicate clearly.",
+  "I breathe in peace and breathe out tension.",
+  "I can handle whatever challenges come my way.",
+  "One step at a time is all I need to take.",
+  "My mind is clearing and my body is relaxing.",
+  "I release all worry and embrace the present.",
+  "I am safe and I am supported.",
+  "Mistakes are simply opportunities to learn.",
+  "I choose to let go of what I cannot control.",
+  "I am bigger than my fears.",
+
+  // Academic / Focus
+  "I am focused and ready to learn.",
+  "My mind is sharp and capable of understanding.",
+  "I prepare for my tasks with calm dedication.",
+  "I am making progress every single day.",
+  "Challenges help me grow smarter and stronger.",
+  "I trust my preparation and hard work.",
+  "I celebrate my small wins along the way.",
+  "I have the discipline to reach my targets.",
+  "Learning is a journey and I am on the right path.",
+  "I approach my studies with curiosity and energy.",
+
+  // Sleep & Rest
+  "I give myself permission to rest and recharge.",
+  "My body knows how to relax and heal.",
+  "I let go of the day and welcome sleep.",
+  "Peace fills my mind as I prepare for rest.",
+  "I am deserving of a good night's sleep.",
+  "Tomorrow is a fresh start with new possibilities.",
+  "I release the day's thoughts and find quiet.",
+  "My bedroom is a sanctuary of peace.",
+  "Resting is productive and necessary for me.",
+  "I drift into sleep with a grateful heart.",
+
+  // Social / Connection
+  "I attract positive and supportive people.",
+  "I am a good friend and listener.",
+  "I express myself clearly and honestly.",
+  "My presence makes a difference to others.",
+  "I am comfortable being my authentic self.",
+  "I forgive myself and others for past mistakes.",
+  "I set healthy boundaries that protect my peace.",
+  "I radiate kindness and it comes back to me.",
+  "I am connected to the world around me.",
+  "I choose to see the good in everyone I meet."
 ];
 
 import type { Biomarker } from './types';
@@ -138,7 +173,7 @@ export const formatBiomarkers = (data: any): Biomarker[] => {
 
   // Extract biomarkers from nested structure or root level
   const biomarkers = data.inferred_biomarkers || data;
-  
+
   const f0Mean = getValue(biomarkers.f0_mean || biomarkers.f0_mean_hz);
   const f0MeanStatus: Biomarker['status'] = f0Mean > 200 ? 'red' : f0Mean > 150 ? 'orange' : 'green';
   const f0Range = getValue(biomarkers.f0_range || biomarkers.f0_range_hz);
@@ -147,8 +182,6 @@ export const formatBiomarkers = (data: any): Biomarker[] => {
   const jitterStatus: Biomarker['status'] = jitter > 1.0 ? 'red' : jitter > 0.5 ? 'orange' : 'green';
   const shimmer = getValue(biomarkers.shimmer || biomarkers.shimmer_percent);
   const shimmerStatus: Biomarker['status'] = shimmer > 5.0 ? 'red' : shimmer > 2.5 ? 'orange' : 'green';
-  const hnr = getValue(biomarkers.hnr || biomarkers.hnr_db);
-  const hnrStatus: Biomarker['status'] = hnr < 10 ? 'red' : hnr < 15 ? 'orange' : 'green';
   const f1 = getValue(biomarkers.f1 || biomarkers.f1_hz);
   const f2 = getValue(biomarkers.f2 || biomarkers.f2_hz);
   const speechRate = getValue(biomarkers.speech_rate || biomarkers.speech_rate_wpm);
@@ -190,15 +223,6 @@ export const formatBiomarkers = (data: any): Biomarker[] => {
       explanation: "Higher values indicate voice instability",
       icon: 'Amplitude' as const,
       normalizedValue: Math.min(shimmer / 10, 1)
-    },
-    {
-      name: "HNR",
-      value: `${hnr.toFixed(1)} dB`,
-      status: hnrStatus,
-      detail: "Harmonics-to-Noise Ratio",
-      explanation: "Lower values indicate more noise in voice",
-      icon: 'Signal' as const,
-      normalizedValue: Math.min(hnr / 30, 1)
     },
     {
       name: "F1",

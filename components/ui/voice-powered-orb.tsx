@@ -30,6 +30,12 @@ export const VoicePoweredOrb: FC<VoicePoweredOrbProps> = ({
   const dataArrayRef = useRef<Uint8Array | null>(null);
   const animationFrameRef = useRef<number>();
   const mediaStreamRef = useRef<MediaStream | null>(null);
+  const microphoneInitializedRef = useRef(false);
+  const enableVoiceControlRef = useRef(enableVoiceControl);
+
+  useEffect(() => {
+    enableVoiceControlRef.current = enableVoiceControl;
+  }, [enableVoiceControl]);
 
   const vert = /* glsl */ `
     precision highp float;
@@ -239,6 +245,7 @@ export const VoicePoweredOrb: FC<VoicePoweredOrbProps> = ({
       }
 
       dataArrayRef.current = null;
+      microphoneInitializedRef.current = false;
       console.log('Microphone stopped and cleaned up');
     } catch (error) {
       console.warn('Error stopping microphone:', error);
@@ -286,6 +293,7 @@ export const VoicePoweredOrb: FC<VoicePoweredOrbProps> = ({
       microphoneRef.current.connect(analyserRef.current);
       dataArrayRef.current = new Uint8Array(analyserRef.current.frequencyBinCount);
 
+      microphoneInitializedRef.current = true;
       console.log('Microphone initialized successfully');
       return true;
     } catch (error) {
@@ -391,19 +399,8 @@ export const VoicePoweredOrb: FC<VoicePoweredOrbProps> = ({
       let currentRot = 0;
       let voiceLevel = 0;
       const baseRotationSpeed = 0.3;
-      let isMicrophoneInitialized = false;
 
       // Initialize or stop microphone based on voice control setting
-      if (enableVoiceControl) {
-        initMicrophone(externalAudioStream || null).then((success) => {
-          isMicrophoneInitialized = success;
-        });
-      } else {
-        // Stop microphone when voice control is disabled
-        stopMicrophone();
-        isMicrophoneInitialized = false;
-      }
-
       const update = (t: number) => {
         rafId = requestAnimationFrame(update);
         if (!program) return;
@@ -414,7 +411,7 @@ export const VoicePoweredOrb: FC<VoicePoweredOrbProps> = ({
         program.uniforms.hue.value = hue;
 
         // Handle voice input
-        if (enableVoiceControl && isMicrophoneInitialized) {
+        if (enableVoiceControlRef.current && microphoneInitializedRef.current) {
           voiceLevel = analyzeAudio();
 
           // Notify parent component about voice detection
@@ -495,7 +492,6 @@ export const VoicePoweredOrb: FC<VoicePoweredOrbProps> = ({
     }
   }, [
     hue,
-    enableVoiceControl,
     voiceSensitivity,
     maxRotationSpeed,
     maxHoverIntensity,

@@ -5,7 +5,7 @@ This backend service integrates Praat phonetics analysis capabilities to replace
 ## Features
 
 - **Comprehensive Voice Analysis**: Uses Parselmouth (Praat Python library) for advanced phonetic analysis
-- **Feature Extraction**: Extracts pitch, formants, jitter, shimmer, HNR, spectral features, and MFCCs
+- **Feature Extraction**: Extracts pitch, formants, jitter, shimmer, spectral features, and MFCCs
 - **REST API**: Simple HTTP API for audio file upload and analysis
 - **CORS Support**: Configured for frontend integration
 
@@ -68,7 +68,6 @@ Analyzes an audio file and returns extracted voice features.
     "f0_range": 45.2,
     "jitter": 1.2,
     "shimmer": 3.4,
-    "hnr": 22.1,
     "f1": 720.3,
     "f2": 1250.8,
     "speech_rate": 155
@@ -101,7 +100,6 @@ The backend extracts the following voice features using Praat:
 - **F0 Range**: Pitch variability
 - **Jitter**: Pitch perturbation
 - **Shimmer**: Amplitude perturbation
-- **HNR**: Harmonics-to-Noise Ratio
 - **F1, F2**: First and second formants
 - **Speech Rate**: Words per minute (estimated)
 

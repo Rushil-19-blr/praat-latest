@@ -10,7 +10,6 @@ A sophisticated voice stress analysis application that uses Praat phonetics anal
   - Amplitude analysis (shimmer, RMS energy)
   - Spectral analysis (centroid, flatness, MFCCs)
   - Formant analysis (F1, F2)
-  - Voice quality metrics (HNR)
   - Speech rate estimation
 - **Personal Baseline Calibration**: Establish your calm voice baseline for accurate stress detection
 - **AI-Powered Analysis**: Google Gemini AI analyzes extracted features for stress level assessment
@@ -56,14 +55,14 @@ chmod +x start-app.sh
    cd backend
    python start.py
    ```
-   The backend will be available at `http://localhost:5000`
+   The backend will be available at `http://localhost:8000`
 
 2. **Start the Frontend:**
    ```bash
    npm install
    npm run dev
    ```
-   The frontend will be available at `http://localhost:5173`
+   The frontend will be available at `http://localhost:3000`
 
 ## 🔧 Configuration
 
@@ -99,7 +98,6 @@ The backend automatically creates a `.env` file in the `backend/` directory with
 - **F0 Range**: Pitch variability
 - **Jitter**: Pitch perturbation percentage
 - **Shimmer**: Amplitude perturbation percentage
-- **HNR**: Harmonics-to-noise ratio (voice quality)
 - **F1/F2 Formants**: Vocal tract resonances
 - **Speech Rate**: Words per minute estimation
 
@@ -162,7 +160,7 @@ voice-stress-analysis-interface/
 const formData = new FormData();
 formData.append('audio', audioBlob, 'recording.webm');
 
-const response = await fetch('http://localhost:5000/api/analyze-audio', {
+const response = await fetch('http://localhost:8000/api/analyze-audio', {
   method: 'POST',
   body: formData,
 });
@@ -182,7 +180,6 @@ const response = await fetch('http://localhost:5000/api/analyze-audio', {
     "f0_range": 45.2,
     "jitter": 1.2,
     "shimmer": 3.4,
-    "hnr": 22.1,
     "f1": 720.3,
     "f2": 1250.8,
     "speech_rate": 155
@@ -201,11 +198,11 @@ const response = await fetch('http://localhost:5000/api/analyze-audio', {
 2. **Audio analysis fails**
    - Verify microphone permissions
    - Ensure audio file is valid and contains speech
-   - Check that the backend is running on port 5000
+   - Check that the backend is running on port 8000
 
 3. **CORS errors**
    - The backend is configured with CORS support
-   - Ensure frontend is running on localhost:5173
+   - Ensure frontend is running on localhost:3000
 
 4. **Gemini API errors**
    - Verify your API key is set in the `.env` file

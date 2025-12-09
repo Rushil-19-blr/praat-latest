@@ -85,14 +85,13 @@ const TeacherChatModal: React.FC<TeacherChatModalProps> = ({
           console.log('Creating/getting channel for student:', selectedStudentId);
           try {
             // Create or get the channel for this specific student
-            // Pass teacherId as createdBy to ensure teacher is the creator
-            const studentChannel = await createChannel(teacherId, selectedStudentId, teacherId);
+            const studentChannel = await createChannel(teacherId, selectedStudentId);
             console.log('Channel created/retrieved:', studentChannel.id);
-            
+
             // Ensure the channel is properly watched and both members are added
             const currentMembers = studentChannel.state?.members || {};
             const memberIds = Object.keys(currentMembers);
-            
+
             if (memberIds.length < 2 || !memberIds.includes(teacherId) || !memberIds.includes(selectedStudentId)) {
               // Force add members if they're missing
               try {
@@ -108,19 +107,19 @@ const TeacherChatModal: React.FC<TeacherChatModalProps> = ({
                 console.log('Members may already be in channel:', addError);
               }
             }
-            
+
             // Watch the channel again to ensure it's fully initialized and ready for messaging
             await studentChannel.watch();
-            
+
             // Verify channel is ready
             console.log('Channel state after initialization:', {
               id: studentChannel.id,
               members: Object.keys(studentChannel.state?.members || {}),
               ready: studentChannel.state?.initialized
             });
-            
+
             setActiveChannel(studentChannel);
-            
+
             // Now query all channels to update the list
             const channelFilters = {
               type: 'messaging',
@@ -132,7 +131,7 @@ const TeacherChatModal: React.FC<TeacherChatModalProps> = ({
               state: true,
             });
             setChannels(channelQueryResponse);
-            
+
             // Ensure the student channel is still active
             const foundChannel = channelQueryResponse.find(ch => ch.id === studentChannel.id);
             if (foundChannel) {
@@ -156,13 +155,13 @@ const TeacherChatModal: React.FC<TeacherChatModalProps> = ({
               state: true,
             });
             setChannels(channelQueryResponse);
-            
+
             // Try to find existing channel with this student
             const existingChannel = channelQueryResponse.find(channel => {
               const studentId = getStudentIdFromChannelMembers(channel);
               return studentId === selectedStudentId;
             });
-            
+
             if (existingChannel) {
               setActiveChannel(existingChannel);
             } else if (channelQueryResponse.length > 0) {
@@ -181,7 +180,7 @@ const TeacherChatModal: React.FC<TeacherChatModalProps> = ({
             state: true,
           });
           setChannels(channelQueryResponse);
-          
+
           // Set the first channel as active if available
           if (channelQueryResponse.length > 0) {
             setActiveChannel(channelQueryResponse[0]);
@@ -290,16 +289,15 @@ const TeacherChatModal: React.FC<TeacherChatModalProps> = ({
                         lastMessage = `[${lastMessageObj.type}]`;
                       }
                     }
-                    
+
                     return (
                       <div
                         key={channel.id}
                         onClick={() => selectChannel(channel)}
-                        className={`p-4 cursor-pointer hover:bg-white/5 transition-colors border-l-2 ${
-                          activeChannel?.id === channel.id
-                            ? 'border-purple-primary bg-purple-primary/10'
-                            : 'border-transparent'
-                        }`}
+                        className={`p-4 cursor-pointer hover:bg-white/5 transition-colors border-l-2 ${activeChannel?.id === channel.id
+                          ? 'border-purple-primary bg-purple-primary/10'
+                          : 'border-transparent'
+                          }`}
                       >
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 bg-purple-primary/20 rounded-full flex items-center justify-center">
@@ -357,76 +355,385 @@ const TeacherChatModal: React.FC<TeacherChatModalProps> = ({
                 {activeChannel ? (
                   <>
                     <style>{`
+                      /* ===== DARK THEME - MAIN CONTAINERS ===== */
+                      .str-chat,
+                      .str-chat__container,
+                      .str-chat__channel,
+                      .str-chat__main-panel,
+                      .str-chat__message-list,
+                      .str-chat__message-list-scroll,
+                      .str-chat__list,
+                      .str-chat__ul,
+                      .str-chat__virtual-list,
+                      .str-chat__thread,
+                      .str-chat__thread-container {
+                        background: #0a0a0a !important;
+                      }
+                      
                       .str-chat__channel {
-                        height: 100%;
-                        display: flex;
-                        flex-direction: column;
-                        background: #000000 !important;
+                        height: 100% !important;
+                        display: flex !important;
+                        flex-direction: column !important;
                       }
-                      .str-chat__channel .str-chat__main-panel {
-                        flex: 1;
-                        display: flex;
-                        flex-direction: column;
-                        min-height: 0;
-                        background: #000000 !important;
+                      
+                      .str-chat__main-panel {
+                        flex: 1 !important;
+                        display: flex !important;
+                        flex-direction: column !important;
+                        min-height: 0 !important;
                       }
+                      
                       .str-chat__message-list {
-                        flex: 1;
-                        overflow-y: auto;
-                        min-height: 0;
-                        background: #000000 !important;
+                        flex: 1 !important;
+                        overflow-y: auto !important;
+                        padding: 16px !important;
                       }
-                      .str-chat__message-list .str-chat__ul {
-                        background: #000000 !important;
-                      }
-                      .str-chat__message-list-container {
-                        background: #000000 !important;
-                      }
-                      .str-chat__message-simple {
+                      
+                      .str-chat__li {
+                        margin-bottom: 8px !important;
+                        padding: 0 !important;
                         background: transparent !important;
                       }
-                      .str-chat__message {
-                        background: transparent !important;
+                      
+                      /* ===== HIDE ALL AVATARS ===== */
+                      .str-chat__avatar,
+                      .str-chat__avatar-image,
+                      .str-chat__message-sender-avatar,
+                      .str-chat__message-simple-sender-avatar {
+                        display: none !important;
                       }
-                      .str-chat__message-text-inner {
+                      
+                      /* ===== MESSAGE CONTAINER ===== */
+                      .str-chat__message,
+                      .str-chat__message-simple,
+                      .str-chat__message-inner,
+                      .str-chat__message-simple-wrapper {
                         background: transparent !important;
+                        padding: 0 !important;
                       }
+                      
+                      /* ===== HIDE FLOATING MESSAGE ACTIONS BAR ===== */
+                      .str-chat__message-options,
+                      .str-chat__message-simple__actions,
+                      .str-chat__message-actions-container,
+                      .str-chat__message-reactions-button {
+                        display: none !important;
+                      }
+                      
+                      /* ===== MESSAGE TEXT BUBBLES ===== */
+                      .str-chat__message-text,
                       .str-chat__message-bubble {
                         background: transparent !important;
+                        border: none !important;
                       }
-                      .str-chat__message-input {
-                        border-top: 1px solid rgba(255, 255, 255, 0.1);
-                        background: rgba(26, 26, 26, 0.8) !important;
+                      
+                      /* RECEIVED messages - gray bubble */
+                      .str-chat__message:not(.str-chat__message--me) .str-chat__message-text-inner {
+                        background: #27272a !important;
+                        color: #ffffff !important;
+                        padding: 10px 14px !important;
+                        border-radius: 18px 18px 18px 4px !important;
+                        display: inline-block !important;
+                        max-width: 300px !important;
+                        word-wrap: break-word !important;
                       }
-                      .str-chat__input {
+                      
+                      /* SENT messages - purple gradient bubble */
+                      .str-chat__message--me .str-chat__message-text-inner {
+                        background: linear-gradient(135deg, #8b5cf6, #7c3aed) !important;
+                        color: #ffffff !important;
+                        padding: 10px 14px !important;
+                        border-radius: 18px 18px 4px 18px !important;
+                        display: inline-block !important;
+                        max-width: 300px !important;
+                        word-wrap: break-word !important;
+                      }
+                      
+                      .str-chat__message-text-inner p {
+                        margin: 0 !important;
+                        color: #ffffff !important;
+                        line-height: 1.5 !important;
+                        font-size: 14px !important;
+                      }
+                      
+                      /* ===== TIMESTAMPS - Inline and subtle ===== */
+                      .str-chat__message-data,
+                      .str-chat__message-simple-timestamp,
+                      .str-chat__message-simple__data,
+                      .str-chat__message-simple-data {
+                        font-size: 10px !important;
+                        color: rgba(255, 255, 255, 0.4) !important;
+                        margin-top: 2px !important;
+                        margin-left: 0 !important;
+                        display: inline-block !important;
+                      }
+                      
+                      /* ===== HIDE SENDER NAME ===== */
+                      .str-chat__message-sender-name,
+                      .str-chat__message-simple-name {
+                        display: none !important;
+                      }
+                      
+                      /* ===== DATE SEPARATORS ===== */
+                      .str-chat__date-separator {
+                        margin: 20px 0 !important;
+                        background: transparent !important;
+                        display: flex !important;
+                        justify-content: center !important;
+                      }
+                      
+                      .str-chat__date-separator-line {
+                        display: none !important;
+                      }
+                      
+                      .str-chat__date-separator-date {
+                        background: rgba(139, 92, 246, 0.15) !important;
+                        color: #a78bfa !important;
+                        font-size: 11px !important;
+                        padding: 6px 14px !important;
+                        border-radius: 14px !important;
+                        font-weight: 500 !important;
+                      }
+                      
+                      /* ===== READ RECEIPTS ===== */
+                      .str-chat__message-status {
+                        display: inline-flex !important;
+                        align-items: center !important;
+                        margin-left: 4px !important;
+                        vertical-align: middle !important;
+                      }
+                      
+                      .str-chat__message-status svg {
+                        color: #6b7280 !important;
+                        fill: #6b7280 !important;
+                        width: 14px !important;
+                        height: 14px !important;
+                      }
+                      
+                      .str-chat__message-status--read svg {
+                        color: #3b82f6 !important;
+                        fill: #3b82f6 !important;
+                      }
+                      
+                      /* ===== REACTIONS ON MESSAGES - Compact ===== */
+                      .str-chat__reaction-list,
+                      .str-chat__simple-reactions-list {
+                        background: rgba(31, 31, 35, 0.9) !important;
+                        border: none !important;
+                        border-radius: 12px !important;
+                        padding: 2px 6px !important;
+                        margin-top: 4px !important;
+                        display: inline-flex !important;
+                        gap: 2px !important;
+                      }
+                      
+                      .str-chat__reaction-list li,
+                      .str-chat__simple-reactions-list li {
+                        background: transparent !important;
+                        padding: 2px !important;
+                      }
+                      
+                      .str-chat__reaction-list button,
+                      .str-chat__simple-reactions-list button {
+                        font-size: 14px !important;
+                        padding: 2px !important;
+                      }
+                      
+                      /* ===== REACTION PICKER - Compact ===== */
+                      .str-chat__reaction-selector {
+                        background: #1f1f23 !important;
+                        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+                        border-radius: 20px !important;
+                        padding: 6px 10px !important;
+                        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+                      }
+                      
+                      .str-chat__reaction-selector ul {
+                        display: flex !important;
+                        gap: 4px !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                      }
+                      
+                      .str-chat__reaction-selector li {
+                        background: transparent !important;
+                        list-style: none !important;
+                      }
+                      
+                      .str-chat__reaction-selector button {
+                        background: transparent !important;
+                        font-size: 18px !important;
+                        padding: 4px !important;
+                        border-radius: 6px !important;
+                        transition: background 0.15s !important;
+                      }
+                      
+                      .str-chat__reaction-selector button:hover {
                         background: rgba(255, 255, 255, 0.1) !important;
-                        border: 1px solid rgba(255, 255, 255, 0.2) !important;
-                        color: #ffffff !important;
                       }
-                      .str-chat__input textarea {
-                        color: #ffffff !important;
+                      
+                      /* ===== MESSAGE ACTIONS DROPDOWN ===== */
+                      .str-chat__message-actions-box,
+                      .str-chat__message-actions-list {
+                        background: #1f1f23 !important;
+                        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+                        border-radius: 10px !important;
+                        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+                        padding: 4px !important;
+                        min-width: 120px !important;
                       }
+                      
+                      .str-chat__message-actions-list button {
+                        background: transparent !important;
+                        color: #ffffff !important;
+                        border-radius: 6px !important;
+                        padding: 8px 12px !important;
+                        font-size: 13px !important;
+                        width: 100% !important;
+                        text-align: left !important;
+                      }
+                      
+                      .str-chat__message-actions-list button:hover {
+                        background: rgba(139, 92, 246, 0.2) !important;
+                      }
+                      
+                      /* ===== MESSAGE INPUT AREA - Clean ===== */
+                      .str-chat__message-input {
+                        background: #0a0a0a !important;
+                        border: none !important;
+                        border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+                        padding: 12px 16px !important;
+                      }
+                      
+                      .str-chat__message-input-inner {
+                        background: #18181b !important;
+                        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+                        border-radius: 22px !important;
+                        display: flex !important;
+                        align-items: center !important;
+                        padding: 6px 8px 6px 14px !important;
+                        gap: 8px !important;
+                      }
+                      
                       .str-chat__textarea {
-                        color: #ffffff !important;
+                        flex: 1 !important;
                       }
+                      
                       .str-chat__textarea textarea {
+                        background: transparent !important;
                         color: #ffffff !important;
+                        border: none !important;
+                        outline: none !important;
+                        padding: 6px 0 !important;
+                        font-size: 14px !important;
+                        line-height: 1.4 !important;
+                        resize: none !important;
+                        min-height: 24px !important;
+                        max-height: 100px !important;
                       }
-                      .str-chat__textarea__textarea {
-                        color: #ffffff !important;
+                      
+                      .str-chat__textarea textarea::placeholder {
+                        color: rgba(255, 255, 255, 0.35) !important;
                       }
-                      .str-chat__input::placeholder {
-                        color: rgba(255, 255, 255, 0.5) !important;
+                      
+                      /* Input buttons */
+                      .str-chat__file-input-container,
+                      .str-chat__input-emojiselect {
+                        color: rgba(255, 255, 255, 0.4) !important;
+                        background: transparent !important;
+                        border: none !important;
+                        padding: 4px !important;
+                        cursor: pointer !important;
                       }
-                      .str-chat__input textarea::placeholder {
-                        color: rgba(255, 255, 255, 0.5) !important;
+                      
+                      .str-chat__file-input-container:hover,
+                      .str-chat__input-emojiselect:hover {
+                        color: rgba(255, 255, 255, 0.7) !important;
                       }
+                      
+                      /* Send button */
                       .str-chat__send-button {
-                        background: #8b5cf6;
-                        color: white;
+                        background: linear-gradient(135deg, #8b5cf6, #7c3aed) !important;
+                        border: none !important;
+                        border-radius: 50% !important;
+                        width: 34px !important;
+                        height: 34px !important;
+                        min-width: 34px !important;
+                        display: flex !important;
+                        align-items: center !important;
+                        justify-content: center !important;
+                        cursor: pointer !important;
+                        transition: transform 0.15s, box-shadow 0.15s !important;
+                        flex-shrink: 0 !important;
                       }
+                      
                       .str-chat__send-button:hover {
-                        background: #7c3aed;
+                        transform: scale(1.05) !important;
+                        box-shadow: 0 2px 8px rgba(139, 92, 246, 0.4) !important;
+                      }
+                      
+                      .str-chat__send-button svg {
+                        fill: white !important;
+                        width: 16px !important;
+                        height: 16px !important;
+                      }
+                      
+                      /* ===== EMOJI PICKER ===== */
+                      .str-chat__emoji-picker,
+                      .emoji-mart,
+                      .emoji-mart-bar,
+                      .emoji-mart-search,
+                      .emoji-mart-scroll,
+                      .emoji-mart-category-list {
+                        background: #1f1f23 !important;
+                      }
+                      
+                      .emoji-mart {
+                        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+                        border-radius: 12px !important;
+                        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5) !important;
+                      }
+                      
+                      .emoji-mart-search input {
+                        background: #27272a !important;
+                        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+                        color: #ffffff !important;
+                        border-radius: 8px !important;
+                      }
+                      
+                      .emoji-mart-category-label span {
+                        background: #1f1f23 !important;
+                        color: rgba(255, 255, 255, 0.5) !important;
+                      }
+                      
+                      /* ===== MODALS ===== */
+                      .str-chat__modal,
+                      .str-chat__modal-overlay {
+                        background: rgba(0, 0, 0, 0.8) !important;
+                      }
+                      
+                      .str-chat__modal__inner {
+                        background: #1f1f23 !important;
+                        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+                        border-radius: 12px !important;
+                      }
+                      
+                      /* ===== SCROLLBAR ===== */
+                      .str-chat__message-list::-webkit-scrollbar {
+                        width: 5px !important;
+                      }
+                      
+                      .str-chat__message-list::-webkit-scrollbar-track {
+                        background: transparent !important;
+                      }
+                      
+                      .str-chat__message-list::-webkit-scrollbar-thumb {
+                        background: rgba(255, 255, 255, 0.15) !important;
+                        border-radius: 3px !important;
+                      }
+                      
+                      .str-chat__message-list::-webkit-scrollbar-thumb:hover {
+                        background: rgba(255, 255, 255, 0.25) !important;
                       }
                     `}</style>
                     <Channel channel={activeChannel} theme="messaging dark">
@@ -472,7 +779,7 @@ const TeacherChatModal: React.FC<TeacherChatModalProps> = ({
           >
             <h3 className="text-lg font-semibold text-white mb-2">Edit Nickname</h3>
             <p className="text-sm text-text-muted mb-4">Student Code: {editingStudentId}</p>
-            
+
             <input
               type="text"
               value={nicknameInput}
@@ -488,7 +795,7 @@ const TeacherChatModal: React.FC<TeacherChatModalProps> = ({
               className="w-full px-4 py-3 bg-surface border border-white/10 rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-purple-primary mb-4"
               autoFocus
             />
-            
+
             <div className="flex gap-3 justify-end">
               <button
                 onClick={handleCancelEdit}
