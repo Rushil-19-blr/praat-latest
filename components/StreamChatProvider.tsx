@@ -121,10 +121,9 @@ export const StreamChatProvider: React.FC<StreamChatProviderProps> = ({ children
 
       // Get channel reference with initial data
       // Ensure both members are explicitly added
+      // Note: created_by_id cannot be set on client-side, only server-side auth can set it
       const channel = chatClient.channel('messaging', channelId, {
         members: [teacherId, studentId],
-        // Add additional channel data to ensure proper initialization
-        created_by_id: createdBy || teacherId,
       } as any);
 
       // Try to create the channel

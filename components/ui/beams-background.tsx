@@ -49,9 +49,9 @@ export function BeamsBackground({
     const MINIMUM_BEAMS = 20;
 
     const opacityMap = {
-        subtle: 0.7,
-        medium: 0.85,
-        strong: 1,
+        subtle: 0.35,
+        medium: 0.5,
+        strong: 0.65,
     };
 
     useEffect(() => {
@@ -167,11 +167,11 @@ export function BeamsBackground({
 
     return (
         <div
-            className={cn(
+                className={cn(
                 "fixed inset-0 w-full h-full overflow-hidden -z-10",
                 className
             )}
-            style={{ backgroundColor: '#1a1a1a' }}
+            style={{ backgroundColor: '#0f0f13' }}
         >
             <canvas
                 ref={canvasRef}
@@ -189,8 +189,8 @@ export function BeamsBackground({
                     repeat: Number.POSITIVE_INFINITY,
                 }}
                 style={{
-                    backdropFilter: "blur(50px)",
-                    backgroundColor: 'rgba(26, 26, 26, 0.2)',
+                    backdropFilter: "blur(60px)",
+                    backgroundColor: 'rgba(10, 10, 15, 0.55)',
                 }}
             />
         </div>

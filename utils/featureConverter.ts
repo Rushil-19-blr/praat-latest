@@ -1,7 +1,7 @@
 /**
  * Converts Praat features to MeasureValues
  * Since the backend only extracts basic features (RMS, ZCR, Spectral Centroid, Spectral Flatness, MFCC),
- * we need to estimate the biomarkers (jitter, shimmer, HNR, f0Mean, f0Range, speechRate, f1, f2)
+ * we need to estimate the biomarkers (jitter, shimmer, f0Mean, f0Range, speechRate, f1, f2)
  * from these available features.
  */
 
@@ -32,10 +32,6 @@ export function convertPraatFeaturesToMeasureValues(features: PraatFeatures, dur
   // Higher RMS variability and lower flatness = more shimmer
   const shimmer = Math.max(1.0, Math.min(8.0, (1 - features.spectralFlatness) * 5 + features.rms * 3));
 
-  // Estimate HNR from spectral flatness
-  // Lower flatness = more tonal = higher HNR
-  const hnr = Math.max(5, Math.min(25, (1 - features.spectralFlatness) * 20 + 5));
-
   // Estimate F1 from MFCC (first few coefficients relate to formants)
   // Use weighted average of first 3 MFCCs to estimate F1
   const mfccSum = features.mfcc.slice(0, 3).reduce((sum, val) => sum + Math.abs(val), 0);
@@ -55,7 +51,6 @@ export function convertPraatFeaturesToMeasureValues(features: PraatFeatures, dur
   return {
     jitter,
     shimmer,
-    hnr,
     f0Mean,
     f0Range,
     speechRate,

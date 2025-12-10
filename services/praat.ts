@@ -1,3 +1,5 @@
+import { BACKEND_URL } from '../config';
+
 export type PraatFeatures = {
 	// Basic features
 	rms: number;
@@ -10,13 +12,12 @@ export type PraatFeatures = {
 	f0_range?: number;
 	jitter?: number;
 	shimmer?: number;
-	hnr?: number;
 	f1?: number;
 	f2?: number;
 	speech_rate?: number;
 };
 
-export async function extractFeaturesWithPraat(wavBlob: Blob, baseUrl = "http://localhost:8000"): Promise<PraatFeatures> {
+export async function extractFeaturesWithPraat(wavBlob: Blob, baseUrl = BACKEND_URL): Promise<PraatFeatures> {
 	const form = new FormData();
 	form.append('file', wavBlob, 'audio.wav');
 	const res = await fetch(`${baseUrl}/extract_features`, { method: 'POST', body: form });

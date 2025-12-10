@@ -42,15 +42,15 @@ const SignInScreen: React.FC<SignInScreenProps> = ({ onSignIn, onCreateAccount }
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    
+
     const codeString = code.join('');
-    
+
     if (codeString.length !== 4) {
       alert('Please enter a 4-digit code');
       setSliderKey(prev => prev + 1); // Reset slider
       return;
     }
-    
+
     if (!password) {
       alert('Please enter your password');
       setSliderKey(prev => prev + 1); // Reset slider
