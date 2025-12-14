@@ -138,3 +138,44 @@ export interface StudentHistory {
   sessions: SessionData[];
   learningAnalytics?: LearningAnalytics;
 }
+
+// ===== Counselor Session Planning Types =====
+
+export type CounselorQuestionType =
+  | 'scale-1-5'
+  | 'scale-1-10'
+  | 'yes-no'
+  | 'multiple-choice'
+  | 'open-ended';
+
+export type FocusIntensity = 'gentle' | 'moderate' | 'focused';
+
+export interface CounselorQuestion {
+  id: string;
+  text: string;
+  type: CounselorQuestionType;
+  options?: string[];
+  category: PreAnalysisCategory;
+  createdAt: string;
+}
+
+export interface SessionPlan {
+  planId: string;
+  studentId: string;
+  studentName?: string;
+  counselorId?: string;
+  createdAt: string;
+  updatedAt: string;
+
+  // Custom pre-session questions
+  customQuestions: CounselorQuestion[];
+  generatedQuestions?: PreAnalysisQuestion[]; // AI-generated complementary questions
+
+  // AI session focus configuration
+  focusTopic: string;
+  focusIntensity: FocusIntensity;
+
+  // Plan state
+  isActive: boolean;
+  useForNextSessionOnly: boolean;
+}

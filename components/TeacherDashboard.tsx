@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Student, RiskLevel } from '../types';
-import { UserCircle, ChevronLeft, MessageCircle, Pencil } from './Icons';
+import { UserCircle, ChevronLeft, MessageCircle, Pencil, Calendar } from './Icons';
 import GlassCard from './GlassCard';
 import TeacherChatModal from './TeacherChatModal';
 import { Gauge } from './ui/gauge-1';
@@ -78,8 +78,9 @@ const StudentWidget: React.FC<{
     onClick: () => void;
     onChatClick: () => void;
     onEditNickname: (studentId: string) => void;
+    onPlanSession?: (studentId: string) => void;
     isHighAlert?: boolean;
-}> = ({ student, onClick, onChatClick, onEditNickname, isHighAlert = false }) => {
+}> = ({ student, onClick, onChatClick, onEditNickname, onPlanSession, isHighAlert = false }) => {
     const hasAnalysis = student.analysisHistory.length > 1; // Only show if more than 1 analysis
     const hasPendingAnalysis = student.analysisHistory.length === 1; // Check for pending first analysis
     const latestAnalysis = hasAnalysis ? student.analysisHistory[student.analysisHistory.length - 1] : null;
@@ -120,6 +121,13 @@ const StudentWidget: React.FC<{
         onEditNickname(student.code);
     };
 
+    const handlePlanClick = (e: React.MouseEvent) => {
+        e.stopPropagation(); // Prevent triggering the widget's onClick
+        if (onPlanSession) {
+            onPlanSession(student.code);
+        }
+    };
+
     // Red color scheme for High Alerts
     const alertBorderColor = isHighAlert ? 'border-red-500/80' : '';
     const alertBgGradient = isHighAlert ? 'bg-gradient-to-br from-red-900/20 to-red-800/10' : '';
@@ -148,6 +156,15 @@ const StudentWidget: React.FC<{
                     title="Edit nickname"
                 >
                     <Pencil className={`w-4 h-4 ${isHighAlert ? 'text-red-400' : 'text-purple-primary'}`} />
+                </button>
+
+                {/* Plan button next to edit button */}
+                <button
+                    onClick={handlePlanClick}
+                    className={`absolute top-3 left-14 w-9 h-9 ${isHighAlert ? 'bg-red-500/20 hover:bg-red-500/40' : 'bg-purple-primary/20 hover:bg-purple-primary/40'} rounded-full flex items-center justify-center transition-colors z-10`}
+                    title="Plan Session"
+                >
+                    <Calendar className={`w-4 h-4 ${isHighAlert ? 'text-red-400' : 'text-purple-primary'}`} />
                 </button>
 
                 <p className="text-3xl font-bold text-text-primary text-center px-8 break-words">{getDisplayName(student.code)}</p>
@@ -197,8 +214,9 @@ const HighAlertsSection: React.FC<{
     students: Student[],
     onSelectStudent: (id: string) => void,
     onChatClick: (studentId: string) => void,
-    onEditNickname: (studentId: string) => void
-}> = ({ students, onSelectStudent, onChatClick, onEditNickname }) => {
+    onEditNickname: (studentId: string) => void,
+    onPlanSession?: (studentId: string) => void
+}> = ({ students, onSelectStudent, onChatClick, onEditNickname, onPlanSession }) => {
     const highAlertStudents = students.filter(s => {
         // Only include students with > 1 analysis history and stress >= 67%
         if (s.analysisHistory.length <= 1) return false;
@@ -248,8 +266,9 @@ const HighRiskStudentsWidget: React.FC<{
     students: Student[],
     onSelectStudent: (id: string) => void,
     onChatClick: (studentId: string) => void,
-    onEditNickname: (studentId: string) => void
-}> = ({ students, onSelectStudent, onChatClick, onEditNickname }) => {
+    onEditNickname: (studentId: string) => void,
+    onPlanSession?: (studentId: string) => void
+}> = ({ students, onSelectStudent, onChatClick, onEditNickname, onPlanSession }) => {
     const highRiskStudents = students.filter(s => {
         // Only include students with > 1 analysis history and stress >= 67%
         if (s.analysisHistory.length <= 1) return false;
@@ -275,6 +294,7 @@ const HighRiskStudentsWidget: React.FC<{
                                 onClick={() => onSelectStudent(student.code)}
                                 onChatClick={() => onChatClick(student.code)}
                                 onEditNickname={onEditNickname}
+                                onPlanSession={onPlanSession}
                                 isHighAlert={true}
                             />
                         </div>
@@ -309,9 +329,10 @@ interface TeacherDashboardProps {
     onSelectStudent: (studentId: string) => void;
     onSignOut: () => void;
     onRefresh: () => void;
+    onPlanSession?: (studentId: string) => void;
 }
 
-const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectStudent, onSignOut, onRefresh }) => {
+const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectStudent, onSignOut, onRefresh, onPlanSession }) => {
     const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [selectedStudentForChat, setSelectedStudentForChat] = useState<string | null>(null);
@@ -583,6 +604,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
                                     setIsChatOpen(true);
                                 }}
                                 onEditNickname={handleEditNickname}
+                                onPlanSession={onPlanSession}
                             />
 
 
@@ -605,6 +627,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
                                                 setIsChatOpen(true);
                                             }}
                                             onEditNickname={handleEditNickname}
+                                            onPlanSession={onPlanSession}
                                         />
                                     ))}
                                 </MotionDiv>

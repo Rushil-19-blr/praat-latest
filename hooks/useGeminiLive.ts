@@ -1,11 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality, Blob as GenaiBlob } from "@google/genai";
 import { decode, encode, decodeAudioData } from '../utils/audio';
-import { THERAPIST_SYSTEM_PROMPT, THERAPIST_INITIAL_USER_PROMPT } from '../constants';
-import type { LiveSessionQuestion } from '../types';
+import { THERAPIST_SYSTEM_PROMPT, THERAPIST_INITIAL_USER_PROMPT, buildTherapistPrompt } from '../constants';
+import type { LiveSessionQuestion, SessionPlan } from '../types';
 import { generateId } from '../services/personalizationService';
 
-export const useGeminiLive = (stream: MediaStream | null, muted: boolean = true) => {
+export const useGeminiLive = (
+    stream: MediaStream | null,
+    muted: boolean = true,
+    sessionPlan?: SessionPlan | null  // Optional session plan for focus topic
+) => {
     const [isConnected, setIsConnected] = useState(false);
     const [transcript, setTranscript] = useState('');
     const [error, setError] = useState<string | null>(null);
@@ -77,13 +81,9 @@ export const useGeminiLive = (stream: MediaStream | null, muted: boolean = true)
             const wasMuted = prevMutedRef.current;
             if (sessionRef.current) {
                 if (wasMuted && !muted) {
-                    // Unmuted: start new buffer and ask for streaming response immediately
-                    try { sessionRef.current.sendRealtimeInput({ event: 'input_audio_buffer.start' }); } catch { }
-                    try { sessionRef.current.sendRealtimeInput({ event: 'response.create' }); } catch { }
+                    // Unmuted: resume
                 } else if (!wasMuted && muted) {
-                    // Muted: commit current buffer and request a response
-                    try { sessionRef.current.sendRealtimeInput({ event: 'input_audio_buffer.commit' }); } catch { }
-                    try { sessionRef.current.sendRealtimeInput({ event: 'response.create' }); } catch { }
+                    // Muted: pause
                 }
             }
         } finally {
@@ -116,6 +116,7 @@ export const useGeminiLive = (stream: MediaStream | null, muted: boolean = true)
 
                 const sessionPromise = ai.live.connect({
                     model: 'gemini-2.5-flash-native-audio-preview-09-2025',
+
                     callbacks: {
                         onopen: () => {
                             if (isCancelled) return;
@@ -137,7 +138,7 @@ export const useGeminiLive = (stream: MediaStream | null, muted: boolean = true)
                                             // rigorous check: active session, matching the promise, and not in cleanup
                                             if (sessionRef.current === session) {
                                                 try {
-                                                    session.sendRealtimeInput({ event: 'input_audio_buffer.append', media: pcmBlob });
+                                                    session.sendRealtimeInput({ media: pcmBlob });
                                                 } catch (e) {
                                                     // transport errors can occur if session is transitioning
                                                 }
@@ -161,7 +162,8 @@ export const useGeminiLive = (stream: MediaStream | null, muted: boolean = true)
                                 sessionPromise.then((session) => {
                                     try {
                                         // Request a response so the therapist can introduce themselves based on system instructions
-                                        session.sendRealtimeInput({ event: 'response.create' });
+                                        // Send empty text to trigger response
+                                        session.sendRealtimeInput({ media: { mimeType: 'text/plain', data: " " } });
                                     } catch { }
                                 });
                             } catch { }
@@ -248,12 +250,16 @@ export const useGeminiLive = (stream: MediaStream | null, muted: boolean = true)
                         },
                     },
                     config: {
+                        systemInstruction: { parts: [{ text: sessionPlan ? buildTherapistPrompt(sessionPlan.focusTopic, sessionPlan.focusIntensity) : THERAPIST_SYSTEM_PROMPT }] },
                         responseModalities: [Modality.AUDIO],
                         outputAudioTranscription: {},
                         speechConfig: {
                             voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Zephyr' } },
                         },
-                        systemInstruction: THERAPIST_SYSTEM_PROMPT,
+                        // Use dynamic prompt if session plan has focus topic
+                        systemInstruction: sessionPlan?.focusTopic
+                            ? buildTherapistPrompt(sessionPlan.focusTopic, sessionPlan.focusIntensity)
+                            : THERAPIST_SYSTEM_PROMPT,
                         inputAudioTranscription: {},
                     },
                 });

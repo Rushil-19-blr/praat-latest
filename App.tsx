@@ -17,6 +17,7 @@ import TeacherDashboard from './components/TeacherDashboard';
 import StudentDetailScreen from './components/StudentDetailScreen';
 import StudentReportScreen from './components/StudentReportScreen';
 import PreRecordingQuestionnaire from './components/PreRecordingQuestionnaire';
+import SessionPlanningPage from './components/SessionPlanningPage';
 import StreamChatProvider from './components/StreamChatProvider';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BeamsBackground } from './components/ui/beams-background';
@@ -26,7 +27,7 @@ import type { QuestionnaireAnswers } from './components/PreRecordingQuestionnair
 // Import storage utilities - makes clearAllStorage() available globally
 import './utils/storageUtils';
 
-type AppState = 'SIGNIN' | 'SIGNUP' | 'CONFIRMATION' | 'ENROLLMENT' | 'SCRATCH_CARD' | 'PASSWORD_SETUP' | 'SUCCESS' | 'DASHBOARD' | 'QUESTIONNAIRE' | 'RECORDING' | 'CALIBRATION_FLOW' | 'RESULTS' | 'SUGGESTIONS' | 'TEACHER_DASHBOARD' | 'STUDENT_DETAIL' | 'STUDENT_REPORT';
+type AppState = 'SIGNIN' | 'SIGNUP' | 'CONFIRMATION' | 'ENROLLMENT' | 'SCRATCH_CARD' | 'PASSWORD_SETUP' | 'SUCCESS' | 'DASHBOARD' | 'QUESTIONNAIRE' | 'RECORDING' | 'CALIBRATION_FLOW' | 'RESULTS' | 'SUGGESTIONS' | 'TEACHER_DASHBOARD' | 'STUDENT_DETAIL' | 'STUDENT_REPORT' | 'SESSION_PLANNING';
 
 const App: React.FC = () => {
   const [appState, setAppState] = useState<AppState>('SIGNIN');
@@ -38,6 +39,7 @@ const App: React.FC = () => {
   const [userType, setUserType] = useState<'student' | 'teacher'>('student');
   const [questionnaireAnswers, setQuestionnaireAnswers] = useState<QuestionnaireAnswers | null>(null);
   const [preAnalysisSession, setPreAnalysisSession] = useState<PreAnalysisSession | null>(null);
+  const [planningStudentId, setPlanningStudentId] = useState<string | null>(null);
 
   // Signup flow state
   const [selectedClass, setSelectedClass] = useState<number | null>(null);
@@ -485,6 +487,22 @@ const App: React.FC = () => {
     setAppState('STUDENT_DETAIL');
   }, []);
 
+  // Session Planning handlers
+  const handlePlanSession = useCallback((studentId: string) => {
+    setPlanningStudentId(studentId);
+    setAppState('SESSION_PLANNING');
+  }, []);
+
+  const handlePlanningBack = useCallback(() => {
+    setPlanningStudentId(null);
+    setAppState('TEACHER_DASHBOARD');
+  }, []);
+
+  const handlePlanningSave = useCallback(() => {
+    setPlanningStudentId(null);
+    setAppState('TEACHER_DASHBOARD');
+  }, []);
+
   const pageVariants = {
     initial: { opacity: 0, scale: 0.98 },
     animate: { opacity: 1, scale: 1 },
@@ -606,6 +624,7 @@ const App: React.FC = () => {
               <PreRecordingQuestionnaire
                 onSubmit={handleQuestionnaireSubmit}
                 onBack={handleQuestionnaireBack}
+                studentId={userType === 'student' ? accountNumber : (selectedStudent?.code || planningStudentId || undefined)}
               />
             </motion.div>
           )}
@@ -624,6 +643,7 @@ const App: React.FC = () => {
                 onSelectStudent={handleSelectStudent}
                 onSignOut={handleSignOut}
                 onRefresh={loadStudentData}
+                onPlanSession={handlePlanSession}
               />
             </motion.div>
           )}
@@ -659,6 +679,24 @@ const App: React.FC = () => {
                 student={selectedStudent}
                 analysisData={analysisData}
                 onBack={handleReportBack}
+              />
+            </motion.div>
+          )}
+
+          {appState === 'SESSION_PLANNING' && planningStudentId && (
+            <motion.div
+              key="session-planning"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="w-full h-full"
+            >
+              <SessionPlanningPage
+                studentId={planningStudentId}
+                studentName={students.find(s => s.code === planningStudentId)?.name}
+                onBack={handlePlanningBack}
+                onSave={handlePlanningSave}
               />
             </motion.div>
           )}

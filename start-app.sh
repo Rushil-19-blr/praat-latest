@@ -25,8 +25,8 @@ echo "========================================"
 echo " Application Started Successfully!"
 echo "========================================"
 echo
-echo "Backend: http://localhost:8000"
-echo "Frontend: http://localhost:3000"
+echo "Backend: http://localhost:5000"
+echo "Frontend: http://localhost:5173"
 echo
 echo "Press Ctrl+C to stop both servers..."
 

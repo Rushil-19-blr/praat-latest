@@ -67,6 +67,46 @@ Also, here are 10 sample therapist questions you should cycle through naturally 
 
 Begin now: introduce yourself (1–2 sentences), ask an opening question, and wait for the student's response. Remember to pause and reflect, summarize every few exchanges, and offer a small practical suggestion during the session. Close with a 2–3 sentence recap and one clear next step.`;
 
+// Dynamic prompt builder with counselor focus topic injection
+export const buildTherapistPrompt = (
+  focusTopic?: string,
+  intensity: 'gentle' | 'moderate' | 'focused' = 'gentle'
+): { parts: { text: string }[] } => {
+  const baseText = THERAPIST_SYSTEM_PROMPT.parts[0].text;
+
+  // If no focus topic, return original prompt
+  if (!focusTopic || focusTopic.trim() === '') {
+    return THERAPIST_SYSTEM_PROMPT;
+  }
+
+  const intensityInstructions = {
+    gentle: `You may gently and naturally bring up topics related to "${focusTopic}" when it feels appropriate. 
+This is a light suggestion - if the student doesn't seem interested, follow their lead instead.`,
+    moderate: `When appropriate, guide the conversation toward "${focusTopic}". 
+Try to explore this topic at least once or twice during the session, but don't force it if the student seems uncomfortable.`,
+    focused: `The primary focus of this session should be on "${focusTopic}". 
+While building rapport, guide most of your questions and reflections toward understanding the student's experience with this topic.
+If the student seems uncomfortable, gently return to it later rather than abandoning it entirely.`,
+  };
+
+  const focusInjection = `
+
+**COUNSELOR-DIRECTED SESSION FOCUS:**
+The school counselor has specifically requested this session explore: "${focusTopic}"
+
+${intensityInstructions[intensity]}
+
+Additional guidelines for focused sessions:
+- Don't start by immediately mentioning the focus topic - build rapport first
+- Weave questions about "${focusTopic}" naturally into the conversation
+- Summarize any insights related to "${focusTopic}" in your session recap
+- Note any concerns the student expresses about this topic`;
+
+  return {
+    parts: [{ text: baseText + focusInjection }]
+  };
+};
+
 export const calibrationQuotes = [
   "The quick brown fox jumps over the lazy dog.",
   "A journey of a thousand miles begins with a single step.",

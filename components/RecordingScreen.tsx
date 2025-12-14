@@ -19,6 +19,8 @@ import SmartOptions from './SmartOptions';
 import { generateCounselorReport } from '../services/reportService';
 import { saveSessionData, getStudentHistory, getCurrentStudentId, generateId } from '../services/personalizationService';
 import { getAffirmationsForSession } from '../services/affirmationService';
+import { getSessionPlan } from '../services/planningService';
+import type { SessionPlan } from '../types';
 
 interface RecordingScreenProps {
   onAnalysisComplete: (data: AnalysisData) => void;
@@ -74,10 +76,16 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
   const [currentStatementIndex, setCurrentStatementIndex] = useState(0);
   const [isPlayingStatement, setIsPlayingStatement] = useState(false);
 
+  // Retrieve active session plan (if any)
+  const activeSessionPlan = React.useMemo(() => {
+    const studentId = getCurrentStudentId();
+    return getSessionPlan(studentId);
+  }, []);
+
   // Gemini Live integration - only active in 'ai' mode
   const shouldUseGemini = mode === 'ai';
   const [isMicMuted, setIsMicMuted] = useState(true); // Push-to-talk: muted by default
-  const { isConnected: geminiConnected, transcript: geminiTranscript, error: geminiError, isMuted: geminiMuted, disconnect: disconnectGemini, lastAgentResponse, sendText, liveSessionQA, clearLiveSessionQA } = useGeminiLive(shouldUseGemini ? stream : null, isMicMuted);
+  const { isConnected: geminiConnected, transcript: geminiTranscript, error: geminiError, isMuted: geminiMuted, disconnect: disconnectGemini, lastAgentResponse, sendText, liveSessionQA, clearLiveSessionQA } = useGeminiLive(shouldUseGemini ? stream : null, isMicMuted, activeSessionPlan);
 
   const [smartOptions, setSmartOptions] = useState<string[]>([]);
   const lastVoiceActivityTimeRef = useRef<number>(Date.now());
