@@ -22,6 +22,7 @@ import {
     deleteSessionPlan,
     createEmptyPlan,
     createEmptyQuestion,
+    generateQuestionsByTopic,
     QUESTION_TYPE_LABELS,
     CATEGORY_LABELS,
     MCQ_TEMPLATES,
@@ -47,6 +48,12 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
     const [showTypeSelector, setShowTypeSelector] = useState<string | null>(null);
     const [showCategorySelector, setShowCategorySelector] = useState<string | null>(null);
     const [showTemplateSelector, setShowTemplateSelector] = useState(false);
+
+    // AI Generation State
+    const [templateTab, setTemplateTab] = useState<'templates' | 'ai'>('templates');
+    const [aiTopic, setAiTopic] = useState('');
+    const [isGenerating, setIsGenerating] = useState(false);
+
     const [hasChanges, setHasChanges] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
 
@@ -199,6 +206,38 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
         }
     };
 
+    const handleGenerateQuestions = async () => {
+        if (!aiTopic.trim()) return;
+        setIsGenerating(true);
+        try {
+            const questions = await generateQuestionsByTopic(aiTopic, 3);
+            if (plan) {
+                // Map to CounselorQuestion type
+                const counselorQuestions: CounselorQuestion[] = questions.map(q => ({
+                    id: q.id,
+                    text: q.text,
+                    type: q.type === 'multiple-choice' ? 'multiple-choice' :
+                        q.type === 'yes-no' ? 'yes-no' : 'scale-1-5',
+                    category: q.category,
+                    options: q.options,
+                    createdAt: new Date().toISOString()
+                }));
+
+                setPlan({
+                    ...plan,
+                    customQuestions: [...plan.customQuestions, ...counselorQuestions]
+                });
+                setHasChanges(true);
+                setShowTemplateSelector(false);
+                setAiTopic('');
+            }
+        } catch (e) {
+            console.error("Failed to generate questions", e);
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
     const handleClearPlan = () => {
         deleteSessionPlan(studentId);
         setPlan(createEmptyPlan(studentId, studentName));
@@ -224,7 +263,7 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
             </div>
 
             {/* Header */}
-            <div className="sticky top-0 z-20 backdrop-blur-xl bg-background-primary/80 border-b border-white/10">
+            <div className="sticky top-0 z-20 backdrop-blur-md bg-transparent border-b border-white/5">
                 <div className="max-w-3xl mx-auto px-4 py-4">
                     <div className="flex items-center justify-between gap-4">
                         <div className="flex items-center gap-4">
@@ -249,9 +288,9 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
                             <button
                                 onClick={handleSave}
                                 disabled={!hasChanges || isSaving}
-                                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${hasChanges && !isSaving
-                                    ? 'bg-gradient-to-r from-purple-primary to-purple-light text-white shadow-lg shadow-purple-primary/30 hover:shadow-xl'
-                                    : 'bg-surface/50 text-text-muted cursor-not-allowed'
+                                className={`flex items-center gap-2 px-6 py-2 rounded-full font-medium transition-all duration-300 border ${hasChanges && !isSaving
+                                    ? 'bg-gradient-to-r from-purple-primary to-purple-light text-white shadow-[0_0_20px_rgba(168,85,247,0.4)] border-purple-400/30 hover:shadow-[0_0_30px_rgba(168,85,247,0.6)] hover:border-purple-400/50 hover:scale-105'
+                                    : 'bg-surface/50 text-text-muted cursor-not-allowed border-white/5'
                                     }`}
                             >
                                 {isSaving ? (
@@ -446,22 +485,79 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
                                 </button>
 
                                 {showTemplateSelector && (
-                                    <div className="absolute bottom-full right-0 mb-2 w-72 bg-background-secondary border border-white/10 rounded-xl shadow-xl z-50 overflow-hidden">
-                                        <div className="p-3 bg-surface/50 border-b border-white/5">
-                                            <h4 className="text-sm font-medium text-white">Select a Template</h4>
+                                    <div className="absolute bottom-full right-0 mb-2 w-80 bg-background-secondary border border-white/10 rounded-xl shadow-xl z-50 overflow-hidden ring-1 ring-white/10">
+                                        <div className="flex border-b border-white/10">
+                                            <button
+                                                onClick={() => setTemplateTab('templates')}
+                                                className={`flex-1 p-3 text-sm font-medium transition-colors ${templateTab === 'templates' ? 'bg-white/10 text-white' : 'text-text-muted hover:text-white hover:bg-white/5'}`}
+                                            >
+                                                Templates
+                                            </button>
+                                            <button
+                                                onClick={() => setTemplateTab('ai')}
+                                                className={`flex-1 p-3 text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${templateTab === 'ai' ? 'bg-purple-primary/20 text-purple-300' : 'text-text-muted hover:text-white hover:bg-white/5'}`}
+                                            >
+                                                <div className="w-3 h-3 rounded-full bg-purple-primary/50 animate-pulse" />
+                                                AI Generate
+                                            </button>
                                         </div>
-                                        <div className="max-h-60 overflow-y-auto">
-                                            {MCQ_TEMPLATES.map((template, i) => (
+
+                                        {templateTab === 'templates' ? (
+                                            <div className="max-h-64 overflow-y-auto custom-scrollbar">
+                                                <div className="p-3">
+                                                    <h4 className="text-xs font-medium text-text-muted uppercase tracking-wider mb-2">Select a Template</h4>
+                                                    <div className="space-y-1">
+                                                        {MCQ_TEMPLATES.map((template, i) => (
+                                                            <button
+                                                                key={i}
+                                                                onClick={() => handleAddTemplate(template)}
+                                                                className="w-full text-left p-3 rounded-lg hover:bg-white/5 transition-colors border border-transparent hover:border-white/5 group"
+                                                            >
+                                                                <div className="text-sm text-white mb-1 group-hover:text-purple-300 transition-colors">{template.text}</div>
+                                                                <div className="text-xs text-text-muted truncate">{template.options.join(', ')}</div>
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="p-4 space-y-4">
+                                                <div>
+                                                    <label className="block text-xs text-text-muted uppercase tracking-wider mb-2">
+                                                        What topic to focus on?
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={aiTopic}
+                                                        onChange={(e) => setAiTopic(e.target.value)}
+                                                        placeholder="e.g. Exam Stress, Friendships"
+                                                        className="w-full bg-surface/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-text-muted focus:border-purple-primary/50 focus:outline-none transition-colors"
+                                                        onKeyDown={(e) => e.key === 'Enter' && handleGenerateQuestions()}
+                                                    />
+                                                </div>
+
                                                 <button
-                                                    key={i}
-                                                    onClick={() => handleAddTemplate(template)}
-                                                    className="w-full text-left p-3 hover:bg-white/5 transition-colors border-b border-white/5 last:border-0"
+                                                    onClick={handleGenerateQuestions}
+                                                    disabled={!aiTopic.trim() || isGenerating}
+                                                    className={`w-full py-2.5 rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all ${!aiTopic.trim() || isGenerating
+                                                            ? 'bg-surface/50 text-text-muted cursor-not-allowed'
+                                                            : 'bg-purple-primary hover:bg-purple-600 text-white shadow-lg shadow-purple-primary/20'
+                                                        }`}
                                                 >
-                                                    <div className="text-sm text-white mb-1">{template.text}</div>
-                                                    <div className="text-xs text-text-muted">{template.options.join(', ')}</div>
+                                                    {isGenerating ? (
+                                                        <>
+                                                            <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                            Generating...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <div className="w-3 h-3 rounded-full bg-white shadow-[0_0_10px_white]" />
+                                                            Generate Questions
+                                                        </>
+                                                    )}
                                                 </button>
-                                            ))}
-                                        </div>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>

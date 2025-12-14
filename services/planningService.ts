@@ -187,6 +187,73 @@ For multiple-choice, add "options": ["Option1", "Option2", "Option3"]`;
     }
 };
 
+export const generateQuestionsByTopic = async (
+    topic: string,
+    count: number
+): Promise<PreAnalysisQuestion[]> => {
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.API_KEY || '';
+
+    if (!apiKey) {
+        console.warn('[PlanningService] No API key, skipping AI questions');
+        return FALLBACK_QUESTIONS.slice(0, count).map((q, i) => ({
+            ...q,
+            id: `fb_noapi_${Date.now()}_${i}`
+        }));
+    }
+
+    try {
+        const ai = new GoogleGenerativeAI(apiKey);
+        const model = ai.getGenerativeModel({ model: 'gemini-2.0-flash' });
+
+        const prompt = `A school counselor wants to ask a student questions about "${topic}".
+
+Generate exactly ${count} questions that:
+1. Are directly related to "${topic}"
+2. Are appropriate for students aged 10-18
+3. Use question types: scale-1-5, yes-no, or multiple-choice
+4. Are sensitive, non-judgmental, and supportive
+
+Return ONLY a valid JSON array with this exact structure (no markdown, no explanation):
+[
+  {
+    "id": "ai_1",
+    "text": "Question text here",
+    "type": "scale-1-5",
+    "category": "general"
+  }
+]
+
+Valid types: "scale-1-5", "yes-no", "multiple-choice"
+Valid categories: "stress", "sleep", "focus", "social", "academic", "general"
+For multiple-choice, add "options": ["Option1", "Option2", "Option3"]`;
+
+        const result = await model.generateContent(prompt);
+        const text = result.response.text()
+            .replace(/```json/g, '')
+            .replace(/```/g, '')
+            .trim();
+
+        const questions = JSON.parse(text) as PreAnalysisQuestion[];
+
+        // Validate and clean up
+        return questions.slice(0, count).map((q, i) => ({
+            id: q.id || `ai_topic_${i + 1}`,
+            text: q.text,
+            type: q.type || 'scale-1-5',
+            options: q.options,
+            category: q.category || 'general',
+        }));
+
+    } catch (e) {
+        console.error('[PlanningService] AI question generation by topic failed:', e);
+        // Fallback to defaults
+        return FALLBACK_QUESTIONS.slice(0, count).map((q, i) => ({
+            ...q,
+            id: `fb_err_${Date.now()}_${i}`
+        }));
+    }
+};
+
 export const generateAndSavePlan = async (plan: SessionPlan): Promise<void> => {
     // 1. Calculate how many AI questions we need
     const validQuestions = plan.customQuestions.filter(q => q.text.trim() !== '');
