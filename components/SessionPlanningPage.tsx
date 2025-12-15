@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Plus, Trash2, Save, X, HelpCircle, Target, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Save, X, HelpCircle, Target, MessageSquare, Settings } from 'lucide-react';
 import { BeamsBackground } from './ui/beams-background';
 import GlassCard from './GlassCard';
 import type {
@@ -48,6 +48,7 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
     const [showTypeSelector, setShowTypeSelector] = useState<string | null>(null);
     const [showCategorySelector, setShowCategorySelector] = useState<string | null>(null);
     const [showTemplateSelector, setShowTemplateSelector] = useState(false);
+    const [showSettings, setShowSettings] = useState(false);
 
     // AI Generation State
     const [templateTab, setTemplateTab] = useState<'templates' | 'ai'>('templates');
@@ -300,11 +301,67 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
                                     </>
                                 ) : (
                                     <>
-                                        <Save className="w-4 h-4" />
-                                        Save Plan
+                                        <Save className="w-3.5 h-3.5" />
+                                        <span>Save Plan</span>
                                     </>
                                 )}
                             </button>
+
+                            {/* Settings Button */}
+                            <div className="relative">
+                                <button
+                                    onClick={() => setShowSettings(!showSettings)}
+                                    className={`p-2 rounded-full transition-all duration-200 border ${showSettings
+                                        ? 'bg-purple-primary/20 text-purple-primary border-purple-primary/30'
+                                        : 'bg-surface/50 text-text-muted hover:text-white border-white/5 hover:bg-surface'}`}
+                                >
+                                    <Settings className="w-4 h-4" />
+                                </button>
+
+                                {/* Settings Dropdown */}
+                                {showSettings && (
+                                    <div className="absolute top-full right-0 mt-2 w-72 bg-black/60 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] z-[100] overflow-hidden ring-1 ring-white/5">
+                                        <div className="p-1">
+                                            <div className="px-4 py-3 border-b border-white/5">
+                                                <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider">Plan Settings</h3>
+                                            </div>
+
+                                            <div className="p-2 space-y-1">
+                                                <label className="flex items-start gap-3 p-3 rounded-xl hover:bg-white/5 cursor-pointer transition-colors group">
+                                                    <div className="relative inline-flex items-center mt-0.5">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={plan.useForNextSessionOnly}
+                                                            onChange={handleTogglePersistence}
+                                                            className="sr-only peer"
+                                                        />
+                                                        <div className="w-9 h-5 bg-surface/50 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-primary transition-colors"></div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-sm text-white font-medium group-hover:text-purple-200 transition-colors">One-time Plan</div>
+                                                        <div className="text-[10px] text-text-muted leading-tight mt-1">
+                                                            Auto-delete this plan after the session completes
+                                                        </div>
+                                                    </div>
+                                                </label>
+                                            </div>
+
+                                            <div className="p-2 border-t border-white/5">
+                                                <button
+                                                    onClick={() => {
+                                                        handleClearPlan();
+                                                        setShowSettings(false);
+                                                    }}
+                                                    className="w-full py-2.5 flex items-center justify-center gap-2 text-xs font-medium text-red-300 hover:text-red-200 hover:bg-red-500/20 rounded-xl transition-all duration-200"
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                    Clear All & Start Fresh
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -540,8 +597,8 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
                                                     onClick={handleGenerateQuestions}
                                                     disabled={!aiTopic.trim() || isGenerating}
                                                     className={`w-full py-2.5 rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all ${!aiTopic.trim() || isGenerating
-                                                            ? 'bg-surface/50 text-text-muted cursor-not-allowed'
-                                                            : 'bg-purple-primary hover:bg-purple-600 text-white shadow-lg shadow-purple-primary/20'
+                                                        ? 'bg-surface/50 text-text-muted cursor-not-allowed'
+                                                        : 'bg-purple-primary hover:bg-purple-600 text-white shadow-lg shadow-purple-primary/20'
                                                         }`}
                                                 >
                                                     {isGenerating ? (
@@ -580,112 +637,87 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
                         </div>
                     </GlassCard>
 
-                    {/* Focus Topic Section */}
-                    <GlassCard className="p-6" variant="base">
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="w-10 h-10 rounded-full bg-orange-primary/20 flex items-center justify-center">
-                                <Target className="w-5 h-5 text-orange-primary" />
-                            </div>
-                            <div>
-                                <h2 className="text-lg font-semibold text-white">Session Focus Topic</h2>
-                                <p className="text-sm text-text-muted">
-                                    Guide the AI to explore a specific topic during the conversation
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* Focus Topic Input */}
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm text-text-secondary mb-2">
-                                    What topic should the AI focus on? (optional)
-                                </label>
-                                <input
-                                    type="text"
-                                    value={plan.focusTopic}
-                                    onChange={(e) => handleFocusTopicChange(e.target.value)}
-                                    placeholder="e.g., exam anxiety, peer relationships, sleep issues..."
-                                    className="w-full bg-surface/50 border border-white/10 rounded-lg p-3 text-white placeholder-text-muted focus:border-orange-primary/50 focus:outline-none transition-colors"
-                                />
-                            </div>
-
-                            {/* Focus Intensity */}
-                            {plan.focusTopic && (
-                                <MotionDiv
-                                    initial={{ opacity: 0, height: 0 }}
-                                    animate={{ opacity: 1, height: 'auto' }}
-                                    className="space-y-3"
-                                >
-                                    <label className="block text-sm text-text-secondary">
-                                        How strongly should the AI focus on this topic?
-                                    </label>
-                                    <div className="flex gap-2">
-                                        {(['gentle', 'moderate', 'focused'] as FocusIntensity[]).map((intensity) => (
-                                            <button
-                                                key={intensity}
-                                                onClick={() => handleFocusIntensityChange(intensity)}
-                                                className={`flex-1 py-3 px-4 rounded-xl text-sm font-medium transition-all ${plan.focusIntensity === intensity
-                                                    ? 'bg-orange-primary text-white shadow-lg shadow-orange-primary/30'
-                                                    : 'bg-surface/50 text-text-secondary hover:bg-surface hover:text-white border border-white/10'
-                                                    }`}
-                                            >
-                                                <div className="capitalize">{intensity}</div>
-                                                <div className="text-xs mt-1 opacity-70">
-                                                    {intensity === 'gentle' && 'Light suggestion'}
-                                                    {intensity === 'moderate' && 'Regular guidance'}
-                                                    {intensity === 'focused' && 'Primary focus'}
-                                                </div>
-                                            </button>
-                                        ))}
-                                    </div>
-                                </MotionDiv>
-                            )}
-
-                            {/* Example Topics */}
-                            <div className="flex flex-wrap gap-2 mt-2">
-                                <span className="text-xs text-text-muted">Suggestions:</span>
-                                {['academic pressure', 'friendships', 'sleep problems', 'family dynamics', 'self-esteem'].map((topic) => (
-                                    <button
-                                        key={topic}
-                                        onClick={() => handleFocusTopicChange(topic)}
-                                        className="px-2 py-1 text-xs bg-surface/30 text-text-secondary rounded-md hover:bg-surface hover:text-white transition-colors"
-                                    >
-                                        {topic}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    </GlassCard>
-
-                    {/* Plan Settings */}
-                    <GlassCard className="p-6" variant="base">
-                        <h3 className="text-lg font-semibold text-white mb-4">Plan Settings</h3>
-                        <div className="space-y-3">
-                            <label className="flex items-center gap-3 cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={plan.useForNextSessionOnly}
-                                    onChange={handleTogglePersistence}
-                                    className="w-5 h-5 rounded border-white/20 bg-surface/50 text-purple-primary focus:ring-purple-primary"
-                                />
-                                <div>
-                                    <div className="text-white">One-time Plan (Auto-delete)</div>
-                                    <div className="text-xs text-text-muted">
-                                        Plan will be verified and deleted after one session
-                                    </div>
+                    {/* Bottom Row: Focus (Full Width now) */}
+                    <div className="w-full">
+                        {/* Focus Topic Section */}
+                        <GlassCard className="p-5 flex flex-col justify-between bg-black/40 backdrop-blur-md border-white/10" variant="base">
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="w-10 h-10 rounded-full bg-orange-primary/20 flex items-center justify-center">
+                                    <Target className="w-5 h-5 text-orange-primary" />
                                 </div>
-                            </label>
-                        </div>
+                                <div>
+                                    <h2 className="text-lg font-semibold text-white">Session Focus Topic</h2>
+                                    <p className="text-sm text-text-muted">
+                                        Guide the AI to explore a specific topic during the conversation
+                                    </p>
+                                </div>
+                            </div>
 
-                        {/* Clear Plan Button */}
-                        <button
-                            onClick={handleClearPlan}
-                            className="mt-6 px-4 py-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors text-sm"
-                        >
-                            Clear All & Start Fresh
-                        </button>
-                    </GlassCard>
+                            {/* Focus Topic Input */}
+                            {/* Focus Topic Input */}
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm text-text-secondary mb-2">
+                                        What topic should the AI focus on? (optional)
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={plan.focusTopic}
+                                        onChange={(e) => handleFocusTopicChange(e.target.value)}
+                                        placeholder="e.g., exam anxiety, peer relationships, sleep issues..."
+                                        className="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-white placeholder-text-muted focus:border-orange-primary/50 focus:outline-none transition-colors"
+                                    />
+                                </div>
 
+                                {/* Focus Intensity */}
+                                {plan.focusTopic && (
+                                    <MotionDiv
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: 'auto' }}
+                                        className="space-y-3"
+                                    >
+                                        <label className="block text-sm text-text-secondary">
+                                            How strongly should the AI focus on this topic?
+                                        </label>
+                                        <div className="flex gap-2">
+                                            {(['gentle', 'moderate', 'focused'] as FocusIntensity[]).map((intensity) => (
+                                                <button
+                                                    key={intensity}
+                                                    onClick={() => handleFocusIntensityChange(intensity)}
+                                                    className={`flex-1 py-3 px-4 rounded-xl text-sm font-medium transition-all ${plan.focusIntensity === intensity
+                                                        ? 'bg-orange-primary text-white shadow-lg shadow-orange-primary/30'
+                                                        : 'bg-surface/50 text-text-secondary hover:bg-surface hover:text-white border border-white/10'
+                                                        }`}
+                                                >
+                                                    <div className="capitalize">{intensity}</div>
+                                                    <div className="text-xs mt-1 opacity-70">
+                                                        {intensity === 'gentle' && 'Light suggestion'}
+                                                        {intensity === 'moderate' && 'Regular guidance'}
+                                                        {intensity === 'focused' && 'Primary focus'}
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </MotionDiv>
+                                )}
+
+                                {/* Example Topics */}
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                    <span className="text-xs text-text-muted">Suggestions:</span>
+                                    {['academic pressure', 'friendships', 'sleep problems', 'family dynamics', 'self-esteem'].map((topic) => (
+                                        <button
+                                            key={topic}
+                                            onClick={() => handleFocusTopicChange(topic)}
+                                            className="px-2 py-1 text-xs bg-surface/30 text-text-secondary rounded-md hover:bg-surface hover:text-white transition-colors"
+                                        >
+                                            {topic}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </GlassCard>
+
+                    </div>
                 </div>
             </div>
         </div>
