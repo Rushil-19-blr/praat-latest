@@ -91,6 +91,66 @@ const ILLNESS_CHECK_QUESTION: PreAnalysisQuestion = {
   category: 'general'
 };
 
+const ScaleSlider = ({ value, onChange }: { value: number | null, onChange: (val: number) => void }) => {
+  const labels = {
+    1: 'Very Low',
+    2: 'Low',
+    3: 'Moderate',
+    4: 'High',
+    5: 'Very High'
+  };
+
+  const numericValue = value || 3; // Default to mid-point if null, but visual only
+
+  return (
+    <div className="w-full py-6 px-2">
+      <div className="relative mb-8">
+        {/* Track */}
+        <div className="h-2 bg-surface rounded-full overflow-hidden">
+          <div
+            className="h-full bg-gradient-to-r from-purple-500/50 to-purple-500 absolute top-0 left-0 transition-all duration-300 ease-out"
+            style={{ width: `${((numericValue - 1) / 4) * 100}%` }}
+          />
+        </div>
+
+        {/* Thumb (Visual only, input handles interaction) */}
+        <div
+          className="absolute top-1/2 -translate-y-1/2 w-6 h-6 bg-white rounded-full shadow-lg shadow-purple-500/50 border-2 border-purple-500 transition-all duration-300 ease-out pointer-events-none z-10"
+          style={{ left: `calc(${((numericValue - 1) / 4) * 100}% - 12px)` }}
+        >
+          <div className="w-1.5 h-1.5 bg-purple-500 rounded-full absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+        </div>
+
+        <input
+          type="range"
+          min={1}
+          max={5}
+          step={1}
+          value={numericValue}
+          onChange={(e) => onChange(parseInt(e.target.value))}
+          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+        />
+
+        {/* Markers */}
+        <div className="absolute top-4 left-0 w-full flex justify-between px-1">
+          {[1, 2, 3, 4, 5].map((num) => (
+            <div key={num} className="flex flex-col items-center gap-1">
+              <div className={`w-1 h-2 rounded-full ${num === numericValue ? 'bg-purple-500' : 'bg-surface'}`} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex justify-between items-center bg-surface/30 rounded-xl p-4 border border-white/5">
+        <span className="text-2xl font-bold text-white w-12 text-center">{numericValue}</span>
+        <span className="text-lg font-medium text-purple-200">
+          {labels[numericValue as keyof typeof labels]}
+        </span>
+      </div>
+    </div>
+  );
+};
+
 const PreRecordingQuestionnaire: React.FC<PreRecordingQuestionnaireProps> = ({
   onSubmit,
   onBack,
@@ -436,24 +496,30 @@ const PreRecordingQuestionnaire: React.FC<PreRecordingQuestionnaireProps> = ({
 
                   {responseOptions.length > 0 && (
                     <div className="space-y-3">
-                      {responseOptions.map((option) => {
-                        const isSelected = selectedAnswer === option;
-                        return (
-                          <label
-                            key={option}
-                            onClick={() => handleAnswerChange(option)}
-                            className={`flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all ${isSelected ? 'bg-purple-primary/20 border-2 border-purple-primary shadow-lg shadow-purple-primary/20' : 'bg-surface/50 border-2 border-transparent hover:bg-surface hover:border-purple-primary/30'}`}
-                          >
-                            <div className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${isSelected ? 'border-purple-primary bg-purple-primary scale-110' : 'border-text-muted'}`}>
-                              {isSelected && <div className="w-3 h-3 rounded-full bg-white" />}
-                            </div>
-                            <span className={`text-base flex-1 ${isSelected ? 'text-text-primary font-medium' : 'text-text-secondary'}`}>
-                              {isScaleQuestion && `${option} - ${option === '1' ? 'Very Low' : option === '2' ? 'Low' : option === '3' ? 'Moderate' : option === '4' ? 'High' : 'Very High'}`}
-                              {!isScaleQuestion && option}
-                            </span>
-                          </label>
-                        );
-                      })}
+                      {isScaleQuestion ? (
+                        <ScaleSlider
+                          value={selectedAnswer ? parseInt(selectedAnswer.toString()) : 3}
+                          onChange={(val) => handleAnswerChange(val.toString())}
+                        />
+                      ) : (
+                        responseOptions.map((option) => {
+                          const isSelected = selectedAnswer === option;
+                          return (
+                            <label
+                              key={option}
+                              onClick={() => handleAnswerChange(option)}
+                              className={`flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all ${isSelected ? 'bg-purple-primary/20 border-2 border-purple-primary shadow-lg shadow-purple-primary/20' : 'bg-surface/50 border-2 border-transparent hover:bg-surface hover:border-purple-primary/30'}`}
+                            >
+                              <div className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${isSelected ? 'border-purple-primary bg-purple-primary scale-110' : 'border-text-muted'}`}>
+                                {isSelected && <div className="w-3 h-3 rounded-full bg-white" />}
+                              </div>
+                              <span className={`text-base flex-1 ${isSelected ? 'text-text-primary font-medium' : 'text-text-secondary'}`}>
+                                {option}
+                              </span>
+                            </label>
+                          );
+                        })
+                      )}
                     </div>
                   )}
                 </div>
