@@ -1,4 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { LockIcon, EyeIcon, EyeOffIcon, CheckCircleIcon } from './icons/index';
 
 interface PasswordSetupProps {
@@ -53,7 +54,12 @@ const PasswordSetup: React.FC<PasswordSetupProps> = ({ accountNumber, onSubmit }
   };
 
   return (
-    <div className="w-full max-w-sm mx-auto animate-fade-in-up">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: 'easeOut' }}
+      className="w-full max-w-sm mx-auto"
+    >
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
         <div className="bg-slate-800/50 rounded-2xl p-6 border border-slate-700 backdrop-blur-sm">
           <label className="block text-sm font-medium text-slate-300 mb-4">Re-enter your 4-digit Account Number</label>
@@ -133,16 +139,7 @@ const PasswordSetup: React.FC<PasswordSetupProps> = ({ accountNumber, onSubmit }
           Create Account
         </button>
       </form>
-      <style>{`
-        @keyframes fade-in-up {
-          0% { opacity: 0; transform: translateY(20px); }
-          100% { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-in-up {
-          animation: fade-in-up 0.5s ease-out forwards;
-        }
-      `}</style>
-    </div>
+    </motion.div>
   );
 };
 

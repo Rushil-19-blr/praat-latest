@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { BeamsBackground } from './ui/beams-background';
-import { SlideToUnlock } from './ui/reward-card';
+import { SpinnerIcon } from './icons';
 
 interface SignInScreenProps {
   onSignIn: (code: string, password: string, userType: 'student' | 'teacher') => void;
@@ -12,6 +12,7 @@ const SignInScreen: React.FC<SignInScreenProps> = ({ onSignIn, onCreateAccount }
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [userType, setUserType] = useState<'student' | 'teacher'>('student');
   const [sliderKey, setSliderKey] = useState(0);
   const codeInputRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -42,17 +43,18 @@ const SignInScreen: React.FC<SignInScreenProps> = ({ onSignIn, onCreateAccount }
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    setError(null);
 
     const codeString = code.join('');
 
     if (codeString.length !== 4) {
-      alert('Please enter a 4-digit code');
+      setError('Please enter a 4-digit code');
       setSliderKey(prev => prev + 1); // Reset slider
       return;
     }
 
     if (!password) {
-      alert('Please enter your password');
+      setError('Please enter your password');
       setSliderKey(prev => prev + 1); // Reset slider
       return;
     }
@@ -62,115 +64,82 @@ const SignInScreen: React.FC<SignInScreenProps> = ({ onSignIn, onCreateAccount }
       await onSignIn(codeString, password, userType);
     } catch (error) {
       console.error('Sign in error:', error);
-      alert('Sign in failed. Please check your credentials.');
+      setError('Sign in failed. Please check your credentials.');
       setSliderKey(prev => prev + 1); // Reset slider on error
     } finally {
       setIsLoading(false);
     }
   };
 
+  const getGlassmorphicEffect = () => {
+    return 'bg-gradient-to-br from-gray-800/80 to-gray-900/80 backdrop-blur-lg';
+  };
+
+  const getInputBorder = (hasError: boolean) => {
+    return hasError
+      ? 'border-2 border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/30'
+      : 'border-2 border-gray-700 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/30';
+  };
+
   return (
-    <div style={{
-      margin: 0,
-      padding: 0,
-      backgroundColor: 'transparent',
-      fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      minHeight: '100vh',
-      width: '100vw',
-      color: '#ffffff',
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      overflow: 'hidden'
-    }}>
-      <div style={{
-        position: 'absolute',
-        inset: 0,
-        zIndex: 0
-      }}>
+    <div className="fixed inset-0 m-0 p-0 bg-transparent font-sans flex justify-center items-center min-h-screen w-full text-white overflow-hidden">
+      <div className="absolute inset-0 z-0">
         <BeamsBackground intensity="medium" />
       </div>
-      <div style={{
-        background: 'linear-gradient(135deg, rgba(26, 26, 26, 0.9) 0%, rgba(13, 13, 13, 0.9) 100%)',
-        backdropFilter: 'blur(10px)',
-        borderRadius: '20px',
-        padding: '40px',
-        boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)',
-        width: '100%',
-        maxWidth: '400px',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
-        position: 'relative',
-        zIndex: 10
-      }}>
-        <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-          <h1 style={{
-            color: '#ffffff',
-            fontSize: '28px',
-            fontWeight: 600,
-            margin: 0,
-            background: 'linear-gradient(135deg, #a855f7, #8b5cf6)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text'
-          }}>
+      <div
+        className={`
+        ${getGlassmorphicEffect()}
+        rounded-2xl p-10 shadow-2xl w-full max-w-md border border-white/10
+        relative z-10
+      `}
+      >
+        <div className="text-center mb-8">
+          <h1
+            className="
+            text-white text-3xl font-semibold m-0
+            bg-gradient-to-r from-purple-500 to-indigo-600
+            bg-clip-text text-transparent
+          "
+          >
             AWAAZ
           </h1>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           {/* User Type Selection */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <label style={{ fontSize: '14px', color: '#a0a0a0', fontWeight: 500 }}>
+          <div className="flex flex-col gap-2">
+            <label className="text-sm text-gray-400 font-medium">
               Login As
             </label>
-            <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+            <div className="flex gap-2 mt-2">
               <button
                 type="button"
                 onClick={() => setUserType('student')}
-                style={{
-                  flex: 1,
-                  padding: '12px 16px',
-                  backgroundColor: userType === 'student' ? '#a855f7' : '#1a1a1a',
-                  border: `2px solid ${userType === 'student' ? '#a855f7' : '#333333'}`,
-                  borderRadius: '8px',
-                  color: '#ffffff',
-                  fontSize: '14px',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease'
-                }}
+                className={`
+                  flex-1 py-3 px-4 rounded-lg text-sm font-medium cursor-pointer transition-all duration-200
+                  ${userType === 'student' ? 'bg-purple-600 border-2 border-purple-600' : 'bg-gray-800 border-2 border-gray-700'}
+                `}
               >
                 Student
               </button>
               <button
                 type="button"
                 onClick={() => setUserType('teacher')}
-                style={{
-                  flex: 1,
-                  padding: '12px 16px',
-                  backgroundColor: userType === 'teacher' ? '#a855f7' : '#1a1a1a',
-                  border: `2px solid ${userType === 'teacher' ? '#a855f7' : '#333333'}`,
-                  borderRadius: '8px',
-                  color: '#ffffff',
-                  fontSize: '14px',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease'
-                }}
+                className={`
+                  flex-1 py-3 px-4 rounded-lg text-sm font-medium cursor-pointer transition-all duration-200
+                  ${userType === 'teacher' ? 'bg-purple-600 border-2 border-purple-600' : 'bg-gray-800 border-2 border-gray-700'}
+                `}
               >
                 Teacher
               </button>
             </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <label style={{ fontSize: '14px', color: '#a0a0a0', fontWeight: 500 }}>
+          <div className="flex flex-col gap-2">
+            <label className="text-sm text-gray-400 font-medium">
               {userType === 'teacher' ? 'Admin Code' : '4-Digit Code'}
             </label>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', marginTop: '8px' }}>
+            <div className="flex justify-between gap-2 mt-2">
               {code.map((digit, index) => (
                 <input
                   key={index}
@@ -181,126 +150,67 @@ const SignInScreen: React.FC<SignInScreenProps> = ({ onSignIn, onCreateAccount }
                   value={digit}
                   onChange={(e) => handleCodeChange(index, e.target.value)}
                   onKeyDown={(e) => handleCodeKeyDown(index, e)}
-                  style={{
-                    width: '60px',
-                    height: '60px',
-                    backgroundColor: '#1a1a1a',
-                    border: '2px solid #333333',
-                    borderRadius: '8px',
-                    fontSize: '24px',
-                    textAlign: 'center',
-                    color: '#ffffff',
-                    outline: 'none',
-                    transition: 'border-color 0.2s ease'
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = '#a855f7';
-                    e.target.style.boxShadow = '0 0 0 3px rgba(168, 85, 247, 0.1)';
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = '#333333';
-                    e.target.style.boxShadow = 'none';
-                  }}
+                  className={`
+                    w-16 h-16 bg-gray-800 rounded-lg text-2xl text-center text-white
+                    outline-none transition-all duration-200
+                    ${getInputBorder(!!error && code.join('').length !== 4)}
+                  `}
                   required
                 />
               ))}
             </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative' }}>
-            <label style={{ fontSize: '14px', color: '#a0a0a0', fontWeight: 500 }}>
+          <div className="flex flex-col gap-2 relative">
+            <label className="text-sm text-gray-400 font-medium">
               {userType === 'teacher' ? 'Admin Password' : 'Password'}
             </label>
-            <div style={{ position: 'relative' }}>
+            <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}
                 id="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder={userType === 'teacher' ? 'Enter admin password' : 'Enter your password'}
-                style={{
-                  backgroundColor: '#1a1a1a',
-                  border: '1px solid #333333',
-                  borderRadius: '12px',
-                  padding: '12px 40px 12px 16px',
-                  fontSize: '16px',
-                  color: '#ffffff',
-                  outline: 'none',
-                  transition: 'border-color 0.2s ease',
-                  width: '100%',
-                  boxSizing: 'border-box'
-                }}
-                onFocus={(e) => {
-                  e.target.style.borderColor = '#a855f7';
-                  e.target.style.boxShadow = '0 0 0 3px rgba(168, 85, 247, 0.1)';
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = '#333333';
-                  e.target.style.boxShadow = 'none';
-                }}
+                className={`
+                  bg-gray-800 rounded-xl py-3 pr-10 pl-4 text-base text-white
+                  outline-none transition-all duration-200 w-full box-border
+                  ${getInputBorder(!!error && !password)}
+                `}
                 required
               />
               <button
                 type="button"
                 onClick={togglePassword}
-                style={{
-                  position: 'absolute',
-                  right: '12px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'none',
-                  border: 'none',
-                  color: '#666666',
-                  cursor: 'pointer',
-                  fontSize: '18px'
-                }}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                className="absolute right-3 top-1/2 -translate-y-1/2 bg-none border-none text-gray-500 cursor-pointer text-xl"
               >
                 {showPassword ? '🙈' : '👁️'}
               </button>
             </div>
           </div>
 
-          <div style={{ marginTop: '20px', width: '100%' }}>
-            <SlideToUnlock
-              key={sliderKey}
-              onUnlock={handleSubmit}
-              sliderText={`Swipe to sign in as ${userType === 'teacher' ? 'Teacher' : 'Student'} →`}
-              className="!max-w-full !p-0 !border-0 !bg-transparent !shadow-none !rounded-none"
-              shimmer={true}
-              unlockedContent={
-                <div style={{ height: '14px' }}></div>
-              }
-            >
-              <div style={{ display: 'none' }}></div>
-            </SlideToUnlock>
-          </div>
+          {error && (
+            <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm rounded-lg p-3 text-center">
+              {error}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full py-4 px-6 rounded-xl text-white font-semibold bg-gradient-to-r from-purple-600 to-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed hover:from-purple-500 hover:to-indigo-500 transition-all duration-200 shadow-lg shadow-purple-500/30 flex items-center justify-center"
+          >
+            {isLoading ? <SpinnerIcon /> : `Sign in as ${userType === 'teacher' ? 'Teacher' : 'Student'}`}
+          </button>
         </form>
 
-        <div style={{
-          textAlign: 'center',
-          marginTop: '20px',
-          paddingTop: '20px',
-          borderTop: '1px solid #333333'
-        }}>
-          <p style={{ margin: 0, color: '#a0a0a0', fontSize: '14px' }}>
+        <div className="text-center mt-6 pt-6 border-t border-gray-700">
+          <p className="m-0 text-gray-400 text-sm">
             Don't have an account?{' '}
             <button
               onClick={onCreateAccount}
-              style={{
-                color: '#a855f7',
-                textDecoration: 'none',
-                fontWeight: 600,
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: '14px'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.textDecoration = 'underline';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.textDecoration = 'none';
-              }}
+              className="text-purple-500 no-underline font-semibold bg-none border-none cursor-pointer text-sm hover:underline"
             >
               Create Account
             </button>
