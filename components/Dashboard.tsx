@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Component as PlayfulTodoList } from './ui/playful-todolist';
+import { FloatingWellbeingBar } from './ui/floating-wellbeing-bar';
 import StudentChatModal from './StudentChatModal';
 import { MessageCircle, X } from './Icons';
 import NotificationPanel from './NotificationPanel';
@@ -347,18 +347,21 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
             </div>
 
             <div className="main-content">
-                <div className="wellbeing-widget">
-                    <PlayfulTodoList />
-                </div>
+                <div className="flex flex-col items-center gap-8 w-full max-w-md">
+                    <div className="session-section relative z-20">
+                        <button className="start-session-btn" onClick={startSession}>
+                            <svg className="voice-icon" width="125" height="125" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M256 32c-44.2 0-80 35.8-80 80v160c0 44.2 35.8 80 80 80s80-35.8 80-80V112c0-44.2-35.8-80-80-80z" fill="#ffffff" />
+                                <path d="M128 240v32c0 70.7 57.3 128 128 128s128-57.3 128-128v-32c0-8.8 7.2-16 16-16s16 7.2 16 16v32c0 83.5-63.8 152.1-145.5 159.5V496h65.5c8.8 0 16 7.2 16 16s-7.2 16-16 16h-160c-8.8 0-16-7.2-16-16s7.2-16 16-16h65.5v-64.5C160.8 424.1 97 355.5 97 272v-32c0-8.8 7.2-16 16-16s16 7.2 16 16z" fill="#ffffff" />
+                            </svg>
+                        </button>
+                        <div className="session-text">Start a Session</div>
+                    </div>
 
-                <div className="session-section">
-                    <button className="start-session-btn" onClick={startSession}>
-                        <svg className="voice-icon" width="125" height="125" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M256 32c-44.2 0-80 35.8-80 80v160c0 44.2 35.8 80 80 80s80-35.8 80-80V112c0-44.2-35.8-80-80-80z" fill="#f472b6" />
-                            <path d="M128 240v32c0 70.7 57.3 128 128 128s128-57.3 128-128v-32c0-8.8 7.2-16 16-16s16 7.2 16 16v32c0 83.5-63.8 152.1-145.5 159.5V496h65.5c8.8 0 16 7.2 16 16s-7.2 16-16 16h-160c-8.8 0-16-7.2-16-16s7.2-16 16-16h65.5v-64.5C160.8 424.1 97 355.5 97 272v-32c0-8.8 7.2-16 16-16s16 7.2 16 16z" fill="#f472b6" />
-                        </svg>
-                    </button>
-                    <div className="session-text">Start a Session</div>
+                    {/* Floating Wellbeing Bar - Positioned below Start Session */}
+                    <div className="w-full relative z-10 mt-4">
+                        <FloatingWellbeingBar />
+                    </div>
                 </div>
 
                 {onStartCalibration && (
@@ -372,7 +375,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                                 <path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
                                 <path d="M17.3 11c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z" />
                             </svg>
-                            <span>Calibration</span>
+                            <span>Your Voice</span>
                         </button>
                     </div>
                 )}

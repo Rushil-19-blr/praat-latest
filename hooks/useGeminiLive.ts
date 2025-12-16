@@ -5,6 +5,11 @@ import { THERAPIST_SYSTEM_PROMPT, THERAPIST_INITIAL_USER_PROMPT, buildTherapistP
 import type { LiveSessionQuestion, SessionPlan } from '../types';
 import { generateId } from '../services/personalizationService';
 
+const MAX_RECONNECT_ATTEMPTS = 3;
+const INITIAL_RECONNECT_DELAY_MS = 1000;
+const MAX_RECONNECT_DELAY_MS = 5000;
+const CONNECTION_STABLE_DELAY_MS = 5000; // Connection must be open for 5s to be considered "stable" and reset retries
+
 export const useGeminiLive = (
     stream: MediaStream | null,
     muted: boolean = true,
@@ -20,7 +25,6 @@ export const useGeminiLive = (
     const mutedRef = useRef(muted);
     const [lastAgentResponse, setLastAgentResponse] = useState<string>('');
 
-
     const sessionRef = useRef<any | null>(null);
     const prevMutedRef = useRef<boolean>(muted);
     const outputAudioContextRef = useRef<AudioContext | null>(null);
@@ -29,7 +33,12 @@ export const useGeminiLive = (
     const silentGainRef = useRef<GainNode | null>(null);
     const mediaStreamSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
     const nextStartTimeRef = useRef<number>(0);
+
+    // Reconnection state tracking
     const shouldReconnectRef = useRef<boolean>(true);
+    const reconnectAttemptsRef = useRef<number>(0);
+    const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const connectionStableTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // Live session Q&A tracking
     const [liveSessionQA, setLiveSessionQA] = useState<LiveSessionQuestion[]>([]);
@@ -37,16 +46,34 @@ export const useGeminiLive = (
     const userResponseAccumulatorRef = useRef<string>('');
 
     const cleanup = useCallback(() => {
+        // Clear any pending timers
+        if (reconnectTimeoutRef.current) {
+            clearTimeout(reconnectTimeoutRef.current);
+            reconnectTimeoutRef.current = null;
+        }
+        if (connectionStableTimeoutRef.current) {
+            clearTimeout(connectionStableTimeoutRef.current);
+            connectionStableTimeoutRef.current = null;
+        }
+
         if (sessionRef.current) {
-            sessionRef.current.close();
+            try {
+                sessionRef.current.close();
+            } catch (e) {
+                console.warn("Error closing session:", e);
+            }
             sessionRef.current = null;
         }
         if (scriptProcessorRef.current) {
-            scriptProcessorRef.current.disconnect();
+            try {
+                scriptProcessorRef.current.disconnect();
+            } catch (e) { }
             scriptProcessorRef.current = null;
         }
         if (mediaStreamSourceRef.current) {
-            mediaStreamSourceRef.current.disconnect();
+            try {
+                mediaStreamSourceRef.current.disconnect();
+            } catch (e) { }
             mediaStreamSourceRef.current = null;
         }
         if (silentGainRef.current) {
@@ -100,6 +127,7 @@ export const useGeminiLive = (
         let isCancelled = false;
         // Allow reconnects when we have a valid stream unless explicitly disabled via disconnect
         shouldReconnectRef.current = true;
+        reconnectAttemptsRef.current = 0; // Reset attempts on fresh start
 
         const connect = async () => {
             try {
@@ -107,7 +135,11 @@ export const useGeminiLive = (
                 if (isCancelled) return;
 
                 // Create a fresh instance each time to ensure the latest API key is used.
-                const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.API_KEY as string });
+                const apiKey = import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.API_KEY as string;
+                if (!apiKey) {
+                    throw new Error("API key not found");
+                }
+                const ai = new GoogleGenAI({ apiKey });
 
                 if (sessionRef.current) return;
 
@@ -123,6 +155,16 @@ export const useGeminiLive = (
                             setIsConnected(true);
                             setError(null);
 
+                            // Only reset reconnection attempts after connection has been stable for a while
+                            // This prevents infinite loops if connection opens and immediately closes
+                            if (connectionStableTimeoutRef.current) {
+                                clearTimeout(connectionStableTimeoutRef.current);
+                            }
+                            connectionStableTimeoutRef.current = setTimeout(() => {
+                                console.log('Gemini Live connection became stable - resetting retry counter');
+                                reconnectAttemptsRef.current = 0;
+                            }, CONNECTION_STABLE_DELAY_MS);
+
                             const source = inputAudioContextRef.current!.createMediaStreamSource(stream);
                             mediaStreamSourceRef.current = source;
                             const scriptProcessor = inputAudioContextRef.current!.createScriptProcessor(1024, 1, 1);
@@ -136,11 +178,12 @@ export const useGeminiLive = (
                                         const pcmBlob = createPcmBlob(inputData);
                                         sessionPromise.then((session) => {
                                             // rigorous check: active session, matching the promise, and not in cleanup
-                                            if (sessionRef.current === session) {
+                                            if (sessionRef.current === session && isConnected) {
                                                 try {
                                                     session.sendRealtimeInput({ media: pcmBlob });
                                                 } catch (e) {
                                                     // transport errors can occur if session is transitioning
+                                                    console.warn('Error sending audio data:', e);
                                                 }
                                             }
                                         });
@@ -157,14 +200,15 @@ export const useGeminiLive = (
                             silentGain.connect(inputAudioContextRef.current!.destination);
 
                             // Request a streaming response to start the therapy session
-                            // The system prompt includes instructions to introduce themselves and ask an opening question
                             try {
                                 sessionPromise.then((session) => {
                                     try {
                                         // Request a response so the therapist can introduce themselves based on system instructions
-                                        // Send empty text to trigger response
-                                        session.sendRealtimeInput({ media: { mimeType: 'text/plain', data: " " } });
-                                    } catch { }
+                                        // Use sendClientContent instead of sendRealtimeInput for text to avoid encoding errors
+                                        session.sendClientContent({ turns: " ", turnComplete: true });
+                                    } catch (e) {
+                                        console.error('Error sending initial text:', e);
+                                    }
                                 });
                             } catch { }
                         },
@@ -218,35 +262,52 @@ export const useGeminiLive = (
                                 nextStartTimeRef.current += audioBuffer.duration;
                             }
                         },
-                        // FIX: The type of `e` was changed from `Error` to `ErrorEvent` to match the expected type for the `onerror` callback.
                         onerror: (e: ErrorEvent) => {
                             console.error('Gemini Live Error:', e);
-                            if (e.message.includes("API key") || e.message.includes("entity was not found")) {
+                            if (e.message?.includes("API key") || e.message?.includes("entity was not found")) {
                                 setError("Connection failed. Please verify your API key and try again.");
+                                shouldReconnectRef.current = false; // Don't retry on auth errors
                             } else {
                                 setError('A connection error occurred with the AI assistant.');
                             }
-                            cleanup();
+                            // Cleanup will be called by onclose, or manually if needed
                         },
-                        onclose: () => {
+                        onclose: (event: CloseEvent) => {
                             if (isCancelled) return;
+                            console.log(`Gemini Live connection closed: ${event.code} - ${event.reason}`);
                             setIsConnected(false);
-                            cleanup();
-                            // Try to reconnect shortly after close if stream still present and reconnects are allowed
-                            if (!shouldReconnectRef.current) {
-                                return;
+
+                            // Cancel stable check if it was pending
+                            if (connectionStableTimeoutRef.current) {
+                                clearTimeout(connectionStableTimeoutRef.current);
+                                connectionStableTimeoutRef.current = null;
                             }
-                            setTimeout(() => {
-                                if (!isCancelled && stream && !sessionRef.current) {
-                                    // Best-effort resume contexts before reconnect
-                                    try { inputAudioContextRef.current?.resume().catch(() => { }); } catch { }
-                                    try { outputAudioContextRef.current?.resume().catch(() => { }); } catch { }
-                                    // Avoid unbounded loops; connect will no-op if a session exists
-                                    try {
-                                        connect();
-                                    } catch { }
-                                }
-                            }, 500);
+
+                            cleanup();
+
+                            // Reconnection Check
+                            if (shouldReconnectRef.current && reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
+                                const delay = Math.min(
+                                    INITIAL_RECONNECT_DELAY_MS * Math.pow(2, reconnectAttemptsRef.current),
+                                    MAX_RECONNECT_DELAY_MS
+                                );
+
+                                console.log(`Attempting reconnect ${reconnectAttemptsRef.current + 1}/${MAX_RECONNECT_ATTEMPTS} in ${delay}ms`);
+
+                                reconnectTimeoutRef.current = setTimeout(() => {
+                                    if (!isCancelled && stream && !sessionRef.current) {
+                                        // Best-effort resume contexts before reconnect
+                                        try { inputAudioContextRef.current?.resume().catch(() => { }); } catch { }
+                                        try { outputAudioContextRef.current?.resume().catch(() => { }); } catch { }
+
+                                        reconnectAttemptsRef.current++;
+                                        connect().catch(console.error);
+                                    }
+                                }, delay);
+                            } else if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
+                                console.warn('Max reconnection attempts reached');
+                                setError("Unable to maintain a stable connection. Please check your internet.");
+                            }
                         },
                     },
                     config: {
@@ -269,6 +330,7 @@ export const useGeminiLive = (
                 console.error("Failed to start Gemini Live session:", err);
                 if (err instanceof Error && (err.message.includes("API key") || err.message.includes("entity was not found"))) {
                     setError("Could not start AI assistant. Your API key might be invalid.");
+                    shouldReconnectRef.current = false;
                 } else {
                     setError("Could not start AI assistant. Please check microphone permissions.");
                 }
@@ -279,6 +341,7 @@ export const useGeminiLive = (
 
         return () => {
             isCancelled = true;
+            shouldReconnectRef.current = false;
             cleanup();
         };
     }, [stream, cleanup]);
@@ -296,13 +359,14 @@ export const useGeminiLive = (
     };
 
     const disconnect = useCallback(() => {
+        console.log('Disconnecting Gemini Live session manually');
         // Prevent auto-reconnect and tear down resources
         shouldReconnectRef.current = false;
         cleanup();
     }, [cleanup]);
 
     const sendText = useCallback((text: string) => {
-        if (sessionRef.current) {
+        if (sessionRef.current && isConnected) {
             try {
                 console.log('[sendText] Sending to Gemini:', text);
                 // Use sendClientContent for text messages
@@ -316,7 +380,7 @@ export const useGeminiLive = (
         } else {
             console.warn('[sendText] No active session');
         }
-    }, []);
+    }, [isConnected]);
 
     // Clear live session Q&A (useful for new sessions)
     const clearLiveSessionQA = useCallback(() => {
