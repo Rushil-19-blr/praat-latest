@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { FloatingWellbeingBar } from './ui/floating-wellbeing-bar';
 import StudentChatModal from './StudentChatModal';
 import { MessageCircle, X } from './Icons';
-import NotificationPanel from './NotificationPanel';
+
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface DashboardProps {
@@ -141,12 +141,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                     z-index: 100;
                 }
 
-                .calendar-section {
-                    position: fixed;
-                    bottom: 20px;
-                    right: 20px;
-                    z-index: 100;
-                }
+
 
                 .notification-dot {
                     position: absolute;
@@ -381,9 +376,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                 )}
             </div>
 
-            <div className="calendar-section">
-                <NotificationPanel />
-            </div>
+
 
             <AnimatePresence>
                 {isModalOpen && (

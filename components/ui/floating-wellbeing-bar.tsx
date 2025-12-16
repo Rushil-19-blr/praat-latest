@@ -3,6 +3,22 @@
 import * as React from 'react';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import CompletionModal from '../CompletionModal';
+import {
+    Droplet,
+    Moon,
+    Footprints,
+    Music,
+    BookOpen,
+    Wind,
+    Utensils,
+    Brain,
+    Users,
+    Sun,
+    Sparkles,
+    Smile,
+    Coffee,
+    Heart
+} from 'lucide-react';
 
 // --- Types ---
 interface SuggestionItem {
@@ -19,12 +35,12 @@ interface FloatingWellbeingBarProps {
 
 // --- Constants ---
 const defaultItems = [
-    { id: 1, label: 'Drink 8 glasses of water 💧', defaultChecked: false },
-    { id: 2, label: 'Sleep 7-8 hours tonight 😴', defaultChecked: false },
-    { id: 3, label: 'Read 10 pages today 📖', defaultChecked: false },
-    { id: 4, label: 'Take a 10-minute walk 🚶', defaultChecked: false },
-    { id: 5, label: 'Practice 5 minutes of meditation 🧘', defaultChecked: false },
-    { id: 6, label: 'Eat a healthy meal 🥗', defaultChecked: false },
+    { id: 1, label: 'Drink 8 glasses of water', defaultChecked: false },
+    { id: 2, label: 'Sleep 7-8 hours tonight', defaultChecked: false },
+    { id: 3, label: 'Read 10 pages today', defaultChecked: false },
+    { id: 4, label: 'Take a 10-minute walk', defaultChecked: false },
+    { id: 5, label: 'Practice 5 minutes of meditation', defaultChecked: false },
+    { id: 6, label: 'Eat a healthy meal', defaultChecked: false },
 ];
 
 // --- Utilities (reused/adapted) ---
@@ -37,6 +53,61 @@ const convertSuggestionsToItems = (suggestions: SuggestionItem[]) => {
         defaultChecked: suggestion.completed,
         suggestionId: suggestion.id
     }));
+};
+
+const getIconForSuggestion = (text: string) => {
+    const t = text.toLowerCase();
+
+    // Hydration
+    if (t.includes('water') || t.includes('drink') || t.includes('hydrate'))
+        return <Droplet className="w-5 h-5 text-cyan-400" />;
+
+    // Sleep / Rest
+    if (t.includes('sleep') || t.includes('rest') || t.includes('nap') || t.includes('bed') || t.includes('night'))
+        return <Moon className="w-5 h-5 text-indigo-400" />;
+
+    // Physical Activity
+    if (t.includes('walk') || t.includes('run') || t.includes('exercise') || t.includes('stretch') || t.includes('yoga') || t.includes('move'))
+        return <Footprints className="w-5 h-5 text-emerald-400" />;
+
+    // Vocal / Voice
+    if (t.includes('hum') || t.includes('sing') || t.includes('voice') || t.includes('throat') || t.includes('vocal') || t.includes('sigh'))
+        return <Music className="w-5 h-5 text-rose-400" />;
+
+    // Knowledge / Focus
+    if (t.includes('read') || t.includes('book') || t.includes('study') || t.includes('learn') || t.includes('focus'))
+        return <BookOpen className="w-5 h-5 text-amber-400" />;
+
+    // Breathing
+    if (t.includes('breath') || t.includes('lung') || t.includes('air') || t.includes('inhale') || t.includes('exhale'))
+        return <Wind className="w-5 h-5 text-sky-400" />;
+
+    // Diet
+    if (t.includes('eat') || t.includes('meal') || t.includes('food') || t.includes('diet') || t.includes('fruit') || t.includes('veg'))
+        return <Utensils className="w-5 h-5 text-orange-400" />;
+
+    // Mental Health
+    if (t.includes('meditate') || t.includes('calm') || t.includes('relax') || t.includes('mind') || t.includes('peace') || t.includes('gratitude'))
+        return <Brain className="w-5 h-5 text-violet-400" />;
+
+    // Social
+    if (t.includes('friend') || t.includes('social') || t.includes('talk') || t.includes('family') || t.includes('call'))
+        return <Users className="w-5 h-5 text-pink-400" />;
+
+    // Nature / Outside
+    if (t.includes('sun') || t.includes('outside') || t.includes('nature') || t.includes('fresh'))
+        return <Sun className="w-5 h-5 text-yellow-400" />;
+
+    // Happiness
+    if (t.includes('smile') || t.includes('happy') || t.includes('laugh') || t.includes('joy'))
+        return <Smile className="w-5 h-5 text-yellow-300" />;
+
+    // Drinks
+    if (t.includes('coffee') || t.includes('tea'))
+        return <Coffee className="w-5 h-5 text-amber-700" />;
+
+    // Default
+    return <Sparkles className="w-5 h-5 text-yellow-200" />;
 };
 
 // --- SVG Filter for Ripple/Warp ---
@@ -212,6 +283,12 @@ export const FloatingWellbeingBar: React.FC<FloatingWellbeingBarProps> = ({ clas
     return (
         <div className={`w-full max-w-md mx-auto relative ${className}`}>
             <RippleFilter />
+
+            {/* Header Section */}
+            <div className="flex items-center justify-between px-1 mb-3">
+                <h2 className="text-white/90 text-lg font-semibold tracking-tight">Daily Wellness Tasks</h2>
+            </div>
+
             <div className="flex flex-col gap-3">
                 <AnimatePresence>
                     {displayedItems.map((item, idx) => {
@@ -281,8 +358,8 @@ const TaskCard: React.FC<TaskCardProps> = ({ item, isChecked, isExpanded, onTogg
         <motion.div
             layout
             className={`
-        relative overflow-hidden rounded-2xl backdrop-blur-md border transition-all duration-300
-        ${isChecked ? 'bg-blue-500/10 border-blue-400/20' : 'bg-blue-950/5 border-white/5 hover:bg-blue-900/10'}
+        relative overflow-hidden rounded-2xl backdrop-blur-2xl border transition-all duration-300
+        ${isChecked ? 'bg-blue-500/10 border-blue-400/20' : 'bg-blue-950/[0.02] border-white/5 hover:bg-blue-900/10'}
       `}
             style={{
                 width: '100%',
@@ -358,10 +435,9 @@ const TaskCard: React.FC<TaskCardProps> = ({ item, isChecked, isExpanded, onTogg
                     </div>
                 </div>
 
-                {/* Illustration Placeholder */}
-                <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0 border border-white/10">
-                    {/* Placeholder Icon */}
-                    <span className="text-lg">✨</span>
+                {/* Illustration Placeholder (Dynamic) */}
+                <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0 border border-white/10 shadow-[0_0_15px_rgba(59,130,246,0.2)]">
+                    {getIconForSuggestion(item.label)}
                 </div>
             </div>
         </motion.div>

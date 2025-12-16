@@ -20,6 +20,7 @@ export const useGeminiLive = (
     const [error, setError] = useState<string | null>(null);
     const [isMuted, setIsMuted] = useState(muted);
     const transcriptRef = useRef('');
+    const isConnectedRef = useRef(false);
 
     // Use ref for muted state so the audio processor can access the latest value
     const mutedRef = useRef(muted);
@@ -87,6 +88,7 @@ export const useGeminiLive = (
             outputAudioContextRef.current.close().catch(console.error);
         }
         setIsConnected(false);
+        isConnectedRef.current = false;
     }, []);
 
     // Update isMuted state and ref when muted prop changes
@@ -144,7 +146,24 @@ export const useGeminiLive = (
                 if (sessionRef.current) return;
 
                 outputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000, latencyHint: 'interactive' as any });
-                inputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000, latencyHint: 'interactive' as any });
+                inputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ latencyHint: 'interactive' as any });
+
+                // DEBUG Watchdog: Monitor AudioContext and Stream health independently of processing
+                const watchdogInterval = setInterval(() => {
+                    if (isCancelled) { clearInterval(watchdogInterval); return; }
+
+                    const ctx = inputAudioContextRef.current;
+                    const track = stream?.getAudioTracks()[0];
+                    const trackInfo = track ? `ID:${track.id.substring(0, 4)} En:${track.enabled} Muted:${track.muted} St:${track.readyState}` : 'No Track';
+                    const isProcessorConnected = !!scriptProcessorRef.current;
+
+                    console.log(`[GeminiWatchdog] Ctx:${ctx?.state} | Track:${trackInfo} | AppMuted:${mutedRef.current} | Proc:${isProcessorConnected} | Connected:${isConnectedRef.current}`);
+
+                    if (ctx?.state === 'suspended') {
+                        console.warn('[GeminiWatchdog] Context suspended! Forcing resume...');
+                        ctx.resume();
+                    }
+                }, 2000);
 
                 const sessionPromise = ai.live.connect({
                     model: 'gemini-2.5-flash-native-audio-preview-09-2025',
@@ -153,6 +172,7 @@ export const useGeminiLive = (
                         onopen: () => {
                             if (isCancelled) return;
                             setIsConnected(true);
+                            isConnectedRef.current = true;
                             setError(null);
 
                             // Only reset reconnection attempts after connection has been stable for a while
@@ -170,17 +190,66 @@ export const useGeminiLive = (
                             const scriptProcessor = inputAudioContextRef.current!.createScriptProcessor(1024, 1, 1);
                             scriptProcessorRef.current = scriptProcessor;
 
+                            let frameCount = 0;
                             scriptProcessor.onaudioprocess = (audioProcessingEvent) => {
+                                // Diagnostic checks every ~2 seconds
+                                frameCount++;
+                                if (frameCount % 100 === 0) {
+                                    const ctxState = inputAudioContextRef.current?.state;
+                                    const track = stream?.getAudioTracks()[0];
+                                    const trackInfo = track ? `En:${track.enabled} Muted:${track.muted} Ready:${track.readyState}` : 'No Track';
+
+                                    if (ctxState === 'suspended') {
+                                        console.warn(`[GeminiLive] Context suspended! Attempting resume. Track: ${trackInfo}`);
+                                        inputAudioContextRef.current?.resume();
+                                    }
+                                }
+
                                 // Only send audio data if not muted (use ref to get current value)
                                 if (!mutedRef.current) {
                                     try {
                                         const inputData = audioProcessingEvent.inputBuffer.getChannelData(0);
-                                        const pcmBlob = createPcmBlob(inputData);
+
+                                        // Downsample to 16000Hz (Gemini Requirement)
+                                        // Browser typically gives 44100 or 48000. Gemini expects 16000 via our mimeType header.
+                                        const inputSampleRate = inputAudioContextRef.current?.sampleRate || 48000;
+                                        let dataToSend = inputData;
+
+                                        if (inputSampleRate > 16000) {
+                                            const ratio = inputSampleRate / 16000;
+                                            const newLength = Math.floor(inputData.length / ratio);
+                                            const downsampled = new Float32Array(newLength);
+
+                                            for (let i = 0; i < newLength; i++) {
+                                                const originalIndex = i * ratio;
+                                                const idx1 = Math.floor(originalIndex);
+                                                const idx2 = Math.min(idx1 + 1, inputData.length - 1);
+                                                const frac = originalIndex - idx1;
+                                                downsampled[i] = inputData[idx1] * (1 - frac) + inputData[idx2] * frac;
+                                            }
+                                            dataToSend = downsampled;
+                                        }
+
+                                        // Debug: check volume levels occasionally
+                                        if (frameCount % 100 === 0) {
+                                            let maxAmp = 0;
+                                            for (let i = 0; i < dataToSend.length; i++) maxAmp = Math.max(maxAmp, Math.abs(dataToSend[i]));
+
+                                            // Only warn if truly silent
+                                            if (maxAmp < 0.0001) {
+                                                console.warn('[GeminiLive] Mic Input SILENT. MaxAmp:', maxAmp.toFixed(6));
+                                            }
+                                        }
+
+                                        const pcmBlob = createPcmBlob(dataToSend);
                                         sessionPromise.then((session) => {
                                             // rigorous check: active session, matching the promise, and not in cleanup
-                                            if (sessionRef.current === session && isConnected) {
+                                            if (sessionRef.current === session && isConnectedRef.current) {
                                                 try {
                                                     session.sendRealtimeInput({ media: pcmBlob });
+                                                    if (frameCount % 50 === 0) {
+                                                        console.log(`[GeminiLive] Sending audio chunk ${frameCount}. Size: ${pcmBlob.data.length}`);
+                                                    }
                                                 } catch (e) {
                                                     // transport errors can occur if session is transitioning
                                                     console.warn('Error sending audio data:', e);
@@ -188,6 +257,8 @@ export const useGeminiLive = (
                                             }
                                         });
                                     } catch { }
+                                } else if (frameCount % 100 === 0) {
+                                    console.log('[GeminiLive] Skipping audio frame (App Muted)');
                                 }
                             };
                             // Connect through a silent gain node to keep the graph active without audible loopback
@@ -199,18 +270,8 @@ export const useGeminiLive = (
                             scriptProcessor.connect(silentGain);
                             silentGain.connect(inputAudioContextRef.current!.destination);
 
-                            // Request a streaming response to start the therapy session
-                            try {
-                                sessionPromise.then((session) => {
-                                    try {
-                                        // Request a response so the therapist can introduce themselves based on system instructions
-                                        // Use sendClientContent instead of sendRealtimeInput for text to avoid encoding errors
-                                        session.sendClientContent({ turns: " ", turnComplete: true });
-                                    } catch (e) {
-                                        console.error('Error sending initial text:', e);
-                                    }
-                                });
-                            } catch { }
+                            // Connection established - waiting for user input
+                            console.log('Gemini Live connected - waiting for user voice');
                         },
                         onmessage: async (message: LiveServerMessage) => {
                             if (message.serverContent?.outputTranscription) {
@@ -322,11 +383,10 @@ export const useGeminiLive = (
                         },
                     },
                     config: {
-                        systemInstruction: { parts: [{ text: sessionPlan ? buildTherapistPrompt(sessionPlan.focusTopic, sessionPlan.focusIntensity) : THERAPIST_SYSTEM_PROMPT }] },
                         responseModalities: [Modality.AUDIO],
                         outputAudioTranscription: {},
                         speechConfig: {
-                            voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Zephyr' } },
+                            voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Aoede' } },
                         },
                         // Use dynamic prompt if session plan has focus topic
                         systemInstruction: sessionPlan?.focusTopic

@@ -131,7 +131,13 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
     if (stream) return;
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        audio: { sampleRate: 44100, channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: false }
+        audio: {
+          sampleRate: 44100,
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true // Enable AGC to fix low volume issues
+        }
       });
       setStream(mediaStream);
       setPermissionError(null);
@@ -157,6 +163,8 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
       stopSpeech(); // Clean up TTS on unmount
     };
   }, [getMicrophonePermission, stream]);
+
+
 
   // Clean up TTS and disconnect Gemini when switching modes
   useEffect(() => {
@@ -324,7 +332,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
     // Only if mic is NOT muted
     if (!isMicMutedRef.current) {
       const averageVolume = barHeights.reduce((a, b) => a + b, 0) / barHeights.length;
-      if (averageVolume > 0.02) { // Lowered threshold for better sensitivity
+      if (averageVolume > 0.005) { // Lowered threshold for better sensitivity
         lastVoiceActivityTimeRef.current = Date.now();
 
         // If user starts speaking, clear options immediately
@@ -418,12 +426,12 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
 
       // Strict check: Must be silence > 2s and options must exist
       if (timeSinceVoice > 2000 && generatedSmartOptionsRef.current.length > 0) {
-        console.log('[SmartOptions] 7s silence - showing options:', generatedSmartOptionsRef.current);
+        console.log('[SmartOptions] 10s silence - showing options:', generatedSmartOptionsRef.current);
         setSmartOptions(generatedSmartOptionsRef.current);
       } else {
         console.log('[SmartOptions] Not showing - user recently spoke or no options');
       }
-    }, 7000); // 7 seconds delay
+    }, 10000); // 10 seconds delay
 
     return () => {
       if (optionsTimeoutRef.current) {
@@ -432,6 +440,17 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
       }
     };
   }, [lastAgentResponse, shouldUseGemini]);
+
+  // Ensure options are cleared when recording stops
+  useEffect(() => {
+    if (recordingState !== 'RECORDING') {
+      setSmartOptions([]);
+      if (optionsTimeoutRef.current) {
+        clearTimeout(optionsTimeoutRef.current);
+        optionsTimeoutRef.current = null;
+      }
+    }
+  }, [recordingState]);
 
   const handleOptionSelect = (option: string) => {
     setSmartOptions([]);
@@ -474,18 +493,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
     // Start with a timeslice to ensure data is captured regularly
     mediaRecorderRef.current.start(100); // Collect data every 100ms
 
-    // Create audio context for visualization (only if not exists or closed)
-    if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
-      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-    }
-
-    const source = audioContextRef.current.createMediaStreamSource(stream);
-    analyserRef.current = audioContextRef.current.createAnalyser();
-    analyserRef.current.fftSize = 512;
-    analyserRef.current.smoothingTimeConstant = 0.8;
-    source.connect(analyserRef.current);
-
-    animationFrameRef.current = requestAnimationFrame(drawWaveform);
+    // Audio context/analyser is initialized in useEffect now
 
     // Start duration counter
     timerRef.current = setInterval(() => {

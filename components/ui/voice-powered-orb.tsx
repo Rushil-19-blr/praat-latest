@@ -221,9 +221,13 @@ export const VoicePoweredOrb: FC<VoicePoweredOrbProps> = ({
     try {
       // Stop all tracks in the media stream (only if we created it)
       if (mediaStreamRef.current && !externalAudioStream) {
-        mediaStreamRef.current.getTracks().forEach(track => {
-          track.stop();
-        });
+        // SAFETY: Commented out track stopping to prevent interfering with main recording stream
+        // The parent component should handle stream lifecycle
+        /*
+       mediaStreamRef.current.getTracks().forEach(track => {
+         track.stop();
+       });
+       */
         mediaStreamRef.current = null;
       }
 
@@ -259,7 +263,7 @@ export const VoicePoweredOrb: FC<VoicePoweredOrbProps> = ({
       stopMicrophone();
 
       let audioStream = stream;
-      
+
       // If no external stream provided, request microphone access
       if (!audioStream) {
         audioStream = await navigator.mediaDevices.getUserMedia({
@@ -458,7 +462,7 @@ export const VoicePoweredOrb: FC<VoicePoweredOrbProps> = ({
         cancelAnimationFrame(rafId);
         window.removeEventListener("resize", resize);
         if (resizeObserver) {
-          try { resizeObserver.disconnect(); } catch {}
+          try { resizeObserver.disconnect(); } catch { }
           resizeObserver = null;
         }
 
@@ -487,7 +491,7 @@ export const VoicePoweredOrb: FC<VoicePoweredOrbProps> = ({
         container.removeChild(container.firstChild);
       }
       return () => {
-        window.removeEventListener("resize", () => {});
+        window.removeEventListener("resize", () => { });
       };
     }
   }, [
@@ -529,7 +533,7 @@ export const VoicePoweredOrb: FC<VoicePoweredOrbProps> = ({
         className
       )}
     >
-     
+
     </div>
   );
 };
