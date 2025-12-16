@@ -264,7 +264,18 @@ export const useGeminiLive = (
                         },
                         onerror: (e: ErrorEvent) => {
                             console.error('Gemini Live Error:', e);
-                            if (e.message?.includes("API key") || e.message?.includes("entity was not found")) {
+                            const errorMessage = e.message || '';
+
+                            // Check for Rate Limiting / Quota errors
+                            if (errorMessage.includes("429") ||
+                                errorMessage.toLowerCase().includes("quota") ||
+                                errorMessage.toLowerCase().includes("too many requests")) {
+                                setError("Usage limit exceeded. Please try again later.");
+                                shouldReconnectRef.current = false; // Stop retrying immediately
+                                return;
+                            }
+
+                            if (errorMessage.includes("API key") || errorMessage.includes("entity was not found")) {
                                 setError("Connection failed. Please verify your API key and try again.");
                                 shouldReconnectRef.current = false; // Don't retry on auth errors
                             } else {
@@ -285,7 +296,7 @@ export const useGeminiLive = (
 
                             cleanup();
 
-                            // Reconnection Check
+                            // Reconnection Check (only if not cancelled by rate limit logic in onerror)
                             if (shouldReconnectRef.current && reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
                                 const delay = Math.min(
                                     INITIAL_RECONNECT_DELAY_MS * Math.pow(2, reconnectAttemptsRef.current),
@@ -295,7 +306,7 @@ export const useGeminiLive = (
                                 console.log(`Attempting reconnect ${reconnectAttemptsRef.current + 1}/${MAX_RECONNECT_ATTEMPTS} in ${delay}ms`);
 
                                 reconnectTimeoutRef.current = setTimeout(() => {
-                                    if (!isCancelled && stream && !sessionRef.current) {
+                                    if (!isCancelled && stream && !sessionRef.current && shouldReconnectRef.current) {
                                         // Best-effort resume contexts before reconnect
                                         try { inputAudioContextRef.current?.resume().catch(() => { }); } catch { }
                                         try { outputAudioContextRef.current?.resume().catch(() => { }); } catch { }
@@ -328,8 +339,13 @@ export const useGeminiLive = (
                 sessionRef.current = await sessionPromise;
             } catch (err) {
                 console.error("Failed to start Gemini Live session:", err);
-                if (err instanceof Error && (err.message.includes("API key") || err.message.includes("entity was not found"))) {
+                const errorMessage = err instanceof Error ? err.message : String(err);
+
+                if (errorMessage.includes("API key") || errorMessage.includes("entity was not found")) {
                     setError("Could not start AI assistant. Your API key might be invalid.");
+                    shouldReconnectRef.current = false;
+                } else if (errorMessage.includes("429") || errorMessage.toLowerCase().includes("quota")) {
+                    setError("Usage limit exceeded. Please try again later.");
                     shouldReconnectRef.current = false;
                 } else {
                     setError("Could not start AI assistant. Please check microphone permissions.");
