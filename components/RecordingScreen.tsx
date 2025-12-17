@@ -502,6 +502,22 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
   };
 
   const analyzeAudioWithPraatAndGemini = async (audioBlob: Blob) => {
+    const debugStart = performance.now();
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed6884cd-40e9-42e4-b8a6-4c3db4d29793', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: 'debug-session',
+        runId: 'initial',
+        hypothesisId: 'H1',
+        location: 'RecordingScreen.tsx:analyzeAudioWithPraatAndGemini:start',
+        message: 'Analyze audio start',
+        data: { audioSize: audioBlob.size },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => { });
+    // #endregion
     try {
       const wavBlob = await webmBlobToWavMono16k(audioBlob);
       const featuresForAnalysis = await extractFeaturesWithPraat(wavBlob, BACKEND_URL);
@@ -700,6 +716,23 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
         date: new Date().toISOString(),
       };
 
+      const debugDuration = performance.now() - debugStart;
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed6884cd-40e9-42e4-b8a6-4c3db4d29793', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: 'debug-session',
+          runId: 'initial',
+          hypothesisId: 'H1',
+          location: 'RecordingScreen.tsx:analyzeAudioWithPraatAndGemini:success',
+          message: 'Analyze audio complete',
+          data: { durationMs: debugDuration, stressLevel: analysisResult.stressLevel },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => { });
+      // #endregion
+
       // Save session data and generate counselor report
       const saveSessionAndReport = async (): Promise<string | undefined> => {
         try {
@@ -750,6 +783,22 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
       setRecordingState('COMPLETE');
       onAnalysisComplete(analysisResult);
     } catch (error) {
+      const debugDuration = performance.now() - debugStart;
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed6884cd-40e9-42e4-b8a6-4c3db4d29793', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: 'debug-session',
+          runId: 'initial',
+          hypothesisId: 'H1',
+          location: 'RecordingScreen.tsx:analyzeAudioWithPraatAndGemini:error',
+          message: 'Analyze audio error',
+          data: { durationMs: debugDuration, error: error instanceof Error ? error.message : String(error) },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => { });
+      // #endregion
       setRecordingState('ERROR');
       if (error instanceof Error) {
         if (error.message.includes('Not enough clear speech') || error.message.includes('did not extract')) {
@@ -888,11 +937,29 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
   };
 
   const endSession = async () => {
+    const debugStart = performance.now();
     // Disconnect Gemini Live immediately when ending the session
     try { disconnectGemini(); } catch { }
     // Use ref to get the most up-to-date clips
     const clipsToAnalyze = allClipsRef.current;
     if (clipsToAnalyze.length === 0) return;
+
+    const totalClipSize = clipsToAnalyze.reduce((sum, clip) => sum + clip.size, 0);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed6884cd-40e9-42e4-b8a6-4c3db4d29793', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: 'debug-session',
+        runId: 'initial',
+        hypothesisId: 'H2',
+        location: 'RecordingScreen.tsx:endSession:start',
+        message: 'End session start',
+        data: { clipCount: clipsToAnalyze.length, totalClipSize },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => { });
+    // #endregion
 
     setRecordingState('ANALYZING');
 
@@ -1103,6 +1170,23 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
         })),
       };
 
+      const debugDuration = performance.now() - debugStart;
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed6884cd-40e9-42e4-b8a6-4c3db4d29793', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: 'debug-session',
+          runId: 'initial',
+          hypothesisId: 'H2',
+          location: 'RecordingScreen.tsx:endSession:success',
+          message: 'End session complete',
+          data: { durationMs: debugDuration, stressLevel: analysisResult.stressLevel },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => { });
+      // #endregion
+
       // Reset session state
       setIsSessionActive(false);
       allClipsRef.current = [];
@@ -1111,6 +1195,22 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
       setRecordingState('COMPLETE');
       onAnalysisComplete(analysisResult);
     } catch (error) {
+      const debugDuration = performance.now() - debugStart;
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed6884cd-40e9-42e4-b8a6-4c3db4d29793', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: 'debug-session',
+          runId: 'initial',
+          hypothesisId: 'H2',
+          location: 'RecordingScreen.tsx:endSession:error',
+          message: 'End session error',
+          data: { durationMs: debugDuration, error: error instanceof Error ? error.message : String(error) },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => { });
+      // #endregion
       setRecordingState('ERROR');
       if (error instanceof Error) {
         if (error.message.includes('Not enough clear speech')) {

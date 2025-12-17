@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Student, RiskLevel } from '../types';
-import { UserCircle, ChevronLeft, MessageCircle, Pencil, Calendar } from './Icons';
+import { UserCircle, ChevronLeft, MessageCircle, ChatBubble, Pencil, Calendar } from './Icons';
 import GlassCard from './GlassCard';
 import TeacherChatModal from './TeacherChatModal';
 import { Gauge } from './ui/gauge-1';
@@ -80,7 +80,7 @@ const StudentWidget: React.FC<{
     onEditNickname: (studentId: string) => void;
     onPlanSession?: (studentId: string) => void;
     isHighAlert?: boolean;
-}> = ({ student, onClick, onChatClick, onEditNickname, onPlanSession, isHighAlert = false }) => {
+}> = React.memo(({ student, onClick, onChatClick, onEditNickname, onPlanSession, isHighAlert = false }) => {
     const hasAnalysis = student.analysisHistory.length > 1; // Only show if more than 1 analysis
     const hasPendingAnalysis = student.analysisHistory.length === 1; // Check for pending first analysis
     const latestAnalysis = hasAnalysis ? student.analysisHistory[student.analysisHistory.length - 1] : null;
@@ -146,7 +146,7 @@ const StudentWidget: React.FC<{
                     className={`absolute top-3 right-3 w-8 h-8 ${isHighAlert ? 'bg-red-500/20 hover:bg-red-500/40' : 'bg-purple-primary/20 hover:bg-purple-primary/40'} rounded-full flex items-center justify-center transition-colors z-10`}
                     title="Chat with student"
                 >
-                    <MessageCircle className={`w-4 h-4 ${isHighAlert ? 'text-red-400' : 'text-purple-primary'}`} />
+                    <ChatBubble className={`w-4 h-4 ${isHighAlert ? 'text-red-400' : 'text-purple-primary'}`} />
                 </button>
 
                 {/* Edit button in top left corner */}
@@ -206,7 +206,7 @@ const StudentWidget: React.FC<{
             </GlassCard>
         </motion.div>
     );
-};
+});
 
 
 // --- High Alerts Section Component (Stress > 80%) ---

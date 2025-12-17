@@ -17,7 +17,8 @@ import {
     Sparkles,
     Smile,
     Coffee,
-    Heart
+    Heart,
+    CheckSquare
 } from 'lucide-react';
 
 // --- Types ---
@@ -237,7 +238,22 @@ export const FloatingWellbeingBar: React.FC<FloatingWellbeingBarProps> = ({ clas
 
                 displayedItems.forEach((item, idx) => {
                     const id = 'suggestionId' in item ? (item.suggestionId as string) : item.id.toString();
+                    const wasCompleted = map[id] === true;
                     map[id] = checked[idx];
+                    
+                    // If task was just completed (not already completed), record completion date and dispatch event
+                    if (checked[idx] && !wasCompleted) {
+                        // Record completion date for streak tracking
+                        const todayDate = new Date().toISOString().split('T')[0];
+                        const streakCompletionKey = `streak_completions_${code}`;
+                        const savedStreakDates = localStorage.getItem(streakCompletionKey);
+                        const streakDates: Record<string, string> = savedStreakDates ? JSON.parse(savedStreakDates) : {};
+                        streakDates[id] = todayDate;
+                        localStorage.setItem(streakCompletionKey, JSON.stringify(streakDates));
+                        
+                        // Dispatch event for gamification system
+                        window.dispatchEvent(new CustomEvent('taskCompleted', { detail: { taskId: id, date: todayDate } }));
+                    }
                 });
                 localStorage.setItem(key, JSON.stringify(map));
 
@@ -249,15 +265,15 @@ export const FloatingWellbeingBar: React.FC<FloatingWellbeingBarProps> = ({ clas
         }
     }, [checked, displayedItems, onTasksCompleted]);
 
-    const handleToggle = (idx: number) => {
+    const handleToggle = React.useCallback((idx: number) => {
         setChecked(prev => {
             const next = [...prev];
             next[idx] = !next[idx];
             return next;
         });
-    };
+    }, []);
 
-    const loadNextBatch = () => {
+    const loadNextBatch = React.useCallback(() => {
         setShowCompletionModal(false);
         setTimeout(() => {
             isUpdatingBatch.current = true;
@@ -278,7 +294,7 @@ export const FloatingWellbeingBar: React.FC<FloatingWellbeingBarProps> = ({ clas
             // Actually, we should load real state, but for a new batch usually it's false
             setTimeout(() => { isUpdatingBatch.current = false; }, 100);
         }, 300);
-    };
+    }, [getCurrentBatch]);
 
     return (
         <div className={`w-full max-w-md mx-auto relative ${className}`}>
@@ -286,7 +302,10 @@ export const FloatingWellbeingBar: React.FC<FloatingWellbeingBarProps> = ({ clas
 
             {/* Header Section */}
             <div className="flex items-center justify-between px-1 mb-3">
-                <h2 className="text-white/90 text-lg font-semibold tracking-tight">Daily Wellness Tasks</h2>
+                <div className="flex items-center gap-2">
+                    <CheckSquare className="w-5 h-5 text-purple-primary" />
+                    <h2 className="text-white/90 text-lg font-semibold tracking-tight">Daily Wellness Tasks</h2>
+                </div>
             </div>
 
             <div className="flex flex-col gap-3">
@@ -323,7 +342,7 @@ interface TaskCardProps {
     onExpand: () => void;
 }
 
-const TaskCard: React.FC<TaskCardProps> = ({ item, isChecked, isExpanded, onToggle, onExpand }) => {
+const TaskCard: React.FC<TaskCardProps> = React.memo(({ item, isChecked, isExpanded, onToggle, onExpand }) => {
     const controls = useAnimation();
     const longPressTimer = React.useRef<NodeJS.Timeout | null>(null);
 
@@ -442,4 +461,4 @@ const TaskCard: React.FC<TaskCardProps> = ({ item, isChecked, isExpanded, onTogg
             </div>
         </motion.div>
     );
-};
+});

@@ -102,7 +102,8 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ sessionDates = ne
         className={`relative flex items-center justify-center gap-3 px-6 py-3 rounded-full bg-white/10 hover:bg-white/20 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-purple-primary/50 ${isOpen ? 'bg-purple-500/20 border border-purple-500/50 z-[60]' : ''
           }`}
         style={{ zIndex: isOpen ? 60 : 'auto' }}
-        aria-label={isOpen ? "Close calendar" : "Open calendar"}
+        aria-label={isOpen ? "Close session history calendar" : "View session history calendar"}
+        title="View Session History - See dates when you completed sessions"
       >
         <motion.div
           animate={{ rotate: isOpen ? 90 : 0 }}
