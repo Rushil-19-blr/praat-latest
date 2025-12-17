@@ -179,8 +179,9 @@ export const GamifiedSolutionLibrary: React.FC<GamifiedSolutionLibraryProps> = (
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-gradient-to-br from-purple-900/20 via-blue-900/20 to-purple-900/20 backdrop-blur-xl border accent-border-subtle rounded-2xl p-6 shadow-2xl"
+                className="bg-gradient-to-br from-purple-900/20 via-blue-900/20 to-purple-900/20 backdrop-blur-xl rounded-2xl p-6 shadow-2xl"
             >
+
                 {/* Header */}
                 <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-2">
@@ -334,6 +335,6 @@ export const GamifiedSolutionLibrary: React.FC<GamifiedSolutionLibraryProps> = (
                     </AnimatePresence>
                 </div>
             </motion.div>
-        </div>
+        </div >
     );
 };

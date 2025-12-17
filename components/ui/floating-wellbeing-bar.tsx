@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { motion, useAnimation } from 'framer-motion';
+import { motion, useAnimation, AnimatePresence } from 'framer-motion';
 import {
     Droplet,
     Moon,
@@ -16,9 +16,7 @@ import {
     Sparkles,
     Smile,
     Coffee,
-    CheckSquare,
-    ChevronLeft,
-    ChevronRight
+    CheckSquare
 } from 'lucide-react';
 
 // --- Types ---
@@ -238,77 +236,65 @@ export const FloatingWellbeingBar: React.FC<FloatingWellbeingBarProps> = ({ clas
             </div>
 
             {/* Tasks Container */}
-            <div className="relative">
-                {/* Navigation Buttons */}
-                {totalPages > 1 && (
-                    <>
-                        <button
-                            onClick={goToPreviousPage}
-                            disabled={currentPage === 0}
-                            className={`
-                                absolute -left-3 top-1/2 -translate-y-1/2 z-20
-                                w-8 h-8 rounded-full flex items-center justify-center
-                                transition-all duration-200
-                                ${currentPage === 0
-                                    ? 'bg-slate-800/50 text-slate-600 cursor-not-allowed'
-                                    : 'bg-purple-600/80 text-white hover:bg-purple-500 shadow-lg hover:shadow-purple-500/30'
-                                }
-                            `}
+            <div className="relative overflow-hidden pl-1 pr-1 pb-1">
+                <motion.div
+                    className="flex flex-col gap-3 min-h-[220px]"
+                    drag="x"
+                    dragConstraints={{ left: 0, right: 0 }}
+                    dragElastic={0.2}
+                    onDragEnd={(e, { offset, velocity }) => {
+                        const swipeThreshold = 50;
+                        if (offset.x > swipeThreshold) {
+                            goToPreviousPage();
+                        } else if (offset.x < -swipeThreshold) {
+                            goToNextPage();
+                        }
+                    }}
+                >
+                    <AnimatePresence mode="wait">
+                        <motion.div
+                            key={currentPage}
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
+                            transition={{ duration: 0.2 }}
+                            className="flex flex-col gap-3 w-full"
                         >
-                            <ChevronLeft size={18} />
-                        </button>
-                        <button
-                            onClick={goToNextPage}
-                            disabled={currentPage === totalPages - 1}
-                            className={`
-                                absolute -right-3 top-1/2 -translate-y-1/2 z-20
-                                w-8 h-8 rounded-full flex items-center justify-center
-                                transition-all duration-200
-                                ${currentPage === totalPages - 1
-                                    ? 'bg-slate-800/50 text-slate-600 cursor-not-allowed'
-                                    : 'bg-purple-600/80 text-white hover:bg-purple-500 shadow-lg hover:shadow-purple-500/30'
-                                }
-                            `}
-                        >
-                            <ChevronRight size={18} />
-                        </button>
-                    </>
-                )}
+                            {displayedItems.map((item, idx) => {
+                                const globalIdx = startIndex + idx;
+                                const isChecked = checked[globalIdx];
+                                const isExpanded = expandedId === item.id;
 
-                {/* Tasks List - Added more padding for nav buttons */}
-                <div className="flex flex-col gap-3 mx-6">
-                    {displayedItems.map((item, idx) => {
-                        const globalIdx = startIndex + idx;
-                        const isChecked = checked[globalIdx];
-                        const isExpanded = expandedId === item.id;
-
-                        return (
-                            <TaskCard
-                                key={item.id}
-                                item={item}
-                                isChecked={isChecked}
-                                isExpanded={isExpanded}
-                                onToggle={() => handleToggle(globalIdx)}
-                                onExpand={() => setExpandedId(isExpanded ? null : item.id)}
-                            />
-                        );
-                    })}
-                </div>
+                                return (
+                                    <TaskCard
+                                        key={item.id}
+                                        item={item}
+                                        isChecked={isChecked}
+                                        isExpanded={isExpanded}
+                                        onToggle={() => handleToggle(globalIdx)}
+                                        onExpand={() => setExpandedId(isExpanded ? null : item.id)}
+                                    />
+                                );
+                            })}
+                        </motion.div>
+                    </AnimatePresence>
+                </motion.div>
 
                 {/* Page Indicator Dots */}
                 {totalPages > 1 && (
-                    <div className="flex justify-center gap-2 mt-4">
-                        {Array.from({ length: totalPages }).map((_, i) => (
+                    <div className="flex justify-center gap-3 mt-5">
+                        {Array.from({ length: totalPages }).map((_, idx) => (
                             <button
-                                key={i}
-                                onClick={() => setCurrentPage(i)}
+                                key={idx}
+                                onClick={() => setCurrentPage(idx)}
                                 className={`
-                                    w-2 h-2 rounded-full transition-all duration-200
-                                    ${i === currentPage
-                                        ? 'bg-purple-400 w-4'
-                                        : 'bg-slate-600 hover:bg-slate-500'
+                                    h-2 rounded-full transition-all duration-300
+                                    ${currentPage === idx
+                                        ? 'w-6 bg-purple-400 shadow-[0_0_8px_rgba(192,132,252,0.6)]'
+                                        : 'w-2 bg-slate-600 hover:bg-slate-500'
                                     }
                                 `}
+                                aria-label={`Go to page ${idx + 1}`}
                             />
                         ))}
                     </div>

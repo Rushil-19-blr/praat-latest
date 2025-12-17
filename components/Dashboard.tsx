@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { FloatingWellbeingBar } from './ui/floating-wellbeing-bar';
 import { GamifiedSolutionLibrary } from './ui/gamified-solution-library';
+import AnimatedLogo from './ui/AnimatedLogo';
 import StudentChatModal from './StudentChatModal';
 import { MessageCircle, X } from './Icons';
 
 import { motion, AnimatePresence } from 'framer-motion';
+import { StartSessionButton } from './ui/StartSessionButton';
 
 interface DashboardProps {
     onStartVoiceSession: () => void;
@@ -250,52 +252,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                     max-width: fit-content;
                 }
 
-                .session-section {
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    gap: 15px;
-                }
-
-                .start-session-btn {
-                    background: var(--accent-gradient, linear-gradient(135deg, #a855f7, #8b5cf6));
-                    border: none;
-                    border-radius: 50%; /* Fully round */
-                    width: 250px;
-                    height: 250px;
-                    cursor: pointer;
-                    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.4s ease;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    box-shadow: 0 10px 30px color-mix(in srgb, var(--accent-primary, #a855f7) 40%, transparent), 
-                                0 0 40px color-mix(in srgb, var(--accent-primary, #a855f7) 20%, transparent);
-                    position: relative;
-                }
-                
-                .start-session-btn::before {
-                    content: '';
-                    position: absolute;
-                    inset: -4px;
-                    border-radius: 50%;
-                    background: var(--accent-gradient, linear-gradient(135deg, #a855f7, #8b5cf6));
-                    opacity: 0.3;
-                    filter: blur(12px);
-                    z-index: -1;
-                    animation: pulse-glow 2s ease-in-out infinite;
-                    transition: background 0.4s ease;
-                }
-                
-                @keyframes pulse-glow {
-                    0%, 100% { opacity: 0.3; transform: scale(1); }
-                    50% { opacity: 0.5; transform: scale(1.05); }
-                }
-
-                .start-session-btn:hover {
-                    transform: translateY(-2px) scale(1.05);
-                    box-shadow: 0 15px 30px color-mix(in srgb, var(--accent-primary, #a855f7) 40%, transparent);
-                }
-
                 .calibration-btn {
                     background: linear-gradient(135deg, #fbbf24, #f59e0b);
                     border: none;
@@ -318,25 +274,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                     box-shadow: 0 8px 24px rgba(251, 191, 36, 0.5);
                 }
 
-                .voice-icon {
-                    width: 125px;
-                    height: 125px;
-                    fill: #ffffff;
-                }
-
                 .calibration-icon {
                     width: 16px;
                     height: 16px;
                     fill: #000000;
-                }
-
-                .session-text {
-                    font-size: 28px;
-                    font-weight: 600;
-                    color: #ffffff;
-                    text-align: center;
-                    margin-top: 10px;
-                    text-shadow: 0 2px 10px rgba(168, 85, 247, 0.3);
                 }
 
 
@@ -416,7 +357,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
             `}</style>
             <div className="header">
                 <div className="app-logo">
-                    <h1>AWAAZ</h1>
+                    <AnimatedLogo size={100} />
                 </div>
                 <div className="flex gap-2">
                     <button
@@ -450,14 +391,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
 
             <div className="main-content">
                 <div className="flex flex-col items-center justify-center gap-8 w-full max-w-md mx-auto">
-                    <div className="session-section relative z-20 w-full flex flex-col items-center">
-                        <button className="start-session-btn" onClick={startSession}>
-                            <svg className="voice-icon" width="125" height="125" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M256 32c-44.2 0-80 35.8-80 80v160c0 44.2 35.8 80 80 80s80-35.8 80-80V112c0-44.2-35.8-80-80-80z" fill="#ffffff" />
-                                <path d="M128 240v32c0 70.7 57.3 128 128 128s128-57.3 128-128v-32c0-8.8 7.2-16 16-16s16 7.2 16 16v32c0 83.5-63.8 152.1-145.5 159.5V496h65.5c8.8 0 16 7.2 16 16s-7.2 16-16 16h-160c-8.8 0-16-7.2-16-16s7.2-16 16-16h65.5v-64.5C160.8 424.1 97 355.5 97 272v-32c0-8.8 7.2-16 16-16s16 7.2 16 16z" fill="#ffffff" />
-                            </svg>
-                        </button>
-                        <div className="session-text">Start a Session</div>
+                    <div className="relative z-20 w-full flex flex-col items-center">
+                        <StartSessionButton onStart={startSession} />
                     </div>
 
                     {/* Floating Wellbeing Bar - Positioned below Start Session */}
