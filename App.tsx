@@ -1,23 +1,23 @@
 
-import React, { useState, useCallback, useEffect } from 'react';
-import Dashboard from './components/Dashboard';
-import VoiceAnalysisModal from './components/VoiceAnalysisModal';
-import AnalysisResultsScreen from './components/AnalysisResultsScreen';
-import CalibrationScreen from './components/CalibrationScreen';
-import VoiceCalibrationScreen from './components/VoiceCalibrationScreen';
-import PostAnalysisSuggestionsScreen from './components/PostAnalysisSuggestionsScreen';
-import ConnectTheDots from './components/ConnectTheDots';
-import ConfirmationPopup from './components/ConfirmationPopup';
-import EnrollmentNumber from './components/EnrollmentNumber';
-import ScratchCard from './components/ScratchCard';
-import PasswordSetup from './components/PasswordSetup';
-import SuccessPopup from './components/SuccessPopup';
-import SignInScreen from './components/SignInScreen';
-import TeacherDashboard from './components/TeacherDashboard';
-import StudentDetailScreen from './components/StudentDetailScreen';
-import StudentReportScreen from './components/StudentReportScreen';
-import PreRecordingQuestionnaire from './components/PreRecordingQuestionnaire';
-import SessionPlanningPage from './components/SessionPlanningPage';
+import React, { useState, useCallback, useEffect, lazy, Suspense } from 'react';
+const Dashboard = lazy(() => import('./components/Dashboard'));
+const VoiceAnalysisModal = lazy(() => import('./components/VoiceAnalysisModal'));
+const AnalysisResultsScreen = lazy(() => import('./components/AnalysisResultsScreen'));
+const CalibrationScreen = lazy(() => import('./components/CalibrationScreen'));
+const VoiceCalibrationScreen = lazy(() => import('./components/VoiceCalibrationScreen'));
+const PostAnalysisSuggestionsScreen = lazy(() => import('./components/PostAnalysisSuggestionsScreen'));
+const ConnectTheDots = lazy(() => import('./components/ConnectTheDots'));
+const ConfirmationPopup = lazy(() => import('./components/ConfirmationPopup'));
+const EnrollmentNumber = lazy(() => import('./components/EnrollmentNumber'));
+const ScratchCard = lazy(() => import('./components/ScratchCard'));
+const PasswordSetup = lazy(() => import('./components/PasswordSetup'));
+const SuccessPopup = lazy(() => import('./components/SuccessPopup'));
+const SignInScreen = lazy(() => import('./components/SignInScreen'));
+const TeacherDashboard = lazy(() => import('./components/TeacherDashboard'));
+const StudentDetailScreen = lazy(() => import('./components/StudentDetailScreen'));
+const StudentReportScreen = lazy(() => import('./components/StudentReportScreen'));
+const PreRecordingQuestionnaire = lazy(() => import('./components/PreRecordingQuestionnaire'));
+const SessionPlanningPage = lazy(() => import('./components/SessionPlanningPage'));
 import StreamChatProvider from './components/StreamChatProvider';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BeamsBackground } from './components/ui/beams-background';
@@ -515,10 +515,11 @@ const App: React.FC = () => {
       <GlassFilter />
       <BeamsBackground intensity="medium" />
       <div className="min-h-screen w-full overflow-hidden relative">
-        <AnimatePresence initial={false}>
-          {/* Sign-in Screen */}
-          {appState === 'SIGNIN' && (
-            <motion.div
+        <Suspense fallback={<div>Loading...</div>}>
+          <AnimatePresence initial={false}>
+            {/* Sign-in Screen */}
+            {appState === 'SIGNIN' && (
+              <motion.div
               key="signin"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -793,6 +794,7 @@ const App: React.FC = () => {
             </motion.div>
           )}
         </AnimatePresence>
+        </Suspense>
       </div>
     </StreamChatProvider>
   );
