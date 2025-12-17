@@ -34,7 +34,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
             try {
                 const parsed = JSON.parse(storedUserData);
                 setUserData(parsed);
-                
+
                 // Load suggestions for gamified library
                 const studentCode = parsed.accountNumber;
                 if (studentCode) {
@@ -58,7 +58,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                 console.error('Error parsing user data:', error);
             }
         }
-        
+
         // Listen for suggestions updates
         const handleSuggestionsUpdate = () => {
             const storedUserData = localStorage.getItem('userData');
@@ -88,7 +88,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                 }
             }
         };
-        
+
         window.addEventListener('suggestionsUpdated', handleSuggestionsUpdate);
         return () => window.removeEventListener('suggestionsUpdated', handleSuggestionsUpdate);
     }, []);
@@ -258,17 +258,18 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                 }
 
                 .start-session-btn {
-                    background: linear-gradient(135deg, #a855f7, #8b5cf6);
+                    background: var(--accent-gradient, linear-gradient(135deg, #a855f7, #8b5cf6));
                     border: none;
                     border-radius: 50%; /* Fully round */
                     width: 250px;
                     height: 250px;
                     cursor: pointer;
-                    transition: transform 0.2s ease, box-shadow 0.2s ease;
+                    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.4s ease;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    box-shadow: 0 10px 30px rgba(168, 85, 247, 0.4), 0 0 40px rgba(168, 85, 247, 0.2);
+                    box-shadow: 0 10px 30px color-mix(in srgb, var(--accent-primary, #a855f7) 40%, transparent), 
+                                0 0 40px color-mix(in srgb, var(--accent-primary, #a855f7) 20%, transparent);
                     position: relative;
                 }
                 
@@ -277,11 +278,12 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                     position: absolute;
                     inset: -4px;
                     border-radius: 50%;
-                    background: linear-gradient(135deg, #a855f7, #8b5cf6);
+                    background: var(--accent-gradient, linear-gradient(135deg, #a855f7, #8b5cf6));
                     opacity: 0.3;
                     filter: blur(12px);
                     z-index: -1;
                     animation: pulse-glow 2s ease-in-out infinite;
+                    transition: background 0.4s ease;
                 }
                 
                 @keyframes pulse-glow {
@@ -291,7 +293,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
 
                 .start-session-btn:hover {
                     transform: translateY(-2px) scale(1.05);
-                    box-shadow: 0 15px 30px rgba(168, 85, 247, 0.4);
+                    box-shadow: 0 15px 30px color-mix(in srgb, var(--accent-primary, #a855f7) 40%, transparent);
                 }
 
                 .calibration-btn {
@@ -462,7 +464,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                     <div className="w-full relative z-10">
                         <FloatingWellbeingBar />
                     </div>
-                    
+
                     {/* Gamified Solution Library */}
                     {suggestions.length > 0 && (
                         <div className="w-full relative z-10 mt-6">

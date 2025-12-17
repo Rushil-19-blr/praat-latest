@@ -179,3 +179,27 @@ export interface SessionPlan {
   isActive: boolean;
   useForNextSessionOnly: boolean;
 }
+
+// ===== Gamification Types =====
+
+export interface TierAccentColor {
+  primary: string;
+  secondary: string;
+  gradient: string;
+}
+
+export interface MaterialTier {
+  level: number;
+  name: string;
+  tasksMin: number;
+  tasksMax: number | null; // null for Diamond (infinite)
+  accentColor: TierAccentColor;
+  iconName: string; // Lucide icon name
+}
+
+export interface GamificationData {
+  completedTasks: number;
+  currentTier: number;
+  selectedAccentTier: number; // Which tier's color is active
+  lastTierShown: number | null; // To track if we showed level-up popup
+}

@@ -1,8 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { motion, AnimatePresence, useAnimation } from 'framer-motion';
-import CompletionModal from '../CompletionModal';
+import { motion, useAnimation } from 'framer-motion';
 import {
     Droplet,
     Moon,
@@ -17,8 +16,9 @@ import {
     Sparkles,
     Smile,
     Coffee,
-    Heart,
-    CheckSquare
+    CheckSquare,
+    ChevronLeft,
+    ChevronRight
 } from 'lucide-react';
 
 // --- Types ---
@@ -35,16 +35,18 @@ interface FloatingWellbeingBarProps {
 }
 
 // --- Constants ---
+const ITEMS_PER_PAGE = 4;
+
 const defaultItems = [
-    { id: 1, label: 'Drink 8 glasses of water', defaultChecked: false },
-    { id: 2, label: 'Sleep 7-8 hours tonight', defaultChecked: false },
-    { id: 3, label: 'Read 10 pages today', defaultChecked: false },
-    { id: 4, label: 'Take a 10-minute walk', defaultChecked: false },
-    { id: 5, label: 'Practice 5 minutes of meditation', defaultChecked: false },
-    { id: 6, label: 'Eat a healthy meal', defaultChecked: false },
+    { id: '1', label: 'Drink 8 glasses of water', defaultChecked: false },
+    { id: '2', label: 'Sleep 7-8 hours tonight', defaultChecked: false },
+    { id: '3', label: 'Read 10 pages today', defaultChecked: false },
+    { id: '4', label: 'Take a 10-minute walk', defaultChecked: false },
+    { id: '5', label: 'Practice 5 minutes of meditation', defaultChecked: false },
+    { id: '6', label: 'Eat a healthy meal', defaultChecked: false },
 ];
 
-// --- Utilities (reused/adapted) ---
+// --- Utilities ---
 const convertSuggestionsToItems = (suggestions: SuggestionItem[]) => {
     const immediate = suggestions.filter(s => s.type === 'immediate');
     const longTerm = suggestions.filter(s => s.type === 'longterm');
@@ -59,55 +61,31 @@ const convertSuggestionsToItems = (suggestions: SuggestionItem[]) => {
 const getIconForSuggestion = (text: string) => {
     const t = text.toLowerCase();
 
-    // Hydration
     if (t.includes('water') || t.includes('drink') || t.includes('hydrate'))
         return <Droplet className="w-5 h-5 text-cyan-400" />;
-
-    // Sleep / Rest
     if (t.includes('sleep') || t.includes('rest') || t.includes('nap') || t.includes('bed') || t.includes('night'))
         return <Moon className="w-5 h-5 text-indigo-400" />;
-
-    // Physical Activity
     if (t.includes('walk') || t.includes('run') || t.includes('exercise') || t.includes('stretch') || t.includes('yoga') || t.includes('move'))
         return <Footprints className="w-5 h-5 text-emerald-400" />;
-
-    // Vocal / Voice
     if (t.includes('hum') || t.includes('sing') || t.includes('voice') || t.includes('throat') || t.includes('vocal') || t.includes('sigh'))
         return <Music className="w-5 h-5 text-rose-400" />;
-
-    // Knowledge / Focus
     if (t.includes('read') || t.includes('book') || t.includes('study') || t.includes('learn') || t.includes('focus'))
         return <BookOpen className="w-5 h-5 text-amber-400" />;
-
-    // Breathing
     if (t.includes('breath') || t.includes('lung') || t.includes('air') || t.includes('inhale') || t.includes('exhale'))
         return <Wind className="w-5 h-5 text-sky-400" />;
-
-    // Diet
     if (t.includes('eat') || t.includes('meal') || t.includes('food') || t.includes('diet') || t.includes('fruit') || t.includes('veg'))
         return <Utensils className="w-5 h-5 text-orange-400" />;
-
-    // Mental Health
     if (t.includes('meditate') || t.includes('calm') || t.includes('relax') || t.includes('mind') || t.includes('peace') || t.includes('gratitude'))
         return <Brain className="w-5 h-5 text-violet-400" />;
-
-    // Social
     if (t.includes('friend') || t.includes('social') || t.includes('talk') || t.includes('family') || t.includes('call'))
         return <Users className="w-5 h-5 text-pink-400" />;
-
-    // Nature / Outside
     if (t.includes('sun') || t.includes('outside') || t.includes('nature') || t.includes('fresh'))
         return <Sun className="w-5 h-5 text-yellow-400" />;
-
-    // Happiness
     if (t.includes('smile') || t.includes('happy') || t.includes('laugh') || t.includes('joy'))
         return <Smile className="w-5 h-5 text-yellow-300" />;
-
-    // Drinks
     if (t.includes('coffee') || t.includes('tea'))
         return <Coffee className="w-5 h-5 text-amber-700" />;
 
-    // Default
     return <Sparkles className="w-5 h-5 text-yellow-200" />;
 };
 
@@ -124,7 +102,7 @@ const RippleFilter = () => (
 );
 
 export const FloatingWellbeingBar: React.FC<FloatingWellbeingBarProps> = ({ className, onTasksCompleted }) => {
-    // --- State & Logic (mostly matching PlayfulTodoList) ---
+    // Load all items from storage
     const loadAllItems = React.useCallback(() => {
         const userData = localStorage.getItem('userData');
         if (userData) {
@@ -152,83 +130,51 @@ export const FloatingWellbeingBar: React.FC<FloatingWellbeingBarProps> = ({ clas
         return defaultItems;
     }, []);
 
-    const getCurrentBatch = React.useCallback(() => {
-        const allItems = loadAllItems();
-        const userData = localStorage.getItem('userData');
-        if (!userData) return allItems.slice(0, 4);
-
-        try {
-            const parsedUserData = JSON.parse(userData);
-            const studentCode = parsedUserData.accountNumber;
-            const batchKey = `suggestions_current_batch_${studentCode}`;
-            const shownKey = `suggestions_shown_${studentCode}`;
-
-            // 1. Check for existing active batch (RETURN IT REGARDLESS OF COMPLETION)
-            const savedBatch = localStorage.getItem(batchKey);
-            if (savedBatch) {
-                const currentBatchIds = JSON.parse(savedBatch);
-                const currentBatchItems = allItems.filter(item => {
-                    const itemId = 'suggestionId' in item ? (item.suggestionId as string) : item.id.toString();
-                    return currentBatchIds.includes(itemId);
-                });
-
-                if (currentBatchItems.length > 0) return currentBatchItems;
-            }
-
-            // 2. Generate NEW batch (Only if no saved batch exists)
-            const savedShown = localStorage.getItem(shownKey);
-            const shownSet = savedShown ? new Set(JSON.parse(savedShown)) : new Set();
-            const unshownItems = allItems.filter(item => {
-                const itemId = 'suggestionId' in item ? (item.suggestionId as string) : item.id.toString();
-                return !shownSet.has(itemId);
-            });
-
-            let nextBatchItems = unshownItems.length > 0 ? unshownItems.slice(0, 4) : allItems.slice(0, 4);
-            if (unshownItems.length === 0) try { localStorage.removeItem(shownKey); } catch { }
-
-            const nextBatchIds = nextBatchItems.map(item => 'suggestionId' in item ? (item.suggestionId as string) : item.id.toString());
-            localStorage.setItem(batchKey, JSON.stringify(nextBatchIds));
-            nextBatchIds.forEach(id => shownSet.add(id));
-            localStorage.setItem(shownKey, JSON.stringify([...shownSet]));
-
-            return nextBatchItems;
-        } catch { return allItems.slice(0, 4); }
-    }, [loadAllItems]);
-
-    const [displayedItems, setDisplayedItems] = React.useState(() => getCurrentBatch());
+    const [allItems, setAllItems] = React.useState(() => loadAllItems());
     const [checked, setChecked] = React.useState<boolean[]>(() => {
-        // Initial checked state logic
-        const initialItems = getCurrentBatch();
+        const items = loadAllItems();
         const userData = localStorage.getItem('userData');
-        if (userData && initialItems.length > 0) {
+        if (userData && items.length > 0) {
             try {
                 const parsed = JSON.parse(userData);
                 const code = parsed.accountNumber;
                 const saved = localStorage.getItem(`suggestions_completed_${code}`);
                 const map = saved ? JSON.parse(saved) : {};
-                return initialItems.map(item => {
+                return items.map(item => {
                     const id = 'suggestionId' in item ? (item.suggestionId as string) : item.id.toString();
                     return map[id] || false;
                 });
             } catch { }
         }
-        return initialItems.map(i => !!i.defaultChecked);
+        return items.map(i => !!i.defaultChecked);
     });
 
+    const [currentPage, setCurrentPage] = React.useState(0);
     const [expandedId, setExpandedId] = React.useState<string | number | null>(null);
-    const [showCompletionModal, setShowCompletionModal] = React.useState(false);
-    const isUpdatingBatch = React.useRef(false);
     const isInitialMount = React.useRef(true);
 
-    // --- Effects ---
+    // Calculate pagination
+    const totalPages = Math.ceil(allItems.length / ITEMS_PER_PAGE);
+    const startIndex = currentPage * ITEMS_PER_PAGE;
+    const displayedItems = allItems.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+    // Navigation handlers
+    const goToPreviousPage = () => {
+        setCurrentPage(prev => Math.max(0, prev - 1));
+    };
+
+    const goToNextPage = () => {
+        setCurrentPage(prev => Math.min(totalPages - 1, prev + 1));
+    };
+
     // Save completion state
     React.useEffect(() => {
-        if (isInitialMount.current || isUpdatingBatch.current) {
+        if (isInitialMount.current) {
             isInitialMount.current = false;
             return;
         }
         const userData = localStorage.getItem('userData');
-        if (userData && displayedItems.length > 0) {
+        if (userData && allItems.length > 0) {
             try {
                 const parsed = JSON.parse(userData);
                 const code = parsed.accountNumber;
@@ -236,65 +182,45 @@ export const FloatingWellbeingBar: React.FC<FloatingWellbeingBarProps> = ({ clas
                 const saved = localStorage.getItem(key);
                 const map = saved ? JSON.parse(saved) : {};
 
-                displayedItems.forEach((item, idx) => {
+                allItems.forEach((item, idx) => {
                     const id = 'suggestionId' in item ? (item.suggestionId as string) : item.id.toString();
                     const wasCompleted = map[id] === true;
                     map[id] = checked[idx];
-                    
-                    // If task was just completed (not already completed), record completion date and dispatch event
+
+                    // If task was just completed, record completion date and dispatch event
                     if (checked[idx] && !wasCompleted) {
-                        // Record completion date for streak tracking
                         const todayDate = new Date().toISOString().split('T')[0];
                         const streakCompletionKey = `streak_completions_${code}`;
                         const savedStreakDates = localStorage.getItem(streakCompletionKey);
                         const streakDates: Record<string, string> = savedStreakDates ? JSON.parse(savedStreakDates) : {};
                         streakDates[id] = todayDate;
                         localStorage.setItem(streakCompletionKey, JSON.stringify(streakDates));
-                        
+
                         // Dispatch event for gamification system
                         window.dispatchEvent(new CustomEvent('taskCompleted', { detail: { taskId: id, date: todayDate } }));
                     }
                 });
                 localStorage.setItem(key, JSON.stringify(map));
 
-                if (checked.every(c => c === true) && displayedItems.length > 0) {
+                // Check if all tasks completed
+                if (checked.every(c => c === true) && allItems.length > 0) {
                     if (onTasksCompleted) onTasksCompleted();
-                    setTimeout(() => setShowCompletionModal(true), 800);
                 }
             } catch (e) { console.error(e); }
         }
-    }, [checked, displayedItems, onTasksCompleted]);
+    }, [checked, allItems, onTasksCompleted]);
 
-    const handleToggle = React.useCallback((idx: number) => {
+    const handleToggle = React.useCallback((globalIdx: number) => {
         setChecked(prev => {
             const next = [...prev];
-            next[idx] = !next[idx];
+            next[globalIdx] = !next[globalIdx];
             return next;
         });
     }, []);
 
-    const loadNextBatch = React.useCallback(() => {
-        setShowCompletionModal(false);
-        setTimeout(() => {
-            isUpdatingBatch.current = true;
-
-            // Explicitly rotate batch
-            const userData = localStorage.getItem('userData');
-            if (userData) {
-                try {
-                    const parsed = JSON.parse(userData);
-                    const code = parsed.accountNumber;
-                    localStorage.removeItem(`suggestions_current_batch_${code}`);
-                } catch { }
-            }
-
-            const next = getCurrentBatch();
-            setDisplayedItems(next);
-            setChecked(next.map(() => false)); // Reset checks for new batch (or load real state if needed)
-            // Actually, we should load real state, but for a new batch usually it's false
-            setTimeout(() => { isUpdatingBatch.current = false; }, 100);
-        }, 300);
-    }, [getCurrentBatch]);
+    // Calculate completion stats
+    const completedCount = checked.filter(c => c).length;
+    const totalCount = allItems.length;
 
     return (
         <div className={`w-full max-w-md mx-auto relative ${className}`}>
@@ -303,15 +229,57 @@ export const FloatingWellbeingBar: React.FC<FloatingWellbeingBarProps> = ({ clas
             {/* Header Section */}
             <div className="flex items-center justify-between px-1 mb-3">
                 <div className="flex items-center gap-2">
-                    <CheckSquare className="w-5 h-5 text-purple-primary" />
+                    <CheckSquare className="w-5 h-5 text-purple-400" />
                     <h2 className="text-white/90 text-lg font-semibold tracking-tight">Daily Wellness Tasks</h2>
                 </div>
+                <span className="text-sm text-purple-300">
+                    {completedCount}/{totalCount}
+                </span>
             </div>
 
-            <div className="flex flex-col gap-3">
-                <AnimatePresence>
+            {/* Tasks Container */}
+            <div className="relative">
+                {/* Navigation Buttons */}
+                {totalPages > 1 && (
+                    <>
+                        <button
+                            onClick={goToPreviousPage}
+                            disabled={currentPage === 0}
+                            className={`
+                                absolute -left-3 top-1/2 -translate-y-1/2 z-20
+                                w-8 h-8 rounded-full flex items-center justify-center
+                                transition-all duration-200
+                                ${currentPage === 0
+                                    ? 'bg-slate-800/50 text-slate-600 cursor-not-allowed'
+                                    : 'bg-purple-600/80 text-white hover:bg-purple-500 shadow-lg hover:shadow-purple-500/30'
+                                }
+                            `}
+                        >
+                            <ChevronLeft size={18} />
+                        </button>
+                        <button
+                            onClick={goToNextPage}
+                            disabled={currentPage === totalPages - 1}
+                            className={`
+                                absolute -right-3 top-1/2 -translate-y-1/2 z-20
+                                w-8 h-8 rounded-full flex items-center justify-center
+                                transition-all duration-200
+                                ${currentPage === totalPages - 1
+                                    ? 'bg-slate-800/50 text-slate-600 cursor-not-allowed'
+                                    : 'bg-purple-600/80 text-white hover:bg-purple-500 shadow-lg hover:shadow-purple-500/30'
+                                }
+                            `}
+                        >
+                            <ChevronRight size={18} />
+                        </button>
+                    </>
+                )}
+
+                {/* Tasks List - Added more padding for nav buttons */}
+                <div className="flex flex-col gap-3 mx-6">
                     {displayedItems.map((item, idx) => {
-                        const isChecked = checked[idx];
+                        const globalIdx = startIndex + idx;
+                        const isChecked = checked[globalIdx];
                         const isExpanded = expandedId === item.id;
 
                         return (
@@ -320,15 +288,32 @@ export const FloatingWellbeingBar: React.FC<FloatingWellbeingBarProps> = ({ clas
                                 item={item}
                                 isChecked={isChecked}
                                 isExpanded={isExpanded}
-                                onToggle={() => handleToggle(idx)}
+                                onToggle={() => handleToggle(globalIdx)}
                                 onExpand={() => setExpandedId(isExpanded ? null : item.id)}
                             />
                         );
                     })}
-                </AnimatePresence>
-            </div>
+                </div>
 
-            <CompletionModal isOpen={showCompletionModal} onClose={loadNextBatch} />
+                {/* Page Indicator Dots */}
+                {totalPages > 1 && (
+                    <div className="flex justify-center gap-2 mt-4">
+                        {Array.from({ length: totalPages }).map((_, i) => (
+                            <button
+                                key={i}
+                                onClick={() => setCurrentPage(i)}
+                                className={`
+                                    w-2 h-2 rounded-full transition-all duration-200
+                                    ${i === currentPage
+                                        ? 'bg-purple-400 w-4'
+                                        : 'bg-slate-600 hover:bg-slate-500'
+                                    }
+                                `}
+                            />
+                        ))}
+                    </div>
+                )}
+            </div>
         </div>
     );
 };
@@ -359,8 +344,7 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({ item, isChecked, isExpan
     const handleMouseDown = () => {
         longPressTimer.current = setTimeout(() => {
             if (!isChecked) {
-                onToggle(); // Long press to complete
-                // Trigger haptic feedback if available (mobile)
+                onToggle();
                 if (navigator.vibrate) navigator.vibrate(50);
             }
         }, 500);
@@ -377,12 +361,10 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({ item, isChecked, isExpan
         <motion.div
             layout
             className={`
-        relative overflow-hidden rounded-2xl backdrop-blur-2xl border transition-all duration-300
-        ${isChecked ? 'bg-blue-500/10 border-blue-400/20' : 'bg-blue-950/[0.02] border-white/5 hover:bg-blue-900/10'}
-      `}
-            style={{
-                width: '100%',
-            }}
+                relative overflow-hidden rounded-2xl backdrop-blur-2xl border transition-all duration-300
+                ${isChecked ? 'accent-bg-subtle accent-border-subtle' : 'bg-blue-950/[0.02] border-white/5 hover:bg-blue-900/10'}
+            `}
+            style={{ width: '100%' }}
             initial={{ opacity: 0, y: 20 }}
             animate={controls}
             whileInView={{ opacity: 1, y: 0 }}
@@ -411,9 +393,9 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({ item, isChecked, isExpan
                         onToggle();
                     }}
                     className={`
-            w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-300 shrink-0
-            ${isChecked ? 'border-blue-400 bg-blue-400' : 'border-white/30 hover:border-white/60'}
-          `}
+                        w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-300 shrink-0
+                        ${isChecked ? 'accent-border accent-bg-solid' : 'border-white/30 hover:border-white/60'}
+                    `}
                 >
                     {isChecked && (
                         <motion.svg
@@ -447,14 +429,14 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({ item, isChecked, isExpan
                             )}
                         </motion.p>
 
-                        {/* Runthrough Text Blur Effect (only when collapsed) */}
+                        {/* Fade gradient for truncated text */}
                         {!isExpanded && !isChecked && (
                             <div className="absolute top-0 right-0 bottom-0 w-16 bg-gradient-to-l from-blue-900/0 via-blue-900/0 to-transparent pointer-events-none" />
                         )}
                     </div>
                 </div>
 
-                {/* Illustration Placeholder (Dynamic) */}
+                {/* Icon */}
                 <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0 border border-white/10 shadow-[0_0_15px_rgba(59,130,246,0.2)]">
                     {getIconForSuggestion(item.label)}
                 </div>
