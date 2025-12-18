@@ -8,6 +8,12 @@ import { MessageCircle, X } from './Icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { StartSessionButton } from './ui/StartSessionButton';
 
+import { WelcomeCarousel } from './onboarding/WelcomeCarousel';
+import { SpotlightOverlay } from './onboarding/SpotlightOverlay';
+import { CompletionCelebration } from './onboarding/CompletionCelebration';
+import { OnboardingService } from '../services/onboardingService';
+import { OnboardingState, INITIAL_ONBOARDING_STATE } from '../types/onboarding';
+
 interface DashboardProps {
     onStartVoiceSession: () => void;
     onStartCalibration?: () => void;
@@ -28,6 +34,36 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
     const [userData, setUserData] = useState<UserData | null>(null);
     const [suggestions, setSuggestions] = useState<Array<{ id: string; label: string; type: 'immediate' | 'longterm'; completed: boolean }>>([]);
     const accountsButtonRef = useRef<HTMLButtonElement>(null);
+
+    // Onboarding State
+    const [onboardingState, setOnboardingState] = useState<OnboardingState>(INITIAL_ONBOARDING_STATE);
+
+    useEffect(() => {
+        if (userData?.accountNumber) {
+            const state = OnboardingService.getState(userData.accountNumber);
+            setOnboardingState(state);
+        }
+
+        const handleOnboardingUpdate = (e: CustomEvent<{ state: OnboardingState }>) => {
+            setOnboardingState(e.detail.state);
+        };
+        // Cast to EventListener to satisfy TS
+        const listener = handleOnboardingUpdate as unknown as EventListener;
+        window.addEventListener('onboardingUpdated', listener);
+        return () => window.removeEventListener('onboardingUpdated', listener);
+    }, [userData?.accountNumber]);
+
+    const handleWelcomeComplete = () => {
+        if (userData?.accountNumber) {
+            OnboardingService.completeStep(userData.accountNumber, 'welcome');
+        }
+    };
+
+    const handleSkipOnboarding = () => {
+        if (userData?.accountNumber) {
+            OnboardingService.skipOnboarding(userData.accountNumber);
+        }
+    };
 
     useEffect(() => {
         // Load user data from localStorage
@@ -361,6 +397,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                 </div>
                 <div className="flex gap-2">
                     <button
+                        id="chat-btn"
                         className="accounts-btn"
                         onClick={handleChatOpen}
                         title="Messages"
@@ -391,7 +428,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
 
             <div className="main-content">
                 <div className="flex flex-col items-center justify-center gap-8 w-full max-w-md mx-auto">
-                    <div className="relative z-20 w-full flex flex-col items-center">
+                    <div id="start-session-btn" className="relative z-20 w-full flex flex-col items-center">
                         <StartSessionButton onStart={startSession} />
                     </div>
 
@@ -484,6 +521,51 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                     studentName={userDisplayData.studentName}
                 />
             )}
+
+            {/* Onboarding Components */}
+            <AnimatePresence>
+                {/* Stage 1: Welcome Carousel */}
+                {onboardingState.stage === 'welcome' && !onboardingState.isSkipped && userData?.accountNumber && (
+                    <WelcomeCarousel
+                        studentCode={userData.accountNumber}
+                        onComplete={handleWelcomeComplete}
+                    />
+                )}
+
+                {/* Stage 2 PRE: Calibration Prompt (handled by calibration-btn pulse, but we can manage state) */}
+
+                {/* Stage 2: Session Prompt */}
+                {onboardingState.stage === 'session_prompt' && !onboardingState.isSkipped && (
+                    <SpotlightOverlay
+                        targetId="start-session-btn"
+                        title="Start Your Journey"
+                        message="Click here to begin your first wellness session with our AI."
+                        onComplete={() => { }} // Waits for user content interaction
+                        onSkip={handleSkipOnboarding}
+                        studentCode={userData?.accountNumber || ''}
+                    />
+                )}
+
+                {/* Stage 3: Chat Prompt */}
+                {onboardingState.stage === 'chat_prompt' && !onboardingState.isSkipped && (
+                    <SpotlightOverlay
+                        targetId="chat-btn"
+                        title="Meet Your Assistant"
+                        message="Need quick help? Chat with your AI wellness companion anytime."
+                        onComplete={() => { }}
+                        onSkip={handleSkipOnboarding}
+                        studentCode={userData?.accountNumber || ''}
+                    />
+                )}
+
+                {/* Stage 4: Celebration */}
+                {onboardingState.stage === 'completed' && !onboardingState.isSkipped && (
+                    <CompletionCelebration
+                        studentCode={userData?.accountNumber || ''}
+                        onClose={() => OnboardingService.skipOnboarding(userData?.accountNumber || '')}
+                    />
+                )}
+            </AnimatePresence>
         </>
     );
 };
