@@ -401,7 +401,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                     </div>
 
                     {/* Gamified Solution Library */}
-                    {suggestions.length > 0 && (
+                    {userDisplayData?.hasAccountNumber && (
                         <div className="w-full relative z-10 mt-6">
                             <GamifiedSolutionLibrary suggestions={suggestions} />
                         </div>

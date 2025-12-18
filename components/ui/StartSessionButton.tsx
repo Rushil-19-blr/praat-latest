@@ -90,6 +90,7 @@ export const StartSessionButton: React.FC<StartSessionButtonProps> = ({ onStart,
                             strokeWidth="6"
                             strokeLinecap="round"
                             strokeDasharray={circumference}
+                            initial={{ strokeDashoffset: circumference }}
                             animate={{ strokeDashoffset: dashOffset }}
                             transition={{ duration: 0.05, ease: "linear" }}
                         />
