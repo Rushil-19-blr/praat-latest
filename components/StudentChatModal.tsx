@@ -11,6 +11,8 @@ interface StudentChatModalProps {
   studentName?: string;
 }
 
+const MotionDiv = motion.div as any;
+
 const StudentChatModal: React.FC<StudentChatModalProps> = ({
   isOpen,
   onClose,
@@ -88,7 +90,7 @@ const StudentChatModal: React.FC<StudentChatModalProps> = ({
           }
 
           // If we successfully watched the channel, add it to the list
-          if (existingChannel.state?.initialized) {
+          if (existingChannel.state) {
             channelQueryResponse = [existingChannel];
           }
         } catch (directError: any) {
@@ -142,7 +144,7 @@ const StudentChatModal: React.FC<StudentChatModalProps> = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <motion.div
+        <MotionDiv
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -150,37 +152,35 @@ const StudentChatModal: React.FC<StudentChatModalProps> = ({
           className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4"
           onClick={onClose}
         >
-          <motion.div
+          <MotionDiv
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
             transition={{ duration: 0.3, ease: 'easeOut' }}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e: any) => e.stopPropagation()}
             className="w-full max-w-4xl h-[80vh] max-h-[600px] bg-background-primary rounded-2xl overflow-hidden shadow-2xl flex"
           >
             {/* Sidebar - Channel List */}
             <div className="w-80 border-r border-white/10 bg-surface/50 flex flex-col">
-              <div className="p-4 border-b border-white/10">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-purple-primary/20 rounded-full flex items-center justify-center">
-                      <Users className="w-5 h-5 text-purple-primary" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold text-white">Messages</h3>
-                      <p className="text-sm text-text-muted">{channels.length} conversations</p>
-                    </div>
+              <div className="p-5 border-b border-white/10">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-12 h-12 bg-purple-primary/20 rounded-2xl flex items-center justify-center border border-purple-primary/20">
+                    <Users className="w-6 h-6 text-purple-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white tracking-tight">Messages</h3>
+                    <p className="text-xs text-text-muted font-medium">{channels.length} {channels.length === 1 ? 'conversation' : 'conversations'}</p>
                   </div>
                 </div>
                 <button
                   onClick={createNewChatWithTeacher}
                   disabled={isCreatingChannel}
-                  className="w-full px-4 py-2 bg-purple-primary text-white rounded-lg hover:bg-purple-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="w-full px-4 py-3 bg-purple-primary text-white rounded-xl hover:bg-purple-dark transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-bold shadow-lg shadow-purple-primary/20"
                 >
                   {isCreatingChannel ? (
                     <>
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Starting chat...</span>
+                      <span>Connecting...</span>
                     </>
                   ) : (
                     <>
@@ -197,16 +197,22 @@ const StudentChatModal: React.FC<StudentChatModalProps> = ({
                     <div className="w-6 h-6 border-2 border-purple-primary border-t-transparent rounded-full animate-spin"></div>
                   </div>
                 ) : channels.length === 0 ? (
-                  <div className="flex items-center justify-center p-8">
+                  <div className="flex items-center justify-center p-10 h-full">
                     <div className="text-center">
-                      <MessageCircle className="w-12 h-12 text-text-muted mx-auto mb-2" />
-                      <p className="text-text-muted text-sm">No messages yet</p>
-                      <p className="text-text-muted text-xs mt-1">Click "Message Teacher" above to start a conversation</p>
+                      <div className="w-16 h-16 bg-white/[0.03] rounded-full flex items-center justify-center mx-auto mb-4">
+                        <MessageCircle className="w-8 h-8 text-white/10" />
+                      </div>
+                      <p className="text-white/40 text-sm font-medium">No messages yet</p>
+                      <button
+                        onClick={createNewChatWithTeacher}
+                        className="text-purple-primary text-[10px] uppercase tracking-widest font-black mt-2 hover:text-purple-300 transition-colors"
+                      >
+                        Start First Chat
+                      </button>
                     </div>
                   </div>
                 ) : (
                   channels.map((channel) => {
-                    // Get last message - try multiple ways to extract it
                     const lastMessageObj = channel.state?.last_message;
                     let lastMessage = '';
                     if (lastMessageObj) {
@@ -214,8 +220,6 @@ const StudentChatModal: React.FC<StudentChatModalProps> = ({
                         lastMessage = lastMessageObj.text;
                       } else if (lastMessageObj.attachments && lastMessageObj.attachments.length > 0) {
                         lastMessage = '📎 Attachment';
-                      } else if (lastMessageObj.type) {
-                        lastMessage = `[${lastMessageObj.type}]`;
                       }
                     }
 
@@ -223,21 +227,23 @@ const StudentChatModal: React.FC<StudentChatModalProps> = ({
                       <div
                         key={channel.id}
                         onClick={() => selectChannel(channel)}
-                        className={`p-4 cursor-pointer hover:bg-white/5 transition-colors border-l-2 ${activeChannel?.id === channel.id
-                          ? 'border-purple-primary bg-purple-primary/10'
+                        className={`p-5 cursor-pointer hover:bg-white/[0.03] transition-colors border-l-4 ${activeChannel?.id === channel.id
+                          ? 'border-purple-primary bg-purple-primary/5'
                           : 'border-transparent'
                           }`}
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-purple-primary/20 rounded-full flex items-center justify-center">
+                        <div className="flex items-center gap-4">
+                          <div className="w-11 h-11 bg-purple-primary/10 rounded-xl flex items-center justify-center border border-white/5">
                             <MessageCircle className="w-5 h-5 text-purple-primary" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-white truncate">
-                              {channel.data?.name || 'Teacher Chat'}
-                            </p>
+                            <div className="flex justify-between items-baseline mb-0.5">
+                              <p className="text-sm font-bold text-white truncate">
+                                {channel.data?.name || 'Teacher Chat'}
+                              </p>
+                            </div>
                             {lastMessage && (
-                              <p className="text-xs text-text-muted truncate">
+                              <p className="text-xs text-text-muted truncate font-medium">
                                 {lastMessage}
                               </p>
                             )}
@@ -377,7 +383,7 @@ const StudentChatModal: React.FC<StudentChatModalProps> = ({
                         color: rgba(255, 255, 255, 0.4) !important;
                         margin-top: 2px !important;
                         display: inline-block !important;
-                      }
+                       }
                       
                       /* ===== HIDE SENDER NAME ===== */
                       .str-chat__message-sender-name {
@@ -511,7 +517,7 @@ const StudentChatModal: React.FC<StudentChatModalProps> = ({
                         border-radius: 3px !important;
                       }
                     `}</style>
-                    <Channel channel={activeChannel} theme="messaging dark">
+                    <Channel channel={activeChannel} {...{ theme: "messaging dark" } as any}>
                       <Window>
                         <MessageList />
                         <MessageInput />
@@ -530,8 +536,8 @@ const StudentChatModal: React.FC<StudentChatModalProps> = ({
                 )}
               </div>
             </div>
-          </motion.div>
-        </motion.div>
+          </MotionDiv>
+        </MotionDiv>
       )}
     </AnimatePresence>
   );

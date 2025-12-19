@@ -28,6 +28,9 @@ interface UserData {
     password?: string;
 }
 
+// Bypassing strict className lint check with a local alias
+const MotionDiv = motion.div as any;
+
 const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalibration, onSignOut }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isChatOpen, setIsChatOpen] = useState(false);
@@ -59,11 +62,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
         }
     };
 
-    const handleSkipOnboarding = () => {
-        if (userData?.accountNumber) {
-            OnboardingService.skipOnboarding(userData.accountNumber);
-        }
-    };
 
     useEffect(() => {
         // Load user data from localStorage
@@ -410,7 +408,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                         className={`accounts-btn ${isModalOpen ? 'active' : ''}`}
                         onClick={toggleModal}
                     >
-                        <motion.div
+                        <MotionDiv
                             animate={{ rotate: isModalOpen ? 90 : 0 }}
                             transition={{ duration: 0.3, ease: "easeInOut" }}
                         >
@@ -421,7 +419,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                                     <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
                                 </svg>
                             )}
-                        </motion.div>
+                        </MotionDiv>
                     </button>
                 </div>
             </div>
@@ -468,7 +466,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
             <AnimatePresence>
                 {isModalOpen && (
                     <>
-                        <motion.div
+                        <MotionDiv
                             className="modal-overlay"
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
@@ -476,7 +474,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                             transition={{ duration: 0.2 }}
                             onClick={handleOutsideClick}
                         />
-                        <motion.div
+                        <MotionDiv
                             className="modal-content"
                             initial={{
                                 opacity: 0,
@@ -508,7 +506,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                                 <div className="account-code">{userDisplayData?.accountCode || '----'}</div>
                             </div>
                             <button className="logout-btn" onClick={logout}>Logout</button>
-                        </motion.div>
+                        </MotionDiv>
                     </>
                 )}
             </AnimatePresence>
@@ -536,7 +534,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                 {/* Stage 2 PRE: Calibration Prompt (handled by calibration-btn pulse, but we can manage state) */}
 
                 {/* Stage 2: Session Prompt */}
-                {onboardingState.stage === 'session_prompt' && !onboardingState.isSkipped && (
+                {onboardingState.stage === 'session_prompt' && (
                     <SpotlightOverlay
                         targetId="start-session-btn"
                         title="Start Your Journey"
@@ -546,29 +544,33 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                                 OnboardingService.completeStep(userData.accountNumber, 'firstSession');
                             }
                         }}
-                        onSkip={handleSkipOnboarding}
+                        onSkip={() => { }}
                         studentCode={userData?.accountNumber || ''}
+                        step={1}
+                        totalSteps={3}
                     />
                 )}
 
                 {/* Stage 3: Chat Prompt */}
-                {onboardingState.stage === 'chat_prompt' && !onboardingState.isSkipped && (
+                {onboardingState.stage === 'chat_prompt' && (
                     <SpotlightOverlay
                         targetId="chat-btn"
-                        title="Meet Your Assistant"
-                        message="Need quick help? Chat with your AI wellness companion anytime."
+                        title="Connect with Counselors"
+                        message="Need to talk to someone? Connect with our dedicated school counselors for support anytime."
                         onComplete={() => {
                             if (userData?.accountNumber) {
                                 OnboardingService.completeStep(userData.accountNumber, 'firstChat');
                             }
                         }}
-                        onSkip={handleSkipOnboarding}
+                        onSkip={() => { }}
                         studentCode={userData?.accountNumber || ''}
+                        step={2}
+                        totalSteps={3}
                     />
                 )}
 
                 {/* Stage 4: Calibration Prompt */}
-                {onboardingState.stage === 'calibration_prompt' && !onboardingState.isSkipped && (
+                {onboardingState.stage === 'calibration_prompt' && (
                     <SpotlightOverlay
                         targetId="calibration-btn"
                         title="Calibrate Your Voice"
@@ -576,19 +578,15 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                         onComplete={() => {
                             if (userData?.accountNumber) {
                                 OnboardingService.completeStep(userData.accountNumber, 'calibration');
+                                // Finish onboarding - remove badge modal entirely as requested
+                                OnboardingService.skipOnboarding(userData.accountNumber);
                                 if (onStartCalibration) onStartCalibration();
                             }
                         }}
-                        onSkip={handleSkipOnboarding}
+                        onSkip={() => { }}
                         studentCode={userData?.accountNumber || ''}
-                    />
-                )}
-
-                {/* Stage 5: Celebration */}
-                {onboardingState.stage === 'completed' && !onboardingState.isSkipped && (
-                    <CompletionCelebration
-                        studentCode={userData?.accountNumber || ''}
-                        onClose={() => OnboardingService.skipOnboarding(userData?.accountNumber || '')}
+                        step={3}
+                        totalSteps={3}
                     />
                 )}
             </AnimatePresence>

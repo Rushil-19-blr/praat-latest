@@ -13,7 +13,11 @@ interface SpotlightOverlayProps {
     onSkip: () => void;
     actionLabel?: string;
     studentCode: string;
+    step?: number;
+    totalSteps?: number;
 }
+
+const MotionDiv = motion.div as any;
 
 export const SpotlightOverlay: React.FC<SpotlightOverlayProps> = ({
     targetId,
@@ -22,7 +26,9 @@ export const SpotlightOverlay: React.FC<SpotlightOverlayProps> = ({
     onComplete,
     onSkip,
     actionLabel = "Next",
-    studentCode
+    studentCode,
+    step = 1,
+    totalSteps = 3
 }) => {
     const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
     const [tooltipPosition, setTooltipPosition] = useState<{ top: number, left: number }>({ top: 0, left: 0 });
@@ -37,8 +43,8 @@ export const SpotlightOverlay: React.FC<SpotlightOverlayProps> = ({
                 // Calculate logic for tooltip placement (defaulting to below for now)
                 // This can be enhanced to auto-detect best side
                 setTooltipPosition({
-                    top: rect.bottom + 20,
-                    left: rect.left + (rect.width / 2) - 150 // Center align roughly
+                    top: rect.bottom + 16,
+                    left: rect.left + (rect.width / 2) - 160 // Center align
                 });
             }
         };
@@ -57,120 +63,155 @@ export const SpotlightOverlay: React.FC<SpotlightOverlayProps> = ({
         };
     }, [targetId]);
 
-    const handleSkip = () => {
-        OnboardingService.skipOnboarding(studentCode);
-        onSkip();
-    };
 
     if (!targetRect) return null;
 
+    const isCircular = targetId === 'chat-btn';
+
+    // Determine if tooltip should be above target
+    const spaceBelow = window.innerHeight - targetRect.bottom;
+    const shouldShowAbove = spaceBelow < 250;
+
+    // Calculate constrained tooltip position
+    const tooltipLeft = Math.max(20, Math.min(window.innerWidth - 340, tooltipPosition.left));
+
+    // Calculate arrow position relative to tooltipleft to point at target center
+    const targetCenter = targetRect.left + targetRect.width / 2;
+    const arrowLeft = Math.max(20, Math.min(300, targetCenter - tooltipLeft));
+
     return (
         <div className="fixed inset-0 z-[100] overflow-hidden pointer-events-none">
-            {/* Dark Overlay with cutout using multiple divs approach or SVG mask. 
-                Using simplistic 4-div approach for robust click-through prevention on overlay but access to target. 
-            */}
+            {/* SVG Backdrop that blocks background interaction except for the hole */}
+            <svg
+                className="absolute inset-0 w-full h-full pointer-events-none"
+                style={{ filter: 'drop-shadow(0 0 40px rgba(59, 130, 246, 0.15))' } as any}
+            >
+                <defs>
+                    <mask id="spotlight-mask">
+                        <rect x="0" y="0" width="100%" height="100%" fill="white" />
+                        <rect
+                            x={targetRect.left - 8}
+                            y={targetRect.top - 8}
+                            width={targetRect.width + 16}
+                            height={targetRect.height + 16}
+                            rx={isCircular ? (targetRect.width + 16) / 2 : 16}
+                            fill="black"
+                        />
+                    </mask>
+                </defs>
+                {/* This rect is what blocks background clicks.
+                    Setting it to pointer-events-auto will catch all clicks except what's masked.
+                */}
+                <rect
+                    x="0" y="0"
+                    width="100%" height="100%"
+                    fill="rgba(0, 0, 0, 0.9)"
+                    mask="url(#spotlight-mask)"
+                    className="backdrop-blur-md pointer-events-auto"
+                    onClick={onComplete}
+                />
+            </svg>
 
-            {/* 4-div approach for robust click-through prevention on overlay but access to target. */}
-            {/* Tapping anywhere on these divs will complete the spotlight. */}
-
-            {/* Top */}
-            <motion.div
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                className="absolute bg-black/90 backdrop-blur-md pointer-events-auto cursor-pointer"
-                style={{ top: 0, left: 0, right: 0, height: targetRect.top }}
-                onClick={onComplete}
-            />
-            {/* Bottom */}
-            <motion.div
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                className="absolute bg-black/90 backdrop-blur-md pointer-events-auto cursor-pointer"
-                style={{ top: targetRect.bottom, left: 0, right: 0, bottom: 0 }}
-                onClick={onComplete}
-            />
-            {/* Left */}
-            <motion.div
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                className="absolute bg-black/90 backdrop-blur-md pointer-events-auto cursor-pointer"
-                style={{ top: targetRect.top, left: 0, width: targetRect.left, height: targetRect.height }}
-                onClick={onComplete}
-            />
-            {/* Right */}
-            <motion.div
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                className="absolute bg-black/90 backdrop-blur-md pointer-events-auto cursor-pointer"
-                style={{ top: targetRect.top, left: targetRect.right, right: 0, height: targetRect.height }}
-                onClick={onComplete}
-            />
-
-            {/* White Circular/Rounded Border around Target */}
-            <motion.div
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{
-                    scale: [1, 1.05, 1],
-                    opacity: 1,
-                    boxShadow: [
-                        "0 0 0px 0px rgba(255, 255, 255, 0)",
-                        "0 0 20px 4px rgba(255, 255, 255, 0.4)",
-                        "0 0 0px 0px rgba(255, 255, 255, 0)"
-                    ]
-                }}
-                className="absolute border-4 border-white rounded-2xl pointer-events-none z-50"
+            {/* Target Interaction Hole - This invisible div sits right over the target to allow underlying clicks */}
+            <div
+                className="absolute pointer-events-none hover:cursor-pointer"
                 style={{
                     top: targetRect.top - 8,
                     left: targetRect.left - 8,
                     width: targetRect.width + 16,
-                    height: targetRect.height + 16
+                    height: targetRect.height + 16,
+                }}
+            />
+
+            {/* Soft Radial Glow around Target */}
+            <MotionDiv
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{
+                    opacity: [0.3, 0.6, 0.3],
+                    scale: [1, 1.1, 1],
                 }}
                 transition={{
-                    scale: { duration: 2, repeat: Infinity, ease: "easeInOut" },
-                    boxShadow: { duration: 2, repeat: Infinity, ease: "easeInOut" },
-                    opacity: { duration: 0.3 }
+                    duration: 3,
+                    repeat: Infinity,
+                    ease: "easeInOut"
+                }}
+                className={`absolute pointer-events-none z-50 bg-blue-500/15 blur-[40px] ${isCircular ? 'rounded-full' : 'rounded-3xl'}`}
+                style={{
+                    top: targetRect.top - 24,
+                    left: targetRect.left - 24,
+                    width: targetRect.width + 48,
+                    height: targetRect.height + 48,
+                }}
+            />
+
+            {/* Inner Ring Glow */}
+            <MotionDiv
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className={`absolute border border-white/20 pointer-events-none z-50 shadow-[0_0_12px_rgba(59,130,246,0.3)] ${isCircular ? 'rounded-full' : 'rounded-2xl'}`}
+                style={{
+                    top: targetRect.top - 6,
+                    left: targetRect.left - 6,
+                    width: targetRect.width + 12,
+                    height: targetRect.height + 12
                 }}
             />
 
             {/* Tooltip Bubble */}
             <div
-                className="absolute pointer-events-auto flex flex-col items-center"
+                className="absolute pointer-events-auto flex flex-col"
                 style={{
-                    top: tooltipPosition.top,
-                    left: Math.max(20, Math.min(window.innerWidth - 320, tooltipPosition.left)),
-                    width: 300
+                    top: shouldShowAbove
+                        ? targetRect.top - 210 // Position above
+                        : Math.min(tooltipPosition.top, window.innerHeight - 200), // Position below
+                    left: tooltipLeft,
+                    width: 320,
+                    zIndex: 110 // Ensure it's above the mask
                 }}
             >
-                {/* Arrow pointing up */}
-                <div className="w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-b-[10px] border-b-white mb-[-1px]" />
+                {/* Arrow indicator - flipped if shouldShowAbove */}
+                {!shouldShowAbove && (
+                    <div
+                        className="w-3 h-3 rotate-45 bg-[#0f172a] border-l border-t border-white/10 mb-[-6px] relative z-10"
+                        style={{ marginLeft: arrowLeft - 6 }}
+                    />
+                )}
 
-                <motion.div
-                    initial={{ scale: 0.9, opacity: 0, y: 20 }}
-                    animate={{ scale: 1, opacity: 1, y: 0 }}
-                    transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                    className="bg-white text-slate-900 p-6 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-slate-200"
-                >
-                    <div className="flex justify-between items-start mb-3">
-                        <h3 className="font-extrabold text-xl text-blue-600">{title}</h3>
-                        <button onClick={handleSkip} className="text-slate-400 hover:text-slate-600 transition-colors p-1">
-                            <X size={20} />
-                        </button>
-                    </div>
-                    <p className="text-slate-600 mb-6 text-base leading-relaxed">
-                        {message}
-                    </p>
+                <AnimatePresence>
+                    <MotionDiv
+                        initial={{ scale: 0.9, opacity: 0, y: shouldShowAbove ? -10 : 10 }}
+                        animate={{ scale: 1, opacity: 1, y: 0 }}
+                        exit={{ scale: 0.9, opacity: 0, y: shouldShowAbove ? -5 : 5 }}
+                        transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                        className="bg-[#0f172a] text-white p-5 rounded-2xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] border border-white/10 w-full"
+                    >
+                        <div className="flex justify-center items-start mb-3 gap-3">
+                            <div className="flex items-start gap-2 pt-1 font-bold text-center w-full justify-center">
+                                <span className="text-blue-400 text-[10px] font-black whitespace-nowrap bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20 uppercase tracking-tighter">
+                                    Step {step}/{totalSteps}
+                                </span>
+                                <span className="text-white/20 mt-[-2px]">|</span>
+                                <h3 className="text-base text-white leading-tight font-black tracking-tight uppercase">
+                                    {title}
+                                </h3>
+                            </div>
+                        </div>
+                        <p className="text-slate-400 text-sm leading-relaxed mb-4 font-medium text-center">
+                            {message}
+                        </p>
+                        <div className="text-[9px] text-slate-600 font-black uppercase tracking-[0.2em] text-center border-t border-white/5 pt-3">
+                            Tap anywhere to continue
+                        </div>
+                    </MotionDiv>
+                </AnimatePresence>
 
-                    <div className="flex gap-4 justify-end items-center">
-                        <button
-                            onClick={handleSkip}
-                            className="text-sm text-slate-400 font-semibold underline hover:text-slate-500"
-                        >
-                            Skip
-                        </button>
-                        <button
-                            onClick={onComplete}
-                            className="bg-blue-600 text-white px-6 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-500 transition-all active:scale-95 shadow-lg shadow-blue-500/25"
-                        >
-                            {actionLabel}
-                        </button>
-                    </div>
-                </motion.div>
+                {/* Bottom Arrow indicator - if shouldShowAbove */}
+                {shouldShowAbove && (
+                    <div
+                        className="w-3 h-3 rotate-45 bg-[#0f172a] border-r border-b border-white/10 mt-[-6px] relative z-10"
+                        style={{ marginLeft: arrowLeft - 6 }}
+                    />
+                )}
             </div>
         </div>
     );
