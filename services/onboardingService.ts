@@ -64,15 +64,12 @@ export const OnboardingService = {
         // Auto-advance logic based on completion
         if (step === 'welcome') {
             state.hasSeenWelcome = true;
-            // If they finish welcome, next is calibration prompt (usually implied by flow)
-            // But actually, after welcome carousel, they land on calibration screen directly.
-            // So we might settle on 'calibration_prompt' as the active stage until they finish calibration.
-            state.stage = 'calibration_prompt';
-        } else if (step === 'calibration') {
             state.stage = 'session_prompt';
         } else if (step === 'firstSession') {
             state.stage = 'chat_prompt';
         } else if (step === 'firstChat') {
+            state.stage = 'calibration_prompt';
+        } else if (step === 'calibration') {
             state.stage = 'completed';
         }
 

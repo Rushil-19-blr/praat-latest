@@ -70,45 +70,62 @@ export const SpotlightOverlay: React.FC<SpotlightOverlayProps> = ({
                 Using simplistic 4-div approach for robust click-through prevention on overlay but access to target. 
             */}
 
+            {/* 4-div approach for robust click-through prevention on overlay but access to target. */}
+            {/* Tapping anywhere on these divs will complete the spotlight. */}
+
             {/* Top */}
             <motion.div
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                className="absolute bg-black/70 pointer-events-auto"
+                className="absolute bg-black/90 backdrop-blur-md pointer-events-auto cursor-pointer"
                 style={{ top: 0, left: 0, right: 0, height: targetRect.top }}
+                onClick={onComplete}
             />
             {/* Bottom */}
             <motion.div
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                className="absolute bg-black/70 pointer-events-auto"
+                className="absolute bg-black/90 backdrop-blur-md pointer-events-auto cursor-pointer"
                 style={{ top: targetRect.bottom, left: 0, right: 0, bottom: 0 }}
+                onClick={onComplete}
             />
             {/* Left */}
             <motion.div
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                className="absolute bg-black/70 pointer-events-auto"
+                className="absolute bg-black/90 backdrop-blur-md pointer-events-auto cursor-pointer"
                 style={{ top: targetRect.top, left: 0, width: targetRect.left, height: targetRect.height }}
+                onClick={onComplete}
             />
             {/* Right */}
             <motion.div
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                className="absolute bg-black/70 pointer-events-auto"
+                className="absolute bg-black/90 backdrop-blur-md pointer-events-auto cursor-pointer"
                 style={{ top: targetRect.top, left: targetRect.right, right: 0, height: targetRect.height }}
+                onClick={onComplete}
             />
 
-            {/* Glowing Border around Target */}
+            {/* White Circular/Rounded Border around Target */}
             <motion.div
-                className="absolute border-4 border-yellow-400 rounded-xl pointer-events-none"
-                style={{
-                    top: targetRect.top - 4,
-                    left: targetRect.left - 4,
-                    width: targetRect.width + 8,
-                    height: targetRect.height + 8
-                }}
+                initial={{ scale: 0.8, opacity: 0 }}
                 animate={{
-                    boxShadow: ["0 0 0px rgba(250, 204, 21, 0)", "0 0 20px rgba(250, 204, 21, 0.6)", "0 0 0px rgba(250, 204, 21, 0)"],
-                    scale: [1, 1.02, 1]
+                    scale: [1, 1.05, 1],
+                    opacity: 1,
+                    boxShadow: [
+                        "0 0 0px 0px rgba(255, 255, 255, 0)",
+                        "0 0 20px 4px rgba(255, 255, 255, 0.4)",
+                        "0 0 0px 0px rgba(255, 255, 255, 0)"
+                    ]
                 }}
-                transition={{ duration: 2, repeat: Infinity }}
+                className="absolute border-4 border-white rounded-2xl pointer-events-none z-50"
+                style={{
+                    top: targetRect.top - 8,
+                    left: targetRect.left - 8,
+                    width: targetRect.width + 16,
+                    height: targetRect.height + 16
+                }}
+                transition={{
+                    scale: { duration: 2, repeat: Infinity, ease: "easeInOut" },
+                    boxShadow: { duration: 2, repeat: Infinity, ease: "easeInOut" },
+                    opacity: { duration: 0.3 }
+                }}
             />
 
             {/* Tooltip Bubble */}
@@ -124,30 +141,31 @@ export const SpotlightOverlay: React.FC<SpotlightOverlayProps> = ({
                 <div className="w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-b-[10px] border-b-white mb-[-1px]" />
 
                 <motion.div
-                    initial={{ y: 20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    className="bg-white text-slate-900 p-5 rounded-xl shadow-2xl border border-slate-200"
+                    initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                    animate={{ scale: 1, opacity: 1, y: 0 }}
+                    transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                    className="bg-white text-slate-900 p-6 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-slate-200"
                 >
-                    <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-bold text-lg">{title}</h3>
-                        <button onClick={handleSkip} className="text-slate-400 hover:text-slate-600">
-                            <X size={16} />
+                    <div className="flex justify-between items-start mb-3">
+                        <h3 className="font-extrabold text-xl text-blue-600">{title}</h3>
+                        <button onClick={handleSkip} className="text-slate-400 hover:text-slate-600 transition-colors p-1">
+                            <X size={20} />
                         </button>
                     </div>
-                    <p className="text-slate-600 mb-4 text-sm leading-relaxed">
+                    <p className="text-slate-600 mb-6 text-base leading-relaxed">
                         {message}
                     </p>
 
-                    <div className="flex gap-3 justify-end items-center">
+                    <div className="flex gap-4 justify-end items-center">
                         <button
                             onClick={handleSkip}
-                            className="text-xs text-slate-400 font-medium underline hover:text-slate-600"
+                            className="text-sm text-slate-400 font-semibold underline hover:text-slate-500"
                         >
-                            Skip Tour
+                            Skip
                         </button>
                         <button
                             onClick={onComplete}
-                            className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/30"
+                            className="bg-blue-600 text-white px-6 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-500 transition-all active:scale-95 shadow-lg shadow-blue-500/25"
                         >
                             {actionLabel}
                         </button>

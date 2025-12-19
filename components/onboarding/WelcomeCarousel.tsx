@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, ArrowLeft, Mic, Activity, Trophy, X } from 'lucide-react';
 import { OnboardingService } from '../../services/onboardingService';
@@ -37,6 +37,14 @@ const SLIDES = [
 export const WelcomeCarousel: React.FC<WelcomeCarouselProps> = ({ studentCode, onComplete }) => {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [direction, setDirection] = useState(0);
+
+    useEffect(() => {
+        // Prevent background scrolling
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, []);
 
     const handleNext = () => {
         if (currentIndex < SLIDES.length - 1) {
@@ -93,7 +101,7 @@ export const WelcomeCarousel: React.FC<WelcomeCarouselProps> = ({ studentCode, o
                     Skip Tour
                 </button>
 
-                <div className="relative h-[500px] flex flex-col">
+                <div className="relative min-h-[600px] flex flex-col">
                     <AnimatePresence initial={false} custom={direction} mode="wait">
                         <motion.div
                             key={currentIndex}
@@ -108,8 +116,8 @@ export const WelcomeCarousel: React.FC<WelcomeCarouselProps> = ({ studentCode, o
                             }}
                             className="absolute inset-0 flex flex-col items-center p-8 text-center"
                         >
-                            {/* Visual Area (60%) */}
-                            <div className={`w-full flex-1 flex items-center justify-center rounded-2xl mb-8 bg-gradient-to-br ${SLIDES[currentIndex].color} shadow-lg relative overflow-hidden group`}>
+                            {/* Visual Area (55%) */}
+                            <div className={`w-full flex-[1.2] flex items-center justify-center rounded-3xl mb-10 bg-gradient-to-br ${SLIDES[currentIndex].color} shadow-2xl relative overflow-hidden group`}>
                                 <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                                 <motion.div
                                     initial={{ scale: 0.5, opacity: 0 }}
@@ -120,13 +128,13 @@ export const WelcomeCarousel: React.FC<WelcomeCarouselProps> = ({ studentCode, o
                                 </motion.div>
                             </div>
 
-                            {/* Text Area (30%) */}
-                            <div className="w-full mb-8">
+                            {/* Text Area (35%) */}
+                            <div className="w-full mb-10 px-4">
                                 <motion.h2
                                     initial={{ y: 20, opacity: 0 }}
                                     animate={{ y: 0, opacity: 1 }}
                                     transition={{ delay: 0.3 }}
-                                    className="text-2xl font-bold text-white mb-3"
+                                    className="text-3xl font-extrabold text-white mb-4 tracking-tight"
                                 >
                                     {SLIDES[currentIndex].title}
                                 </motion.h2>
@@ -134,7 +142,7 @@ export const WelcomeCarousel: React.FC<WelcomeCarouselProps> = ({ studentCode, o
                                     initial={{ y: 20, opacity: 0 }}
                                     animate={{ y: 0, opacity: 1 }}
                                     transition={{ delay: 0.4 }}
-                                    className="text-slate-300 leading-relaxed"
+                                    className="text-slate-300 text-lg leading-relaxed max-w-md mx-auto"
                                 >
                                     {SLIDES[currentIndex].body}
                                 </motion.p>

@@ -448,6 +448,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                 {onStartCalibration && (
                     <div className="calibration-section">
                         <button
+                            id="calibration-btn"
                             onClick={onStartCalibration}
                             className="calibration-btn"
                             title="Calibration"
@@ -540,7 +541,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                         targetId="start-session-btn"
                         title="Start Your Journey"
                         message="Click here to begin your first wellness session with our AI."
-                        onComplete={() => { }} // Waits for user content interaction
+                        onComplete={() => {
+                            if (userData?.accountNumber) {
+                                OnboardingService.completeStep(userData.accountNumber, 'firstSession');
+                            }
+                        }}
                         onSkip={handleSkipOnboarding}
                         studentCode={userData?.accountNumber || ''}
                     />
@@ -552,13 +557,34 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                         targetId="chat-btn"
                         title="Meet Your Assistant"
                         message="Need quick help? Chat with your AI wellness companion anytime."
-                        onComplete={() => { }}
+                        onComplete={() => {
+                            if (userData?.accountNumber) {
+                                OnboardingService.completeStep(userData.accountNumber, 'firstChat');
+                            }
+                        }}
                         onSkip={handleSkipOnboarding}
                         studentCode={userData?.accountNumber || ''}
                     />
                 )}
 
-                {/* Stage 4: Celebration */}
+                {/* Stage 4: Calibration Prompt */}
+                {onboardingState.stage === 'calibration_prompt' && !onboardingState.isSkipped && (
+                    <SpotlightOverlay
+                        targetId="calibration-btn"
+                        title="Calibrate Your Voice"
+                        message="Set up your voice baseline here for accurate stress tracking."
+                        onComplete={() => {
+                            if (userData?.accountNumber) {
+                                OnboardingService.completeStep(userData.accountNumber, 'calibration');
+                                if (onStartCalibration) onStartCalibration();
+                            }
+                        }}
+                        onSkip={handleSkipOnboarding}
+                        studentCode={userData?.accountNumber || ''}
+                    />
+                )}
+
+                {/* Stage 5: Celebration */}
                 {onboardingState.stage === 'completed' && !onboardingState.isSkipped && (
                     <CompletionCelebration
                         studentCode={userData?.accountNumber || ''}
