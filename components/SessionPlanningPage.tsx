@@ -639,6 +639,76 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
                         </div>
                     </GlassCard>
 
+                    {/* New Section: Daily Wellness Tasks */}
+                    <GlassCard
+                        className="p-6 bg-black/40 backdrop-blur-xl border-white/10 shadow-xl"
+                        variant="base"
+                    >
+                        <div className="flex items-center gap-4 mb-6 pb-6 border-b border-white/5">
+                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center border border-white/5 shadow-inner">
+                                <Plus className="w-6 h-6 text-emerald-300" />
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-semibold text-white tracking-tight">Daily Wellness Tasks</h2>
+                                <p className="text-sm text-text-muted mt-1">
+                                    Set specific tasks for the student to complete in their daily dashboard.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-3">
+                            <AnimatePresence>
+                                {(plan.assignedTasks || []).map((task, index) => (
+                                    <MotionDiv
+                                        key={index}
+                                        initial={{ opacity: 0, scale: 0.95 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        exit={{ opacity: 0, x: -20 }}
+                                        className="flex items-center gap-3 p-3 bg-white/5 border border-white/10 rounded-xl group"
+                                    >
+                                        <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 text-xs font-bold">
+                                            {index + 1}
+                                        </div>
+                                        <input
+                                            type="text"
+                                            value={task}
+                                            onChange={(e) => {
+                                                const newTasks = [...(plan.assignedTasks || [])];
+                                                newTasks[index] = e.target.value;
+                                                setPlan({ ...plan, assignedTasks: newTasks });
+                                                setHasChanges(true);
+                                            }}
+                                            placeholder="Enter task description..."
+                                            className="flex-1 bg-transparent border-none focus:ring-0 text-white placeholder-text-muted text-sm"
+                                        />
+                                        <button
+                                            onClick={() => {
+                                                const newTasks = (plan.assignedTasks || []).filter((_, i) => i !== index);
+                                                setPlan({ ...plan, assignedTasks: newTasks });
+                                                setHasChanges(true);
+                                            }}
+                                            className="p-2 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/20 rounded-lg"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </MotionDiv>
+                                ))}
+                            </AnimatePresence>
+
+                            <button
+                                onClick={() => {
+                                    const newTasks = [...(plan.assignedTasks || []), ""];
+                                    setPlan({ ...plan, assignedTasks: newTasks });
+                                    setHasChanges(true);
+                                }}
+                                className="w-full py-3 border-2 border-dashed border-emerald-500/20 rounded-xl text-emerald-400 hover:bg-emerald-500/10 transition-colors flex items-center justify-center gap-2 text-sm"
+                            >
+                                <Plus className="w-4 h-4" />
+                                Add Targeted Task
+                            </button>
+                        </div>
+                    </GlassCard>
+
                     {/* Bottom Row: Focus (Full Width now) */}
                     <div className="w-full">
                         {/* Focus Topic Section */}

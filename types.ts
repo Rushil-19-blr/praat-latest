@@ -175,6 +175,9 @@ export interface SessionPlan {
   focusTopic: string;
   focusIntensity: FocusIntensity;
 
+  // Teacher-assigned daily tasks
+  assignedTasks?: string[];
+
   // Plan state
   isActive: boolean;
   useForNextSessionOnly: boolean;

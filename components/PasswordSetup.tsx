@@ -1,5 +1,7 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { LockIcon, EyeIcon, EyeOffIcon, CheckCircleIcon } from './icons/index';
+import GlassCard from './GlassCard';
+import { cn } from '../lib/utils';
 
 interface PasswordSetupProps {
   accountNumber: string;
@@ -20,7 +22,6 @@ const PasswordSetup: React.FC<PasswordSetupProps> = ({ accountNumber, onSubmit }
 
   const isFormValid = isPinCorrect && isPasswordValid && doPasswordsMatch;
 
-  // Individual digit validation
   const getDigitValidation = (index: number) => {
     if (pin[index] === '') return 'neutral';
     return pin[index] === accountNumber[index] ? 'correct' : 'incorrect';
@@ -28,7 +29,6 @@ const PasswordSetup: React.FC<PasswordSetupProps> = ({ accountNumber, onSubmit }
 
   const handlePinChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
     const { value } = e.target;
-    // Allow only single digits
     if (/^[0-9]?$/.test(value)) {
       const newPin = [...pin];
       newPin[index] = value;
@@ -44,7 +44,7 @@ const PasswordSetup: React.FC<PasswordSetupProps> = ({ accountNumber, onSubmit }
       inputRefs.current[index - 1]?.focus();
     }
   };
-  
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (isFormValid) {
@@ -53,95 +53,99 @@ const PasswordSetup: React.FC<PasswordSetupProps> = ({ accountNumber, onSubmit }
   };
 
   return (
-    <div className="w-full max-w-sm mx-auto animate-fade-in-up">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-        <div className="bg-slate-800/50 rounded-2xl p-6 border border-slate-700 backdrop-blur-sm">
-          <label className="block text-sm font-medium text-slate-300 mb-4">Re-enter your 4-digit Account Number</label>
-          <div className="flex items-center gap-4 relative pr-12">
+    <div className="w-full max-w-[440px] mx-auto p-6 animate-in fade-in slide-in-from-bottom-6 duration-700">
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <GlassCard className="p-8 md:p-10 !rounded-[40px] border-white/10 shadow-3xl">
+          <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/20 mb-8 text-center italic">IDENTITY CONFIRMATION</h2>
+          <div className="flex items-center gap-3 relative justify-center">
             {pin.map((digit, i) => {
               const validation = getDigitValidation(i);
-              const getBorderColor = () => {
-                if (validation === 'correct') return 'border-green-500';
-                if (validation === 'incorrect') return 'border-red-500';
-                return 'border-slate-600';
-              };
-              const getTextColor = () => {
-                if (validation === 'correct') return 'text-green-400';
-                if (validation === 'incorrect') return 'text-red-400';
-                return 'text-white';
-              };
-              const getBgColor = () => {
-                if (validation === 'correct') return 'bg-green-900/20';
-                if (validation === 'incorrect') return 'bg-red-900/20';
-                return 'bg-slate-900/50';
-              };
-              
               return (
                 <input
                   key={i}
-                  ref={el => inputRefs.current[i] = el}
+                  ref={el => { inputRefs.current[i] = el; }}
                   type="text"
                   inputMode="numeric"
                   maxLength={1}
                   value={digit}
                   onChange={(e) => handlePinChange(e, i)}
                   onKeyDown={(e) => handleKeyDown(e, i)}
-                  className={`w-full aspect-square text-3xl text-center rounded-lg border-2 ${getBorderColor()} ${getBgColor()} ${getTextColor()} focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none transition-all duration-200`}
+                  className={cn(
+                    "w-full aspect-[4/5] text-4xl font-black text-center rounded-[20px] border transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-purple-500/50",
+                    validation === 'correct' ? "bg-green-500/10 border-green-500/50 text-green-400" :
+                      validation === 'incorrect' ? "bg-red-500/10 border-red-500/50 text-red-400" :
+                        "bg-white/[0.03] border-white/10 text-white shadow-inner"
+                  )}
                 />
               );
             })}
-            <div className={`absolute -right-2 top-1/2 -translate-y-1/2 text-green-400 transition-opacity duration-300 ${isPinCorrect ? 'opacity-100' : 'opacity-0'}`}>
-              <CheckCircleIcon />
-            </div>
+            {isPinCorrect && (
+              <div className="absolute -right-2 md:-right-6 top-1/2 -translate-y-1/2 text-green-500 animate-in zoom-in duration-500">
+                <CheckCircleIcon className="w-7 h-7" />
+              </div>
+            )}
           </div>
-        </div>
+        </GlassCard>
 
-        <div className="bg-slate-800/50 rounded-2xl p-6 border border-slate-700 backdrop-blur-sm">
-          <label className="block text-sm font-medium text-slate-300 mb-4">Set Your Password</label>
-          <div className="relative mb-4">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"><LockIcon /></span>
+        <GlassCard className="p-8 md:p-10 !rounded-[40px] border-white/10 shadow-3xl space-y-6">
+          <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/20 mb-2 italic">CREATE SECURITY KEY</h2>
+
+          <div className="relative group">
+            <span className="absolute left-5 top-1/2 -translate-y-1/2 text-white/10 group-focus-within:text-purple-400 transition-colors">
+              <LockIcon className="w-5 h-5" />
+            </span>
             <input
               type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={e => setPassword(e.target.value)}
               placeholder="Minimum 6 characters"
-              className="w-full bg-slate-900/50 border-2 border-slate-600 rounded-lg text-white py-3.5 pl-12 pr-12 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none transition-all duration-200 placeholder:text-slate-500"
+              className="w-full bg-white/[0.03] border border-white/10 rounded-[22px] py-5 px-14 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all duration-300 placeholder:text-white/10"
             />
-            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors">
-              {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-5 top-1/2 -translate-y-1/2 text-white/10 hover:text-white/40 transition-colors"
+            >
+              {showPassword ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
             </button>
           </div>
-          <div className="relative">
-             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"><LockIcon /></span>
+
+          <div className="relative group">
+            <span className="absolute left-5 top-1/2 -translate-y-1/2 text-white/10 group-focus-within:text-purple-400 transition-colors">
+              <LockIcon className="w-5 h-5" />
+            </span>
             <input
               type="password"
               value={confirmPassword}
               onChange={e => setConfirmPassword(e.target.value)}
-              placeholder="Re-enter Password"
-              className="w-full bg-slate-900/50 border-2 border-slate-600 rounded-lg text-white py-3.5 pl-12 pr-4 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none transition-all duration-200 placeholder:text-slate-500"
+              placeholder="Verify Security Key"
+              className="w-full bg-white/[0.03] border border-white/10 rounded-[22px] py-5 px-14 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all duration-300 placeholder:text-white/10"
             />
           </div>
-          {!isPasswordValid && password.length > 0 && <p className="text-red-400 text-xs mt-2 ml-1">Password must be at least 6 characters long.</p>}
-          {!doPasswordsMatch && confirmPassword.length > 0 && <p className="text-red-400 text-xs mt-2 ml-1">Passwords do not match.</p>}
-        </div>
-        
+
+          <div className="space-y-1 px-1">
+            {!isPasswordValid && password.length > 0 && (
+              <p className="text-red-400/60 text-[9px] font-black uppercase tracking-widest">Insufficient length (min. 6)</p>
+            )}
+            {!doPasswordsMatch && confirmPassword.length > 0 && (
+              <p className="text-red-400/60 text-[9px] font-black uppercase tracking-widest">Key mismatch detected</p>
+            )}
+          </div>
+        </GlassCard>
+
         <button
           type="submit"
           disabled={!isFormValid}
-          className="w-full py-4 px-6 rounded-xl text-white font-semibold bg-gradient-to-r from-purple-600 to-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed hover:from-purple-500 hover:to-indigo-500 transition-all duration-200 shadow-lg shadow-purple-500/30"
+          className={cn(
+            "w-full py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-500 shadow-3xl",
+            isFormValid
+              ? "bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-purple-500/30 hover:scale-[1.02] active:scale-[0.98]"
+              : "bg-white/5 text-white/10 cursor-not-allowed border border-white/5"
+          )}
         >
-          Create Account
+          Initialize Core Account
         </button>
       </form>
-      <style>{`
-        @keyframes fade-in-up {
-          0% { opacity: 0; transform: translateY(20px); }
-          100% { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-in-up {
-          animation: fade-in-up 0.5s ease-out forwards;
-        }
-      `}</style>
     </div>
   );
 };

@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { ScratchToReveal } from './ui/scratch-to-reveal';
+import GlassCard from './GlassCard';
+import { cn } from '../lib/utils';
 
 interface ScratchCardProps {
   accountNumber: string;
@@ -14,53 +16,45 @@ const ScratchCard: React.FC<ScratchCardProps> = ({ accountNumber, onComplete }) 
   };
 
   return (
-    <div className="flex flex-col items-center justify-center w-full max-w-lg mx-auto animate-fade-in p-4">
-      <h1 className="text-4xl font-bold text-slate-100 mb-2">Your Account Number</h1>
-      <p className="text-slate-400 mb-8 text-center">Scratch the card below to reveal your unique 4-digit ID.</p>
-      
-      <ScratchToReveal
-        width={600}
-        height={300}
-        minScratchPercentage={70}
-        className="flex items-center justify-center overflow-hidden rounded-2xl border-2 border-purple-500/80 bg-slate-900 shadow-2xl"
-        onScratchComplete={handleScratchComplete}
-        gradientColors={["#7C3AED", "#8B5CF6", "#A855F7"]}
-      >
-        <span className="text-7xl font-bold tracking-[0.2em] text-white">{accountNumber}</span>
-      </ScratchToReveal>
+    <div className="flex flex-col items-center justify-center w-full max-w-[440px] mx-auto p-6 animate-in fade-in zoom-in-95 duration-500">
+      <GlassCard className="w-full p-8 md:p-10 !rounded-[40px] border-white/10 shadow-3xl text-center">
+        <h1 className="text-3xl font-black tracking-tighter text-white uppercase italic mb-2">SECRET REVEAL</h1>
+        <p className="text-[10px] font-black text-white/20 mb-8 uppercase tracking-[0.2em] leading-relaxed">
+          Scratch the panel below to <span className="text-purple-400">Unlock</span> your unique ID.
+        </p>
 
-      <p className="text-sm text-slate-500 mt-8 text-center">Remember this 4-digit number - it's your unique account ID.</p>
-      
-      <div className="w-full max-w-sm mt-8">
+        <div className="flex justify-center mb-6 p-1.5 bg-black/40 rounded-[32px] border border-white/5 shadow-inner">
+          <ScratchToReveal
+            width={280}
+            height={160}
+            minScratchPercentage={70}
+            className="flex items-center justify-center overflow-hidden rounded-[24px] border border-white/10 bg-black/60 shadow-2xl"
+            onScratchComplete={handleScratchComplete}
+            gradientColors={["#a855f7", "#6366f1", "#4f46e5"]}
+          >
+            <span className="text-5xl font-black tracking-[0.2em] text-white bg-gradient-to-br from-white to-white/60 bg-clip-text">
+              {accountNumber}
+            </span>
+          </ScratchToReveal>
+        </div>
+
+        <p className="text-[9px] font-bold text-white/10 uppercase tracking-[0.2em] mb-8 max-w-[200px] mx-auto">
+          This 4-digit security code is your permanent access credential.
+        </p>
+
         <button
           onClick={onComplete}
           disabled={!isRevealed}
-          className={`w-full py-4 rounded-xl text-white font-semibold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 transition-all duration-500 shadow-lg shadow-purple-500/20 ${
-            isRevealed 
-              ? 'opacity-100 pointer-events-auto animate-fade-in-up' 
-              : 'opacity-0 pointer-events-none'
-          }`}
+          className={cn(
+            "w-full py-5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all duration-500 shadow-2xl",
+            isRevealed
+              ? "bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-purple-500/30 opacity-100 translate-y-0 hover:scale-[1.02] active:scale-[0.98]"
+              : "opacity-0 translate-y-4 pointer-events-none"
+          )}
         >
-          Proceed
+          Secure & Proceed
         </button>
-      </div>
-
-      <style>{`
-        @keyframes fade-in {
-          0% { opacity: 0; transform: scale(0.95); }
-          100% { opacity: 1; transform: scale(1); }
-        }
-        @keyframes fade-in-up {
-          0% { opacity: 0; transform: translateY(10px); }
-          100% { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-in {
-          animation: fade-in 0.5s ease-out forwards;
-        }
-        .animate-fade-in-up {
-          animation: fade-in-up 0.5s ease-out forwards;
-        }
-      `}</style>
+      </GlassCard>
     </div>
   );
 };

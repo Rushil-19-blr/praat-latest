@@ -2,6 +2,9 @@
 
 import * as React from 'react';
 import { motion, useAnimation, AnimatePresence } from 'framer-motion';
+const MotionDiv = motion.div as any;
+const MotionP = motion.p as any;
+const MotionSVG = motion.svg as any;
 import {
     Droplet,
     Moon,
@@ -107,8 +110,32 @@ export const FloatingWellbeingBar: React.FC<FloatingWellbeingBarProps> = ({ clas
             try {
                 const parsedUserData = JSON.parse(userData);
                 const studentCode = parsedUserData.accountNumber;
+
+                // 1. Fetch teacher-assigned tasks from SessionPlan
+                const plansKey = 'awaaz_session_plans'; // Const from planningService
+                const savedPlans = localStorage.getItem(plansKey);
+                let teacherTasks: SuggestionItem[] = [];
+
+                if (savedPlans) {
+                    const plans = JSON.parse(savedPlans);
+                    const plan = plans[studentCode];
+                    if (plan && plan.isActive && plan.assignedTasks) {
+                        teacherTasks = plan.assignedTasks
+                            .filter((t: string) => t.trim() !== '')
+                            .map((label: string, idx: number) => ({
+                                id: `teacher_${idx}`,
+                                label: label,
+                                type: 'immediate',
+                                completed: false
+                            }));
+                    }
+                }
+
+                // 2. Fetch AI suggestions
                 const suggestionsKey = `suggestions_${studentCode}`;
                 const savedSuggestions = localStorage.getItem(suggestionsKey);
+                let aiItems: any[] = [];
+
                 if (savedSuggestions) {
                     const suggestionsData = JSON.parse(savedSuggestions);
                     if (suggestionsData.suggestions && suggestionsData.suggestions.length > 0) {
@@ -119,10 +146,29 @@ export const FloatingWellbeingBar: React.FC<FloatingWellbeingBarProps> = ({ clas
                             ...s,
                             completed: completedMap[s.id] || false
                         }));
-                        const items = convertSuggestionsToItems(suggestionsWithCompletion);
-                        if (items.length > 0) return items;
+                        aiItems = convertSuggestionsToItems(suggestionsWithCompletion);
                     }
                 }
+
+                // 3. Merge: Teacher tasks FIRST
+                const teacherItems = teacherTasks.map(t => ({
+                    id: t.id,
+                    label: t.label,
+                    defaultChecked: false,
+                    suggestionId: t.id
+                }));
+
+                const merged = [...teacherItems, ...(aiItems.length > 0 ? aiItems : defaultItems)];
+
+                // Deduplicate by label (case insensitive) to avoid redundancy
+                const seen = new Set();
+                return merged.filter(item => {
+                    const l = item.label.toLowerCase();
+                    if (seen.has(l)) return false;
+                    seen.add(l);
+                    return true;
+                });
+
             } catch (error) { console.error(error); }
         }
         return defaultItems;
@@ -237,7 +283,7 @@ export const FloatingWellbeingBar: React.FC<FloatingWellbeingBarProps> = ({ clas
 
             {/* Tasks Container */}
             <div className="relative overflow-hidden pl-1 pr-1 pb-1">
-                <motion.div
+                <MotionDiv
                     className="flex flex-col gap-3 min-h-[220px]"
                     drag="x"
                     dragConstraints={{ left: 0, right: 0 }}
@@ -252,7 +298,7 @@ export const FloatingWellbeingBar: React.FC<FloatingWellbeingBarProps> = ({ clas
                     }}
                 >
                     <AnimatePresence mode="wait">
-                        <motion.div
+                        <MotionDiv
                             key={currentPage}
                             initial={{ opacity: 0, x: 20 }}
                             animate={{ opacity: 1, x: 0 }}
@@ -276,9 +322,9 @@ export const FloatingWellbeingBar: React.FC<FloatingWellbeingBarProps> = ({ clas
                                     />
                                 );
                             })}
-                        </motion.div>
+                        </MotionDiv>
                     </AnimatePresence>
-                </motion.div>
+                </MotionDiv>
 
                 {/* Page Indicator Dots */}
                 {totalPages > 1 && (
@@ -344,7 +390,7 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({ item, isChecked, isExpan
     };
 
     return (
-        <motion.div
+        <MotionDiv
             layout
             className={`
                 relative overflow-hidden rounded-2xl backdrop-blur-2xl border transition-all duration-300
@@ -362,7 +408,7 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({ item, isChecked, isExpan
         >
             {/* Ripple/Glow Effect Container */}
             {isChecked && (
-                <motion.div
+                <MotionDiv
                     layoutId={`ripple-${item.id}`}
                     className="absolute inset-0 bg-blue-500/5 z-0 pointer-events-none"
                     initial={{ opacity: 0 }}
@@ -384,7 +430,7 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({ item, isChecked, isExpan
                     `}
                 >
                     {isChecked && (
-                        <motion.svg
+                        <MotionSVG
                             initial={{ scale: 0 }}
                             animate={{ scale: 1 }}
                             className="w-3.5 h-3.5 text-white"
@@ -396,7 +442,7 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({ item, isChecked, isExpan
                             strokeLinejoin="round"
                         >
                             <polyline points="20 6 9 17 4 12" />
-                        </motion.svg>
+                        </MotionSVG>
                     )}
                 </button>
 
@@ -406,14 +452,14 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({ item, isChecked, isExpan
                     onClick={onExpand}
                 >
                     <div className="relative">
-                        <motion.p
+                        <MotionP
                             layout="position"
                             className={`text-sm text-white font-medium leading-relaxed ${isChecked ? 'line-through opacity-50' : ''}`}
                         >
                             {isExpanded ? item.label : (
                                 <span className="block truncate pr-8">{item.label}</span>
                             )}
-                        </motion.p>
+                        </MotionP>
 
                         {/* Fade gradient for truncated text */}
                         {!isExpanded && !isChecked && (
@@ -427,6 +473,6 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({ item, isChecked, isExpan
                     {getIconForSuggestion(item.label)}
                 </div>
             </div>
-        </motion.div>
+        </MotionDiv>
     );
 });
