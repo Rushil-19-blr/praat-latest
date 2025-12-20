@@ -523,8 +523,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
 
             {/* Onboarding Components */}
             <AnimatePresence>
-                {/* Stage 1: Welcome Carousel */}
-                {onboardingState.stage === 'welcome' && !onboardingState.isSkipped && userData?.accountNumber && (
+                {/* Stage 1: Welcome Carousel - Only show for new users */}
+                {onboardingState.stage === 'welcome' && onboardingState.isNewUser && !onboardingState.isSkipped && userData?.accountNumber && (
                     <WelcomeCarousel
                         studentCode={userData.accountNumber}
                         onComplete={handleWelcomeComplete}

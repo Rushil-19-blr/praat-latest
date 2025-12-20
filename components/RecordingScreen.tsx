@@ -1168,6 +1168,12 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
           questionText: qa.questionText,
           studentAnswer: qa.studentAnswer
         })),
+        // Add questionnaire answers from pre-analysis session for context-aware suggestions
+        questionnaireAnswers: preAnalysisSession?.answers
+          ? Object.fromEntries(
+            Object.entries(preAnalysisSession.answers).map(([key, value], index) => [index, String(value)])
+          )
+          : undefined,
       };
 
       const debugDuration = performance.now() - debugStart;

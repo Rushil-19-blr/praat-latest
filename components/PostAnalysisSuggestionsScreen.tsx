@@ -6,6 +6,8 @@ import { motion } from 'framer-motion';
 import { LiquidButton } from './ui/liquid-button';
 import { InfinityLoader } from '@/components/ui/infinity-loader';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { BeamsBackground } from './ui/beams-background';
+import { Zap, Heart } from 'lucide-react';
 
 interface PostAnalysisSuggestionsScreenProps {
   analysisData: AnalysisData;
@@ -69,7 +71,12 @@ const generateSuggestionsWithGemini = async (
 
     // Add instruction if we have any context
     if (studentContext) {
-      studentContext += `\n\n⚠️ CRITICAL INSTRUCTION: The student mentioned SPECIFIC problems above. You MUST include at least 2 suggestions that DIRECTLY address their specific concerns with practical, actionable advice. Do NOT give generic wellness tips if specific issues were mentioned.`;
+      studentContext += `\n\n⚠️ CRITICAL PERSONALIZATION INSTRUCTIONS:
+1. EXTRACT SPECIFIC PROBLEMS: Identify ANY specific issues mentioned (exams, sickness, friendships, sleep, family, etc.).
+2. DIRECT RELEVANCE: At least 4 of 6 suggestions MUST directly address the student's specific concerns.
+3. USE THEIR WORDS: Reference keywords the student used (e.g., "exams" → "exam preparation", "sick" → "recovery and rest").
+4. NO GENERIC ADVICE: Avoid cookie-cutter wellness tips like "drink water" unless they specifically mentioned hydration issues.
+5. ACTIONABLE & SPECIFIC: Each suggestion should be something concrete they can do TODAY related to their problem.`;
     }
 
     const prompt = `You are a wellness expert AND personal mentor providing hyper-personalized stress management suggestions.
@@ -422,76 +429,113 @@ const PostAnalysisSuggestionsScreen: React.FC<PostAnalysisSuggestionsScreenProps
   };
 
   return (
-    <div className="min-h-screen w-full p-4 pt-[80px] pb-10 max-w-2xl mx-auto">
+    <div className="min-h-screen w-full bg-background-primary text-text-primary flex flex-col relative">
+      {/* Background */}
+      <div style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none' }}>
+        <BeamsBackground intensity="medium" className="!z-0" />
+      </div>
+
       <Header />
 
-      <motion.div
-        className="space-y-6"
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-      >
-        {/* Top Banner - Positive Affirmation */}
-        <motion.div variants={itemVariants}>
-          <div className="bg-purple-dark rounded-2xl p-5">
-            <p className="text-base font-medium text-white text-center leading-relaxed">
-              {affirmation}
-            </p>
-          </div>
-        </motion.div>
-
-        {/* Main Section - Personalized Suggestions */}
-        <motion.div variants={itemVariants}>
-          <div className="bg-surface rounded-2xl p-6">
-            <h2 className="text-2xl font-bold text-white mb-6 text-left">Personalized Suggestions</h2>
-
-            {showLoader ? (
-              <div className="flex items-center justify-center py-8">
-                <InfinityLoader
-                  statusText="Generating personalized suggestions..."
-                  isComplete={loaderComplete}
-                />
-              </div>
-            ) : (
-              <>
-                {/* Immediate Actions */}
-                <div className="mb-6">
-                  <h3 className="text-base font-bold text-purple-light mb-4 text-left">Immediate Actions</h3>
-                  <div className="space-y-3">
-                    {suggestions.immediate.slice(0, 3).map((suggestion, index) => (
-                      <div key={index} className="bg-background-secondary rounded-xl p-4">
-                        <p className="text-sm text-white leading-relaxed text-left">{suggestion}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Long-term Wellness */}
-                <div>
-                  <h3 className="text-base font-bold text-purple-light mb-4 text-left">Long-term Wellness</h3>
-                  <div className="space-y-3">
-                    {suggestions.longTerm.slice(0, 3).map((suggestion, index) => (
-                      <div key={index} className="bg-background-secondary rounded-xl p-4">
-                        <p className="text-sm text-white leading-relaxed text-left">{suggestion}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        </motion.div>
-
-        {/* Close/Finish Button */}
-        <motion.div variants={itemVariants} className="pt-4">
-          <LiquidButton
-            onClick={onClose}
-            className="w-full h-14 rounded-2xl flex items-center justify-center font-medium"
+      <div className="flex-1 overflow-y-auto relative z-10">
+        <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
+          {/* Top Banner - Positive Affirmation */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
           >
-            Return to Dashboard
-          </LiquidButton>
-        </motion.div>
-      </motion.div>
+            <div className="bg-gradient-to-r from-purple-600 to-purple-500 rounded-2xl p-5 shadow-lg shadow-purple-500/20">
+              <p className="text-base font-medium text-white text-center leading-relaxed">
+                {affirmation}
+              </p>
+            </div>
+          </motion.div>
+
+          {/* Main Section - Personalized Suggestions */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.1 }}
+          >
+            <GlassCard className="p-6 bg-black/40 backdrop-blur-xl border-white/10 shadow-xl" variant="base">
+              <h2 className="text-2xl font-bold text-white mb-6 text-left">Personalized Suggestions</h2>
+
+              {showLoader ? (
+                <div className="flex items-center justify-center py-8">
+                  <InfinityLoader
+                    statusText="Generating personalized suggestions..."
+                    isComplete={loaderComplete}
+                  />
+                </div>
+              ) : (
+                <>
+                  {/* Immediate Actions */}
+                  <div className="mb-8">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500/20 to-red-500/20 flex items-center justify-center border border-white/5">
+                        <Zap className="w-5 h-5 text-orange-400" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-white">Immediate Actions</h3>
+                    </div>
+                    <div className="space-y-3">
+                      {suggestions.immediate.slice(0, 3).map((suggestion, index) => (
+                        <motion.div
+                          key={index}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.1 }}
+                          className="bg-white/5 border border-white/10 rounded-xl p-4 hover:bg-white/10 transition-colors"
+                        >
+                          <p className="text-sm text-white leading-relaxed">{suggestion}</p>
+                        </motion.div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Long-term Wellness */}
+                  <div>
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center border border-white/5">
+                        <Heart className="w-5 h-5 text-emerald-400" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-white">Long-term Wellness</h3>
+                    </div>
+                    <div className="space-y-3">
+                      {suggestions.longTerm.slice(0, 3).map((suggestion, index) => (
+                        <motion.div
+                          key={index}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.3 + index * 0.1 }}
+                          className="bg-white/5 border border-white/10 rounded-xl p-4 hover:bg-white/10 transition-colors"
+                        >
+                          <p className="text-sm text-white leading-relaxed">{suggestion}</p>
+                        </motion.div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </GlassCard>
+          </motion.div>
+
+          {/* Close/Finish Button */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.2 }}
+            className="pt-4"
+          >
+            <LiquidButton
+              onClick={onClose}
+              className="w-full h-14 rounded-2xl flex items-center justify-center font-medium"
+            >
+              Return to Dashboard
+            </LiquidButton>
+          </motion.div>
+        </div>
+      </div>
     </div>
   );
 };

@@ -180,6 +180,7 @@ const PreRecordingQuestionnaire: React.FC<PreRecordingQuestionnaireProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const finalTranscriptRef = useRef<string>('');
   const questionIndexRef = useRef<number>(currentQuestionIndex);
+  const activeQuestionIdRef = useRef<string>(''); // Store the active question ID for speech recognition
   const recognitionQuestionIndexRef = useRef<number>(-1);
   const isRecordingRef = useRef<boolean>(false);
   const isStartingRef = useRef<boolean>(false);
@@ -205,16 +206,19 @@ const PreRecordingQuestionnaire: React.FC<PreRecordingQuestionnaireProps> = ({
     loadQuestions();
   }, [propStudentId]);
 
-  // Keep question index ref in sync
+  // Keep question index and ID refs in sync
   useEffect(() => {
     questionIndexRef.current = currentQuestionIndex;
-  }, [currentQuestionIndex]);
+    const currentQuestion = showIllnessCheck ? ILLNESS_CHECK_QUESTION : questions[currentQuestionIndex];
+    activeQuestionIdRef.current = currentQuestion?.id || '';
+  }, [currentQuestionIndex, showIllnessCheck, questions]);
 
   const activeQuestion = showIllnessCheck ? ILLNESS_CHECK_QUESTION : questions[currentQuestionIndex];
   const isLastQuestion = !showIllnessCheck && (currentQuestionIndex === questions.length - 1);
   const isScaleQuestion = activeQuestion?.type === 'scale-1-5';
   const isYesNoQuestion = activeQuestion?.type === 'yes-no';
   const isMultipleChoice = activeQuestion?.type === 'multiple-choice';
+  const isOpenEnded = activeQuestion?.type === 'open-ended';
 
   const getResponseOptions = (): string[] => {
     if (!activeQuestion) return [];
@@ -257,9 +261,14 @@ const PreRecordingQuestionnaire: React.FC<PreRecordingQuestionnaireProps> = ({
 
         const newText = finalTranscriptRef.current + (interimTranscript ? ' ' + interimTranscript : '');
         setOpenEndedAnswer(newText);
+        setSelectedAnswer(newText); // Update selectedAnswer for validation
 
-        if (finalTranscriptRef.current) {
-          setAnswers(prev => ({ ...prev, [questionIndexRef.current]: finalTranscriptRef.current }));
+        // Save using the active question ID ref
+        if (finalTranscriptRef.current && activeQuestionIdRef.current) {
+          setAnswers(prev => ({
+            ...prev,
+            [activeQuestionIdRef.current]: finalTranscriptRef.current
+          }));
         }
       };
 
@@ -326,10 +335,16 @@ const PreRecordingQuestionnaire: React.FC<PreRecordingQuestionnaireProps> = ({
     if (activeQuestion) {
       const savedAnswer = answers[activeQuestion.id];
       setSelectedAnswer(savedAnswer !== undefined ? savedAnswer : null);
-      setOpenEndedAnswer('');
-      finalTranscriptRef.current = '';
+      // For open-ended questions, restore the saved text
+      if (activeQuestion.type === 'open-ended' && typeof savedAnswer === 'string') {
+        setOpenEndedAnswer(savedAnswer);
+        finalTranscriptRef.current = savedAnswer;
+      } else {
+        setOpenEndedAnswer('');
+        finalTranscriptRef.current = '';
+      }
     }
-  }, [currentQuestionIndex, showIllnessCheck, activeQuestion, answers]);
+  }, [currentQuestionIndex, showIllnessCheck, activeQuestion?.id]);
 
   const handleAnswerChange = (answer: string | number) => {
     if (!activeQuestion) return;
@@ -338,6 +353,18 @@ const PreRecordingQuestionnaire: React.FC<PreRecordingQuestionnaireProps> = ({
       ...prev,
       [activeQuestion.id]: answer
     }));
+  };
+
+  const handleTextAreaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const text = e.target.value;
+    setOpenEndedAnswer(text);
+    setSelectedAnswer(text); // Use text as selectedAnswer for validation
+    if (activeQuestion) {
+      setAnswers(prev => ({
+        ...prev,
+        [activeQuestion.id]: text
+      }));
+    }
   };
 
   const handleOpenEndedChange = (text: string) => {
@@ -498,7 +525,36 @@ const PreRecordingQuestionnaire: React.FC<PreRecordingQuestionnaireProps> = ({
                     </h2>
                   </div>
 
-                  {responseOptions.length > 0 && (
+                  {isOpenEnded && (
+                    <div className="space-y-4">
+                      <div className="relative group">
+                        <textarea
+                          ref={textareaRef}
+                          value={openEndedAnswer || (typeof selectedAnswer === 'string' ? selectedAnswer : '')}
+                          onChange={handleTextAreaChange}
+                          placeholder="Tell us more about how you're feeling..."
+                          className={`w-full bg-surface/30 border-2 text-white rounded-2xl p-4 min-h-[160px] resize-none transition-all outline-none ${isRecording
+                            ? 'border-purple-primary shadow-[0_0_20px_rgba(139,92,246,0.4)] animate-pulse'
+                            : 'border-surface focus:border-purple-primary/50'
+                            }`}
+                        />
+                        <button
+                          onClick={handleToggleRecording}
+                          className={`absolute bottom-4 right-4 w-12 h-12 rounded-full flex items-center justify-center transition-all ${isRecording
+                            ? 'bg-purple-primary scale-110 shadow-lg shadow-purple-primary/50 animate-pulse'
+                            : 'bg-purple-primary/20 hover:bg-purple-primary border border-purple-primary/30'
+                            }`}
+                        >
+                          <Mic className={`w-5 h-5 ${isRecording ? 'text-white' : 'text-purple-primary group-hover:text-white'}`} />
+                        </button>
+                      </div>
+                      <p className={`text-xs px-2 transition-colors ${isRecording ? 'text-purple-primary font-medium' : 'text-text-muted'}`}>
+                        {isRecording ? "🎙️ Listening... Speak naturally" : "You can also tap the microphone to speak your answer"}
+                      </p>
+                    </div>
+                  )}
+
+                  {responseOptions.length > 0 && !isOpenEnded && (
                     <div className="space-y-3">
                       {isScaleQuestion ? (
                         <ScaleSlider

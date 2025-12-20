@@ -58,9 +58,9 @@ export const StartSessionButton: React.FC<StartSessionButtonProps> = ({ onStart,
     };
 
     // Calculate circumference for dashoffset
-    // r = 88 (close to 45% of 200px or relative unit)
-    // C = 2 * pi * 88 ~= 553
-    const radius = 88;
+    // r = 135 (outside the 250px button which has r=125)
+    // C = 2 * pi * 135 ~= 848
+    const radius = 135;
     const circumference = 2 * Math.PI * radius;
     const dashOffset = circumference - (progress / 100) * circumference;
 
@@ -68,38 +68,51 @@ export const StartSessionButton: React.FC<StartSessionButtonProps> = ({ onStart,
         <div className={`relative flex flex-col items-center justify-center gap-8 ${className}`}>
             <div className="relative group touch-none">
                 {/* Pulse Effect Background */}
-                <div className={`absolute inset-0 rounded-full bg-purple-500/30 blur-2xl transition-all duration-500
-                    ${isHolding ? 'scale-150 opacity-60' : 'scale-110 opacity-20 animate-pulse'}
+                <div className={`absolute inset-0 rounded-full bg-purple-500/30 blur-3xl transition-all duration-500
+                    ${isHolding ? 'scale-150 opacity-80' : 'scale-110 opacity-20 animate-pulse'}
                 `} />
 
                 {/* Progress Ring SVG */}
-                <div className="absolute inset-[-20px] pointer-events-none z-0">
-                    <svg className="w-full h-full rotate-[-90deg]" viewBox="0 0 200 200">
-                        {/* Track */}
+                <div className="absolute inset-[-40px] pointer-events-none z-0">
+                    <svg
+                        className="w-full h-full rotate-[-90deg] drop-shadow-[0_0_15px_rgba(168,85,247,0.5)]"
+                        viewBox="0 0 300 300"
+                    >
+                        <defs>
+                            <linearGradient id="progress-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" stopColor="#f472b6" /> {/* Pink-400 */}
+                                <stop offset="100%" stopColor="#a855f7" /> {/* Purple-500 */}
+                            </linearGradient>
+                            <filter id="glow">
+                                <feGaussianBlur stdDeviation="3" result="coloredBlur" />
+                                <feMerge>
+                                    <feMergeNode in="coloredBlur" />
+                                    <feMergeNode in="SourceGraphic" />
+                                </feMerge>
+                            </filter>
+                        </defs>
+                        {/* Track - Always visible ring */}
                         <circle
-                            cx="100" cy="100" r={radius}
+                            cx="150" cy="150" r={radius}
                             fill="none"
-                            stroke="rgba(255,255,255,0.05)"
-                            strokeWidth="4"
+                            stroke="rgba(168, 85, 247, 0.25)"
+                            strokeWidth="6"
                         />
                         {/* Progress */}
                         <motion.circle
-                            cx="100" cy="100" r={radius}
+                            cx="150" cy="150" r={radius}
                             fill="none"
-                            stroke="url(#gradient-stroke)"
-                            strokeWidth="6"
+                            stroke="url(#progress-gradient)"
+                            strokeWidth="10"
                             strokeLinecap="round"
-                            strokeDasharray={circumference}
+                            style={{ strokeDasharray: circumference }}
                             initial={{ strokeDashoffset: circumference }}
-                            animate={{ strokeDashoffset: dashOffset }}
-                            transition={{ duration: 0.05, ease: "linear" }}
+                            animate={{
+                                strokeDashoffset: dashOffset,
+                                filter: isHolding ? 'url(#glow)' : 'none'
+                            }}
+                            transition={{ duration: 0.1, ease: "linear" }}
                         />
-                        <defs>
-                            <linearGradient id="gradient-stroke" x1="0%" y1="0%" x2="100%" y2="100%">
-                                <stop offset="0%" stopColor="#c084fc" />
-                                <stop offset="100%" stopColor="#a855f7" />
-                            </linearGradient>
-                        </defs>
                     </svg>
                 </div>
 
@@ -109,18 +122,18 @@ export const StartSessionButton: React.FC<StartSessionButtonProps> = ({ onStart,
                     onPointerUp={stopHolding}
                     onPointerLeave={stopHolding}
                     onContextMenu={(e) => e.preventDefault()}
-                    whileTap={{ scale: 0.95 }}
+                    whileTap={{ scale: 0.96 }}
                     animate={{
                         scale: isHolding ? 0.98 : 1,
                         boxShadow: isHolding
-                            ? "0 0 60px rgba(168, 85, 247, 0.6), inset 0 0 30px rgba(255,255,255,0.2)"
-                            : "0 25px 50px rgba(0,0,0,0.4), inset 0 0 0 rgba(255,255,255,0)"
+                            ? "0 0 80px rgba(168, 85, 247, 0.8), inset 0 0 40px rgba(255,255,255,0.3)"
+                            : "0 25px 60px rgba(0,0,0,0.5), inset 0 0 0 rgba(255,255,255,0)"
                     }}
                     className={`
                         relative w-[250px] h-[250px] rounded-full z-10 
                         bg-gradient-to-br from-[#db2777] via-[#9333ea] to-[#7c3aed]
                         flex items-center justify-center
-                        border-8 border-white/10
+                        border-[6px] border-white/20
                         shadow-2xl overflow-hidden
                         cursor-pointer select-none
                     `}

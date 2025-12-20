@@ -679,7 +679,7 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
                                                 setHasChanges(true);
                                             }}
                                             placeholder="Enter task description..."
-                                            className="flex-1 bg-transparent border-none focus:ring-0 text-white placeholder-text-muted text-sm"
+                                            className="flex-1 bg-transparent border-none outline-none focus:ring-0 focus:outline-none text-white placeholder-text-muted text-sm"
                                         />
                                         <button
                                             onClick={() => {

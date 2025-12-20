@@ -16,7 +16,7 @@ const SmartOptions: React.FC<SmartOptionsProps> = ({ options, onSelect, isVisibl
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 30 }}
                     transition={{ duration: 0.3, ease: "easeOut" }}
-                    className="absolute bottom-28 left-0 right-0 z-50 flex flex-col items-center justify-end px-4 pointer-events-none"
+                    className="absolute bottom-44 left-0 right-0 z-50 flex flex-col items-center justify-end px-4 pointer-events-none"
                 >
                     <div className="flex flex-wrap gap-3 justify-center max-w-2xl pointer-events-auto">
                         {options.map((option, index) => (
