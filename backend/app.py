@@ -67,7 +67,7 @@ def extract_praat_features(samples: np.ndarray, sample_rate: int) -> dict:
 		# Extract Pitch (F0)
 		pitch = sound.to_pitch_ac(
 			time_step=0.01,
-			pitch_floor=75.0,
+			pitch_floor=50.0,
 			pitch_ceiling=600.0
 		)
 		
@@ -133,7 +133,7 @@ def extract_praat_features(samples: np.ndarray, sample_rate: int) -> dict:
 		
 		try:
 			# Create PointProcess using Praat script
-			point_process = parselmouth.praat.call(sound, "To PointProcess (periodic, cc)", 75.0, 600.0)
+			point_process = parselmouth.praat.call(sound, "To PointProcess (periodic, cc)", 50.0, 600.0)
 			
 			if point_process:
 				n_pulses = parselmouth.praat.call(point_process, "Get number of points")

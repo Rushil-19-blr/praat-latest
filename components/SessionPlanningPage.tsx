@@ -277,9 +277,11 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
                             </button>
                             <div>
                                 <h1 className="text-xl font-semibold">Plan Session</h1>
-                                <p className="text-sm text-text-muted">
-                                    for {studentName || studentId}
-                                </p>
+                                <div className="text-sm flex items-center gap-2">
+                                    <span className="text-text-muted">for</span>
+                                    <span className="text-white font-medium">{studentName || 'Student'}</span>
+                                    <span className="text-xs px-2 py-0.5 rounded-md bg-white/5 text-text-muted font-mono">{studentId}</span>
+                                </div>
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -289,15 +291,15 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
                             <button
                                 onClick={handleSave}
                                 disabled={!hasChanges || isSaving}
-                                className={`flex items-center gap-2 px-6 py-2 rounded-full font-medium transition-all duration-300 border ${hasChanges && !isSaving
-                                    ? 'bg-gradient-to-r from-purple-primary to-purple-light text-white shadow-[0_0_20px_rgba(168,85,247,0.4)] border-purple-400/30 hover:shadow-[0_0_30px_rgba(168,85,247,0.6)] hover:border-purple-400/50 hover:scale-105'
+                                className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-300 border ${hasChanges && !isSaving
+                                    ? 'bg-gradient-to-r from-purple-primary to-purple-light text-white shadow-[0_0_15px_rgba(168,85,247,0.3)] border-purple-400/30 hover:shadow-[0_0_25px_rgba(168,85,247,0.5)] hover:border-purple-400/50 hover:scale-105'
                                     : 'bg-surface/50 text-text-muted cursor-not-allowed border-white/5'
                                     }`}
                             >
                                 {isSaving ? (
                                     <>
-                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                        Saving...
+                                        <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        <span>Saving...</span>
                                     </>
                                 ) : (
                                     <>
@@ -369,21 +371,21 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto relative z-10">
-                <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+                <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
 
-                    {/* Custom Questions Section */}
+                    {/* Main Section: Custom Questions */}
                     <GlassCard
-                        className={`p-6 transition-all duration-200 ${(showTypeSelector || showCategorySelector) ? 'relative z-20' : 'relative z-10'}`}
-                        variant="purple"
+                        className={`p-6 transition-all duration-200 ${(showTypeSelector || showCategorySelector) ? 'relative z-20' : 'relative z-10'} bg-black/40 backdrop-blur-xl border-white/10 shadow-xl`}
+                        variant="base"
                     >
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="w-10 h-10 rounded-full bg-purple-primary/20 flex items-center justify-center">
-                                <MessageSquare className="w-5 h-5 text-purple-primary" />
+                        <div className="flex items-center gap-4 mb-6 pb-6 border-b border-white/5">
+                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center border border-white/5 shadow-inner">
+                                <MessageSquare className="w-6 h-6 text-purple-300" />
                             </div>
                             <div>
-                                <h2 className="text-lg font-semibold text-white">Custom Pre-Session Questions</h2>
-                                <p className="text-sm text-text-muted">
-                                    Set specific questions to ask before the AI session
+                                <h2 className="text-xl font-semibold text-white tracking-tight">Custom Pre-Session Questions</h2>
+                                <p className="text-sm text-text-muted mt-1">
+                                    Define up to 5 specific questions for the student to answer before their session.
                                 </p>
                             </div>
                         </div>
@@ -542,7 +544,7 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
                                 </button>
 
                                 {showTemplateSelector && (
-                                    <div className="absolute bottom-full right-0 mb-2 w-80 bg-background-secondary border border-white/10 rounded-xl shadow-xl z-50 overflow-hidden ring-1 ring-white/10">
+                                    <div className="absolute top-full right-0 mt-2 w-80 bg-background-secondary border border-white/10 rounded-xl shadow-xl z-50 overflow-hidden ring-1 ring-white/10">
                                         <div className="flex border-b border-white/10">
                                             <button
                                                 onClick={() => setTemplateTab('templates')}
@@ -637,6 +639,76 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
                         </div>
                     </GlassCard>
 
+                    {/* New Section: Daily Wellness Tasks */}
+                    <GlassCard
+                        className="p-6 bg-black/40 backdrop-blur-xl border-white/10 shadow-xl"
+                        variant="base"
+                    >
+                        <div className="flex items-center gap-4 mb-6 pb-6 border-b border-white/5">
+                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center border border-white/5 shadow-inner">
+                                <Plus className="w-6 h-6 text-emerald-300" />
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-semibold text-white tracking-tight">Daily Wellness Tasks</h2>
+                                <p className="text-sm text-text-muted mt-1">
+                                    Set specific tasks for the student to complete in their daily dashboard.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-3">
+                            <AnimatePresence>
+                                {(plan.assignedTasks || []).map((task, index) => (
+                                    <MotionDiv
+                                        key={index}
+                                        initial={{ opacity: 0, scale: 0.95 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        exit={{ opacity: 0, x: -20 }}
+                                        className="flex items-center gap-3 p-3 bg-white/5 border border-white/10 rounded-xl group"
+                                    >
+                                        <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 text-xs font-bold">
+                                            {index + 1}
+                                        </div>
+                                        <input
+                                            type="text"
+                                            value={task}
+                                            onChange={(e) => {
+                                                const newTasks = [...(plan.assignedTasks || [])];
+                                                newTasks[index] = e.target.value;
+                                                setPlan({ ...plan, assignedTasks: newTasks });
+                                                setHasChanges(true);
+                                            }}
+                                            placeholder="Enter task description..."
+                                            className="flex-1 bg-transparent border-none focus:ring-0 text-white placeholder-text-muted text-sm"
+                                        />
+                                        <button
+                                            onClick={() => {
+                                                const newTasks = (plan.assignedTasks || []).filter((_, i) => i !== index);
+                                                setPlan({ ...plan, assignedTasks: newTasks });
+                                                setHasChanges(true);
+                                            }}
+                                            className="p-2 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/20 rounded-lg"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </MotionDiv>
+                                ))}
+                            </AnimatePresence>
+
+                            <button
+                                onClick={() => {
+                                    const newTasks = [...(plan.assignedTasks || []), ""];
+                                    setPlan({ ...plan, assignedTasks: newTasks });
+                                    setHasChanges(true);
+                                }}
+                                className="w-full py-3 border-2 border-dashed border-emerald-500/20 rounded-xl text-emerald-400 hover:bg-emerald-500/10 transition-colors flex items-center justify-center gap-2 text-sm"
+                            >
+                                <Plus className="w-4 h-4" />
+                                Add Targeted Task
+                            </button>
+                        </div>
+                    </GlassCard>
+
                     {/* Bottom Row: Focus (Full Width now) */}
                     <div className="w-full">
                         {/* Focus Topic Section */}
@@ -653,7 +725,6 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
                                 </div>
                             </div>
 
-                            {/* Focus Topic Input */}
                             {/* Focus Topic Input */}
                             <div className="space-y-4">
                                 <div>
@@ -716,7 +787,6 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
                                 </div>
                             </div>
                         </GlassCard>
-
                     </div>
                 </div>
             </div>

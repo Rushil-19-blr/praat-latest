@@ -49,46 +49,52 @@ export const SlideToUnlock = ({
   const textOpacity = useTransform(x, [0, 50], [1, 0]);
 
   return (
-    <div className={cn("relative w-full max-w-xs overflow-hidden rounded-2xl border bg-card p-6 text-card-foreground shadow-sm", className)}>
+    <div className={cn("relative w-full overflow-hidden", className)}>
       {children}
       <AnimatePresence mode="wait">
         {!unlocked ? (
           <motion.div
             key="slider"
-            initial={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.3 }}
-            className="relative mt-6"
           >
-            <div ref={sliderRef} className="relative h-14 w-full rounded-full" style={{ background: '#1a1a1a', border: '1px solid #333333' }}>
+            <div
+              ref={sliderRef}
+              className="relative h-16 w-full rounded-full bg-white/[0.03] border border-white/10 backdrop-blur-sm overflow-hidden"
+            >
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <span
+                  className={cn(
+                    "text-[10px] font-black uppercase tracking-[0.2em] text-white/30 pl-8 transition-opacity duration-300",
+                    shimmer && "animate-shimmer bg-[linear-gradient(110deg,rgba(255,255,255,0.2),45%,rgba(255,255,255,0.5),55%,rgba(255,255,255,0.2))] bg-[length:200%_100%] bg-clip-text text-transparent"
+                  )}
+                >
+                  <motion.span style={{ opacity: textOpacity }}>
+                    {sliderText}
+                  </motion.span>
+                </span>
+              </div>
+
               <motion.div
                 ref={handleRef}
                 drag="x"
-                dragConstraints={{ left: 0, right: dragConstraint }}
-                dragElastic={0.1}
-                style={{ x, background: 'linear-gradient(135deg, #a855f7, #8b5cf6)' }}
+                dragConstraints={{ left: 2, right: dragConstraint - 2 }}
+                dragElastic={0.05}
+                style={{ x }}
                 onDragEnd={onDragEnd}
-                className="absolute left-0 top-0 z-10 flex h-14 w-14 cursor-grab items-center justify-center rounded-full active:cursor-grabbing"
+                className="absolute left-[2px] top-[2px] bottom-[2px] z-10 flex aspect-square cursor-grab items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 shadow-xl shadow-purple-500/20 active:cursor-grabbing hover:scale-[1.02] transition-transform"
               >
-                <ChevronRightIcon className="h-6 w-6" style={{ color: '#ffffff' }} />
+                <ChevronRightIcon className="h-6 w-6 text-white" />
               </motion.div>
-              <motion.span
-                style={{ opacity: textOpacity }}
-                className={cn(
-                  "absolute inset-0 flex items-center justify-center text-sm font-medium text-muted-foreground",
-                  shimmer && "animate-shimmer bg-[linear-gradient(110deg,#9ca3af,45%,#e5e7eb,55%,#9ca3af)] bg-[length:200%_100%] bg-clip-text text-transparent"
-                )}
-              >
-                {sliderText}
-              </motion.span>
             </div>
           </motion.div>
         ) : (
           <motion.div
             key="unlocked"
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5 }}
           >
             {unlockedContent}
           </motion.div>

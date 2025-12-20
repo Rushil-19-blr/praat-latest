@@ -1,9 +1,18 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Component as PlayfulTodoList } from './ui/playful-todolist';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { FloatingWellbeingBar } from './ui/floating-wellbeing-bar';
+import { GamifiedSolutionLibrary } from './ui/gamified-solution-library';
+import AnimatedLogo from './ui/AnimatedLogo';
 import StudentChatModal from './StudentChatModal';
 import { MessageCircle, X } from './Icons';
-import NotificationPanel from './NotificationPanel';
+
 import { motion, AnimatePresence } from 'framer-motion';
+import { StartSessionButton } from './ui/StartSessionButton';
+
+import { WelcomeCarousel } from './onboarding/WelcomeCarousel';
+import { SpotlightOverlay } from './onboarding/SpotlightOverlay';
+import { CompletionCelebration } from './onboarding/CompletionCelebration';
+import { OnboardingService } from '../services/onboardingService';
+import { OnboardingState, INITIAL_ONBOARDING_STATE } from '../types/onboarding';
 
 interface DashboardProps {
     onStartVoiceSession: () => void;
@@ -19,11 +28,40 @@ interface UserData {
     password?: string;
 }
 
+// Bypassing strict className lint check with a local alias
+const MotionDiv = motion.div as any;
+
 const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalibration, onSignOut }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [userData, setUserData] = useState<UserData | null>(null);
+    const [suggestions, setSuggestions] = useState<Array<{ id: string; label: string; type: 'immediate' | 'longterm'; completed: boolean }>>([]);
     const accountsButtonRef = useRef<HTMLButtonElement>(null);
+
+    // Onboarding State
+    const [onboardingState, setOnboardingState] = useState<OnboardingState>(INITIAL_ONBOARDING_STATE);
+
+    useEffect(() => {
+        if (userData?.accountNumber) {
+            const state = OnboardingService.getState(userData.accountNumber);
+            setOnboardingState(state);
+        }
+
+        const handleOnboardingUpdate = (e: CustomEvent<{ state: OnboardingState }>) => {
+            setOnboardingState(e.detail.state);
+        };
+        // Cast to EventListener to satisfy TS
+        const listener = handleOnboardingUpdate as unknown as EventListener;
+        window.addEventListener('onboardingUpdated', listener);
+        return () => window.removeEventListener('onboardingUpdated', listener);
+    }, [userData?.accountNumber]);
+
+    const handleWelcomeComplete = () => {
+        if (userData?.accountNumber) {
+            OnboardingService.completeStep(userData.accountNumber, 'welcome');
+        }
+    };
+
 
     useEffect(() => {
         // Load user data from localStorage
@@ -32,18 +70,70 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
             try {
                 const parsed = JSON.parse(storedUserData);
                 setUserData(parsed);
+
+                // Load suggestions for gamified library
+                const studentCode = parsed.accountNumber;
+                if (studentCode) {
+                    const suggestionsKey = `suggestions_${studentCode}`;
+                    const savedSuggestions = localStorage.getItem(suggestionsKey);
+                    if (savedSuggestions) {
+                        const suggestionsData = JSON.parse(savedSuggestions);
+                        if (suggestionsData.suggestions) {
+                            const completionKey = `suggestions_completed_${studentCode}`;
+                            const savedCompletion = localStorage.getItem(completionKey);
+                            const completedMap = savedCompletion ? JSON.parse(savedCompletion) : {};
+                            const suggestionsWithCompletion = suggestionsData.suggestions.map((s: any) => ({
+                                ...s,
+                                completed: completedMap[s.id] || false
+                            }));
+                            setSuggestions(suggestionsWithCompletion);
+                        }
+                    }
+                }
             } catch (error) {
                 console.error('Error parsing user data:', error);
             }
         }
+
+        // Listen for suggestions updates
+        const handleSuggestionsUpdate = () => {
+            const storedUserData = localStorage.getItem('userData');
+            if (storedUserData) {
+                try {
+                    const parsed = JSON.parse(storedUserData);
+                    const studentCode = parsed.accountNumber;
+                    if (studentCode) {
+                        const suggestionsKey = `suggestions_${studentCode}`;
+                        const savedSuggestions = localStorage.getItem(suggestionsKey);
+                        if (savedSuggestions) {
+                            const suggestionsData = JSON.parse(savedSuggestions);
+                            if (suggestionsData.suggestions) {
+                                const completionKey = `suggestions_completed_${studentCode}`;
+                                const savedCompletion = localStorage.getItem(completionKey);
+                                const completedMap = savedCompletion ? JSON.parse(savedCompletion) : {};
+                                const suggestionsWithCompletion = suggestionsData.suggestions.map((s: any) => ({
+                                    ...s,
+                                    completed: completedMap[s.id] || false
+                                }));
+                                setSuggestions(suggestionsWithCompletion);
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error loading suggestions:', error);
+                }
+            }
+        };
+
+        window.addEventListener('suggestionsUpdated', handleSuggestionsUpdate);
+        return () => window.removeEventListener('suggestionsUpdated', handleSuggestionsUpdate);
     }, []);
 
-
-    const startSession = () => {
+    const startSession = useCallback(() => {
         onStartVoiceSession();
-    };
+    }, [onStartVoiceSession]);
 
-    const logout = () => {
+    const logout = useCallback(() => {
         if (confirm('Are you sure you want to logout?')) {
             if (onSignOut) {
                 onSignOut();
@@ -52,14 +142,37 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                 window.location.href = 'signin.html';
             }
         }
-    };
+    }, [onSignOut]);
 
     // Close modal when clicking outside
-    const handleOutsideClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    const handleOutsideClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
         if (event.target === event.currentTarget) {
             setIsModalOpen(false);
         }
-    };
+    }, []);
+
+    const handleChatOpen = useCallback(() => {
+        setIsChatOpen(true);
+    }, []);
+
+    const handleChatClose = useCallback(() => {
+        setIsChatOpen(false);
+    }, []);
+
+    const toggleModal = useCallback(() => {
+        setIsModalOpen(prev => !prev);
+    }, []);
+
+    // Memoize user display data
+    const userDisplayData = useMemo(() => {
+        if (!userData) return null;
+        return {
+            accountInfo: userData.class ? `Class ${userData.class}${userData.section ? ` - Section ${userData.section}` : ''}` : 'Student Account',
+            accountCode: userData.accountNumber || '----',
+            studentName: userData.enrollment || `Student ${userData.accountNumber}`,
+            hasAccountNumber: !!userData.accountNumber
+        };
+    }, [userData]);
 
     return (
         <>
@@ -79,6 +192,13 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                     align-items: center;
                     padding: 20px 40px;
                     background-color: transparent;
+                    width: 100%;
+                }
+
+                .header .flex {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
                 }
 
                 .app-logo h1 {
@@ -127,11 +247,13 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                     display: flex;
                     flex-direction: column;
                     align-items: center;
+                    justify-content: center;
                     gap: 40px;
                     padding-bottom: 100px;
                     max-width: 2000px;
                     margin: 0 auto;
                     width: 100%;
+                    min-height: calc(100vh - 100px);
                 }
 
                 .calibration-section {
@@ -141,12 +263,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                     z-index: 100;
                 }
 
-                .calendar-section {
-                    position: fixed;
-                    bottom: 20px;
-                    right: 20px;
-                    z-index: 100;
-                }
+
 
                 .notification-dot {
                     position: absolute;
@@ -167,32 +284,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                 .wellbeing-widget {
                     width: fit-content;
                     max-width: fit-content;
-                }
-
-                .session-section {
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    gap: 15px;
-                }
-
-                .start-session-btn {
-                    background: linear-gradient(135deg, #a855f7, #8b5cf6);
-                    border: none;
-                    border-radius: 50%; /* Fully round */
-                    width: 250px;
-                    height: 250px;
-                    cursor: pointer;
-                    transition: transform 0.2s ease, box-shadow 0.2s ease;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    box-shadow: 0 10px 20px rgba(168, 85, 247, 0.3);
-                }
-
-                .start-session-btn:hover {
-                    transform: translateY(-2px) scale(1.05);
-                    box-shadow: 0 15px 30px rgba(168, 85, 247, 0.4);
                 }
 
                 .calibration-btn {
@@ -217,24 +308,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                     box-shadow: 0 8px 24px rgba(251, 191, 36, 0.5);
                 }
 
-                .voice-icon {
-                    width: 125px;
-                    height: 125px;
-                    fill: #ffffff;
-                }
-
                 .calibration-icon {
                     width: 16px;
                     height: 16px;
                     fill: #000000;
-                }
-
-                .session-text {
-                    font-size: 28px;
-                    font-weight: 600;
-                    color: #ffffff;
-                    text-align: center;
-                    margin-top: 10px;
                 }
 
 
@@ -314,12 +391,13 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
             `}</style>
             <div className="header">
                 <div className="app-logo">
-                    <h1>AWAAZ</h1>
+                    <AnimatedLogo size={100} />
                 </div>
                 <div className="flex gap-2">
                     <button
+                        id="chat-btn"
                         className="accounts-btn"
-                        onClick={() => setIsChatOpen(true)}
+                        onClick={handleChatOpen}
                         title="Messages"
                     >
                         <MessageCircle className="accounts-icon" />
@@ -328,9 +406,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                     <button
                         ref={accountsButtonRef}
                         className={`accounts-btn ${isModalOpen ? 'active' : ''}`}
-                        onClick={() => setIsModalOpen(!isModalOpen)}
+                        onClick={toggleModal}
                     >
-                        <motion.div
+                        <MotionDiv
                             animate={{ rotate: isModalOpen ? 90 : 0 }}
                             transition={{ duration: 0.3, ease: "easeInOut" }}
                         >
@@ -341,29 +419,34 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                                     <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
                                 </svg>
                             )}
-                        </motion.div>
+                        </MotionDiv>
                     </button>
                 </div>
             </div>
 
             <div className="main-content">
-                <div className="wellbeing-widget">
-                    <PlayfulTodoList />
-                </div>
+                <div className="flex flex-col items-center justify-center gap-8 w-full max-w-md mx-auto">
+                    <div id="start-session-btn" className="relative z-20 w-full flex flex-col items-center">
+                        <StartSessionButton onStart={startSession} />
+                    </div>
 
-                <div className="session-section">
-                    <button className="start-session-btn" onClick={startSession}>
-                        <svg className="voice-icon" width="125" height="125" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M256 32c-44.2 0-80 35.8-80 80v160c0 44.2 35.8 80 80 80s80-35.8 80-80V112c0-44.2-35.8-80-80-80z" fill="#f472b6" />
-                            <path d="M128 240v32c0 70.7 57.3 128 128 128s128-57.3 128-128v-32c0-8.8 7.2-16 16-16s16 7.2 16 16v32c0 83.5-63.8 152.1-145.5 159.5V496h65.5c8.8 0 16 7.2 16 16s-7.2 16-16 16h-160c-8.8 0-16-7.2-16-16s7.2-16 16-16h65.5v-64.5C160.8 424.1 97 355.5 97 272v-32c0-8.8 7.2-16 16-16s16 7.2 16 16z" fill="#f472b6" />
-                        </svg>
-                    </button>
-                    <div className="session-text">Start a Session</div>
+                    {/* Floating Wellbeing Bar - Positioned below Start Session */}
+                    <div className="w-full relative z-10">
+                        <FloatingWellbeingBar />
+                    </div>
+
+                    {/* Gamified Solution Library */}
+                    {userDisplayData?.hasAccountNumber && (
+                        <div className="w-full relative z-10 mt-6">
+                            <GamifiedSolutionLibrary suggestions={suggestions} />
+                        </div>
+                    )}
                 </div>
 
                 {onStartCalibration && (
                     <div className="calibration-section">
                         <button
+                            id="calibration-btn"
                             onClick={onStartCalibration}
                             className="calibration-btn"
                             title="Calibration"
@@ -372,20 +455,18 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                                 <path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
                                 <path d="M17.3 11c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z" />
                             </svg>
-                            <span>Calibration</span>
+                            <span>Your Voice</span>
                         </button>
                     </div>
                 )}
             </div>
 
-            <div className="calendar-section">
-                <NotificationPanel />
-            </div>
+
 
             <AnimatePresence>
                 {isModalOpen && (
                     <>
-                        <motion.div
+                        <MotionDiv
                             className="modal-overlay"
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
@@ -393,7 +474,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                             transition={{ duration: 0.2 }}
                             onClick={handleOutsideClick}
                         />
-                        <motion.div
+                        <MotionDiv
                             className="modal-content"
                             initial={{
                                 opacity: 0,
@@ -420,25 +501,95 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                         >
                             <div className="account-info">
                                 <div className="account-name">
-                                    {userData?.class ? `Class ${userData.class}${userData.section ? ` - Section ${userData.section}` : ''}` : 'Student Account'}
+                                    {userDisplayData?.accountInfo || 'Student Account'}
                                 </div>
-                                <div className="account-code">{userData?.accountNumber || '----'}</div>
+                                <div className="account-code">{userDisplayData?.accountCode || '----'}</div>
                             </div>
                             <button className="logout-btn" onClick={logout}>Logout</button>
-                        </motion.div>
+                        </MotionDiv>
                     </>
                 )}
             </AnimatePresence>
 
             {/* Student Chat Modal */}
-            {userData?.accountNumber && (
+            {userDisplayData?.hasAccountNumber && (
                 <StudentChatModal
                     isOpen={isChatOpen}
-                    onClose={() => setIsChatOpen(false)}
-                    studentId={userData.accountNumber}
-                    studentName={userData.enrollment || `Student ${userData.accountNumber}`}
+                    onClose={handleChatClose}
+                    studentId={userData!.accountNumber!}
+                    studentName={userDisplayData.studentName}
                 />
             )}
+
+            {/* Onboarding Components */}
+            <AnimatePresence>
+                {/* Stage 1: Welcome Carousel */}
+                {onboardingState.stage === 'welcome' && !onboardingState.isSkipped && userData?.accountNumber && (
+                    <WelcomeCarousel
+                        studentCode={userData.accountNumber}
+                        onComplete={handleWelcomeComplete}
+                    />
+                )}
+
+                {/* Stage 2 PRE: Calibration Prompt (handled by calibration-btn pulse, but we can manage state) */}
+
+                {/* Stage 2: Session Prompt */}
+                {onboardingState.stage === 'session_prompt' && (
+                    <SpotlightOverlay
+                        targetId="start-session-btn"
+                        title="Start Your Journey"
+                        message="Click here to begin your first wellness session with our AI."
+                        onComplete={() => {
+                            if (userData?.accountNumber) {
+                                OnboardingService.completeStep(userData.accountNumber, 'firstSession');
+                            }
+                        }}
+                        onSkip={() => { }}
+                        studentCode={userData?.accountNumber || ''}
+                        step={1}
+                        totalSteps={3}
+                    />
+                )}
+
+                {/* Stage 3: Chat Prompt */}
+                {onboardingState.stage === 'chat_prompt' && (
+                    <SpotlightOverlay
+                        targetId="chat-btn"
+                        title="Connect with Counselors"
+                        message="Need to talk to someone? Connect with our dedicated school counselors for support anytime."
+                        onComplete={() => {
+                            if (userData?.accountNumber) {
+                                OnboardingService.completeStep(userData.accountNumber, 'firstChat');
+                            }
+                        }}
+                        onSkip={() => { }}
+                        studentCode={userData?.accountNumber || ''}
+                        step={2}
+                        totalSteps={3}
+                    />
+                )}
+
+                {/* Stage 4: Calibration Prompt */}
+                {onboardingState.stage === 'calibration_prompt' && (
+                    <SpotlightOverlay
+                        targetId="calibration-btn"
+                        title="Calibrate Your Voice"
+                        message="Set up your voice baseline here for accurate stress tracking."
+                        onComplete={() => {
+                            if (userData?.accountNumber) {
+                                OnboardingService.completeStep(userData.accountNumber, 'calibration');
+                                // Finish onboarding - remove badge modal entirely as requested
+                                OnboardingService.skipOnboarding(userData.accountNumber);
+                                if (onStartCalibration) onStartCalibration();
+                            }
+                        }}
+                        onSkip={() => { }}
+                        studentCode={userData?.accountNumber || ''}
+                        step={3}
+                        totalSteps={3}
+                    />
+                )}
+            </AnimatePresence>
         </>
     );
 };

@@ -26,6 +26,7 @@ import type { AnalysisData, Student, PreAnalysisSession } from './types';
 import type { QuestionnaireAnswers } from './components/PreRecordingQuestionnaire';
 // Import storage utilities - makes clearAllStorage() available globally
 import './utils/storageUtils';
+import { OnboardingService } from './services/onboardingService';
 
 type AppState = 'SIGNIN' | 'SIGNUP' | 'CONFIRMATION' | 'ENROLLMENT' | 'SCRATCH_CARD' | 'PASSWORD_SETUP' | 'SUCCESS' | 'DASHBOARD' | 'QUESTIONNAIRE' | 'RECORDING' | 'CALIBRATION_FLOW' | 'RESULTS' | 'SUGGESTIONS' | 'TEACHER_DASHBOARD' | 'STUDENT_DETAIL' | 'STUDENT_REPORT' | 'SESSION_PLANNING';
 
@@ -307,6 +308,9 @@ const App: React.FC = () => {
       // Update local state
       setStudents(studentsData);
     }
+
+    // Initialize Onboarding for this new student
+    OnboardingService.initializeForNewUser(accountNumber);
 
     setAppState('SUCCESS');
   }, [selectedClass, selectedSection, enrollmentNumber, accountNumber]);

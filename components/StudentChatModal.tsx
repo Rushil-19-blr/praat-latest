@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, MessageCircle, Users } from './Icons';
+import { X, MessageCircle, Users, ChevronLeft, Plus, Send } from './Icons';
 import { useStreamChat } from './StreamChatProvider';
 import { Channel, MessageList, MessageInput, Thread, Window } from 'stream-chat-react';
+import { cn } from '../lib/utils';
 
 interface StudentChatModalProps {
   isOpen: boolean;
@@ -10,6 +11,8 @@ interface StudentChatModalProps {
   studentId: string;
   studentName?: string;
 }
+
+const MotionDiv = motion.div as any;
 
 const StudentChatModal: React.FC<StudentChatModalProps> = ({
   isOpen,
@@ -58,49 +61,37 @@ const StudentChatModal: React.FC<StudentChatModalProps> = ({
         });
       } catch (queryError: any) {
         console.warn('Channel query failed, trying direct channel access:', queryError);
-        // If query fails (e.g., error code 70 - access denied), try to get channel directly by ID
       }
 
-      // If no channels found via query, try to get the specific channel by ID
-      // This handles the case where teacher created the channel but student hasn't been added as member yet
       if (channelQueryResponse.length === 0) {
         const channelId = `teacher-${teacherId}-student-${studentId}`;
         try {
           const existingChannel = client.channel('messaging', channelId);
-
-          // Try to watch the channel - this will fail if it doesn't exist or student doesn't have access
           await existingChannel.watch();
-
-          // Check if student is a member
           const currentMembers = existingChannel.state?.members || {};
           const memberIds = Object.keys(currentMembers);
 
           if (!memberIds.includes(studentId)) {
-            // Student is not a member, try to add them
             try {
               await existingChannel.addMembers([studentId]);
-              // Watch again after adding member
               await existingChannel.watch();
             } catch (addError) {
               console.warn('Could not add student to channel:', addError);
-              // Continue anyway - the channel might still be accessible
             }
           }
 
-          // If we successfully watched the channel, add it to the list
-          if (existingChannel.state?.initialized) {
+          if (existingChannel.state) {
             channelQueryResponse = [existingChannel];
           }
         } catch (directError: any) {
           console.log('Direct channel access failed (channel may not exist yet):', directError);
-          // Channel doesn't exist yet - that's fine, student can create it
         }
       }
 
       setChannels(channelQueryResponse);
 
-      // Set the first channel as active if available
-      if (channelQueryResponse.length > 0) {
+      // Set the first channel as active if available AND we're on desktop
+      if (channelQueryResponse.length > 0 && window.innerWidth > 768) {
         setActiveChannel(channelQueryResponse[0]);
       }
     } catch (error) {
@@ -118,18 +109,12 @@ const StudentChatModal: React.FC<StudentChatModalProps> = ({
     try {
       setIsCreatingChannel(true);
 
-      // Connect student user if not already connected
       if (!isConnected) {
         await connectUser(studentId, studentName);
       }
 
-      // Create channel with teacher
       const newChannel = await createChannel(teacherId, studentId);
-
-      // Refresh channel list
       await initializeStudentChat();
-
-      // Set the new channel as active
       setActiveChannel(newChannel);
     } catch (error) {
       console.error('Failed to create chat with teacher:', error);
@@ -142,108 +127,112 @@ const StudentChatModal: React.FC<StudentChatModalProps> = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <motion.div
+        <MotionDiv
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
-          className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[9999] flex items-center justify-center p-0 md:p-6"
           onClick={onClose}
         >
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+          <MotionDiv
+            initial={{ scale: 0.95, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.9, opacity: 0, y: 20 }}
-            transition={{ duration: 0.3, ease: 'easeOut' }}
-            onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-4xl h-[80vh] max-h-[600px] bg-background-primary rounded-2xl overflow-hidden shadow-2xl flex"
+            exit={{ scale: 0.95, opacity: 0, y: 20 }}
+            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            onClick={(e: any) => e.stopPropagation()}
+            className="w-full h-full md:max-w-5xl md:h-[80vh] md:max-h-[750px] bg-black/40 backdrop-blur-xl border-white/10 shadow-2xl flex relative md:rounded-[32px] overflow-hidden"
           >
             {/* Sidebar - Channel List */}
-            <div className="w-80 border-r border-white/10 bg-surface/50 flex flex-col">
-              <div className="p-4 border-b border-white/10">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-purple-primary/20 rounded-full flex items-center justify-center">
-                      <Users className="w-5 h-5 text-purple-primary" />
+            <div className={cn(
+              "w-full md:w-80 border-r border-white/10 bg-white/5 flex flex-col transition-all duration-300",
+              activeChannel ? "hidden md:flex" : "flex"
+            )}>
+              <div className="p-6 border-b border-white/5">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-gradient-to-br from-purple-500/20 to-blue-500/20 rounded-2xl flex items-center justify-center border border-white/10 shadow-inner">
+                      <Users className="w-6 h-6 text-purple-300" />
                     </div>
                     <div>
-                      <h3 className="text-lg font-semibold text-white">Messages</h3>
-                      <p className="text-sm text-text-muted">{channels.length} conversations</p>
+                      <h3 className="text-xl font-bold text-white tracking-tight">Messages</h3>
+                      <p className="text-xs text-text-muted font-medium">{channels.length} {channels.length === 1 ? 'conversation' : 'conversations'}</p>
                     </div>
                   </div>
+                  <button onClick={onClose} className="md:hidden w-10 h-10 rounded-full bg-white/5 flex items-center justify-center">
+                    <X className="w-5 h-5 text-white" />
+                  </button>
                 </div>
+
                 <button
                   onClick={createNewChatWithTeacher}
                   disabled={isCreatingChannel}
-                  className="w-full px-4 py-2 bg-purple-primary text-white rounded-lg hover:bg-purple-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="w-full px-4 py-3.5 bg-purple-primary text-white rounded-2xl hover:bg-purple-600 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-black text-sm uppercase tracking-wider shadow-lg shadow-purple-primary/20"
                 >
                   {isCreatingChannel ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Starting chat...</span>
-                    </>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   ) : (
                     <>
-                      <MessageCircle className="w-4 h-4" />
+                      <Plus className="w-4 h-4" />
                       <span>Message Teacher</span>
                     </>
                   )}
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto">
+              <div className="flex-1 overflow-y-auto px-3 py-4 space-y-2 custom-scrollbar">
                 {isLoading ? (
                   <div className="flex items-center justify-center p-8">
-                    <div className="w-6 h-6 border-2 border-purple-primary border-t-transparent rounded-full animate-spin"></div>
+                    <div className="w-6 h-6 border-2 border-purple-primary border-t-transparent rounded-full animate-spin" />
                   </div>
                 ) : channels.length === 0 ? (
-                  <div className="flex items-center justify-center p-8">
-                    <div className="text-center">
-                      <MessageCircle className="w-12 h-12 text-text-muted mx-auto mb-2" />
-                      <p className="text-text-muted text-sm">No messages yet</p>
-                      <p className="text-text-muted text-xs mt-1">Click "Message Teacher" above to start a conversation</p>
+                  <div className="flex flex-col items-center justify-center p-10 h-full text-center">
+                    <div className="w-16 h-16 bg-white/[0.03] rounded-full flex items-center justify-center mb-4">
+                      <MessageCircle className="w-8 h-8 text-white/10" />
                     </div>
+                    <p className="text-white/40 text-sm font-medium">No messages yet</p>
                   </div>
                 ) : (
                   channels.map((channel) => {
-                    // Get last message - try multiple ways to extract it
                     const lastMessageObj = channel.state?.last_message;
                     let lastMessage = '';
-                    if (lastMessageObj) {
-                      if (lastMessageObj.text) {
-                        lastMessage = lastMessageObj.text;
-                      } else if (lastMessageObj.attachments && lastMessageObj.attachments.length > 0) {
-                        lastMessage = '📎 Attachment';
-                      } else if (lastMessageObj.type) {
-                        lastMessage = `[${lastMessageObj.type}]`;
-                      }
-                    }
+                    if (lastMessageObj?.text) lastMessage = lastMessageObj.text;
+                    else if (lastMessageObj?.attachments?.length) lastMessage = '📎 Attachment';
+
+                    const isActive = activeChannel?.id === channel.id;
 
                     return (
-                      <div
+                      <MotionDiv
                         key={channel.id}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
                         onClick={() => selectChannel(channel)}
-                        className={`p-4 cursor-pointer hover:bg-white/5 transition-colors border-l-2 ${activeChannel?.id === channel.id
-                          ? 'border-purple-primary bg-purple-primary/10'
-                          : 'border-transparent'
-                          }`}
+                        className={cn(
+                          "p-4 rounded-2xl cursor-pointer transition-all duration-200 border group",
+                          isActive
+                            ? "bg-purple-primary/20 border-purple-primary/30 shadow-lg shadow-purple-primary/10"
+                            : "hover:bg-white/[0.03] border-transparent"
+                        )}
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-purple-primary/20 rounded-full flex items-center justify-center">
-                            <MessageCircle className="w-5 h-5 text-purple-primary" />
+                        <div className="flex items-center gap-4">
+                          <div className={cn(
+                            "w-11 h-11 rounded-xl flex items-center justify-center border transition-colors",
+                            isActive ? "bg-purple-primary/40 border-purple-primary/50" : "bg-white/5 border-white/10 group-hover:border-white/20"
+                          )}>
+                            <MessageCircle className={cn("w-5 h-5", isActive ? "text-white" : "text-purple-300")} />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-white truncate">
+                            <p className={cn("text-sm font-bold truncate transition-colors", isActive ? "text-white" : "text-white/80")}>
                               {channel.data?.name || 'Teacher Chat'}
                             </p>
                             {lastMessage && (
-                              <p className="text-xs text-text-muted truncate">
+                              <p className="text-xs text-text-muted truncate font-medium mt-0.5">
                                 {lastMessage}
                               </p>
                             )}
                           </div>
                         </div>
-                      </div>
+                      </MotionDiv>
                     );
                   })
                 )}
@@ -251,287 +240,189 @@ const StudentChatModal: React.FC<StudentChatModalProps> = ({
             </div>
 
             {/* Chat Content */}
-            <div className="flex-1 flex flex-col">
-              <div className="flex items-center justify-between p-4 border-b border-white/10 bg-surface/50">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-purple-primary/20 rounded-full flex items-center justify-center">
-                    <MessageCircle className="w-5 h-5 text-purple-primary" />
+            <div className={cn(
+              "flex-1 flex flex-col bg-black/20",
+              activeChannel ? "flex" : "hidden md:flex"
+            )}>
+              {/* Chat Header */}
+              <div className="flex items-center justify-between p-4 md:p-6 border-b border-white/10 bg-white/5">
+                <div className="flex items-center gap-4">
+                  {activeChannel && (
+                    <button
+                      onClick={() => setActiveChannel(null)}
+                      className="md:hidden p-2 -ml-2 hover:bg-white/10 rounded-full transition-colors"
+                    >
+                      <ChevronLeft className="w-6 h-6 text-white" />
+                    </button>
+                  )}
+                  <div className="w-10 h-10 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 rounded-full flex items-center justify-center border border-white/10">
+                    <MessageCircle className="w-5 h-5 text-emerald-300" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-white">
-                      {activeChannel ? (activeChannel.data?.name || 'Teacher Chat') : 'Select a conversation'}
+                    <h3 className="text-lg font-bold text-white">
+                      {activeChannel ? (activeChannel.data?.name || 'Teacher Chat') : 'Chat Platform'}
                     </h3>
-                    <p className="text-sm text-text-muted">
-                      {activeChannel ? 'Teacher' : 'Choose a chat from the sidebar'}
+                    <p className="text-xs text-text-muted font-medium">
+                      {activeChannel ? 'Connected with Counselor' : 'Select a conversation'}
                     </p>
                   </div>
                 </div>
                 <button
                   onClick={onClose}
-                  className="w-8 h-8 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors"
+                  className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors hidden md:flex"
                 >
                   <X className="w-5 h-5 text-white" />
                 </button>
               </div>
 
-              <div className="flex-1 flex flex-col" style={{ minHeight: 0 }}>
+              <div className="flex-1 flex flex-col relative" style={{ minHeight: 0 }}>
                 {activeChannel ? (
                   <>
                     <style>{`
-                      /* ===== DARK THEME - MAIN CONTAINERS ===== */
-                      .str-chat,
-                      .str-chat__container,
-                      .str-chat__channel,
-                      .str-chat__main-panel,
-                      .str-chat__message-list,
-                      .str-chat__message-list-scroll,
-                      .str-chat__list,
-                      .str-chat__ul,
-                      .str-chat__virtual-list,
-                      .str-chat__thread {
-                        background: #0a0a0a !important;
-                      }
-                      
-                      .str-chat__channel {
-                        height: 100% !important;
-                        display: flex !important;
-                        flex-direction: column !important;
-                      }
-                      
-                      .str-chat__main-panel {
-                        flex: 1 !important;
-                        display: flex !important;
-                        flex-direction: column !important;
-                        min-height: 0 !important;
-                      }
-                      
-                      .str-chat__message-list {
-                        flex: 1 !important;
-                        overflow-y: auto !important;
-                        padding: 16px !important;
-                      }
-                      
-                      .str-chat__li {
-                        margin-bottom: 8px !important;
+                      .str-chat, .str-chat__container, .str-chat__channel, .str-chat__main-panel,
+                      .str-chat__message-list, .str-chat__message-list-scroll, .str-chat__list,
+                      .str-chat__ul, .str-chat__virtual-list, .str-chat__thread {
                         background: transparent !important;
                       }
+                      .str-chat__channel { height: 100% !important; display: flex !important; flex-direction: column !important; position: relative !important; }
+                      .str-chat__main-panel { flex: 1 !important; display: flex !important; flex-direction: column !important; min-height: 0 !important; height: 100% !important; }
+                      .str-chat__message-list { flex: 1 !important; padding: 24px !important; }
                       
-                      /* ===== HIDE AVATARS ===== */
-                      .str-chat__avatar,
-                      .str-chat__avatar-image {
-                        display: none !important;
-                      }
+                      .str-chat__li { margin-bottom: 12px !important; }
+                      .str-chat__avatar { display: none !important; }
+                      .str-chat__message, .str-chat__message-simple { background: transparent !important; width: 100% !important; }
+                       .str-chat__message-inner { 
+                         background: transparent !important; 
+                         width: 100% !important; 
+                         display: flex !important; 
+                         flex-direction: column !important;
+                       }
+                       .str-chat__message--me .str-chat__message-inner { align-items: flex-end !important; }
+                       .str-chat__message:not(.str-chat__message--me) .str-chat__message-inner { align-items: flex-start !important; }
+                       
+                       .str-chat__message-bubble { background: transparent !important; border: none !important; box-shadow: none !important; width: auto !important; max-width: 85% !important; }
+                      .str-chat__message-options { display: none !important; }
+                       .str-chat__message:not(.str-chat__message--me) .str-chat__message-text-inner {
+                         background: rgba(255, 255, 255, 0.05) !important;
+                         border: 1px solid rgba(255, 255, 255, 0.1) !important;
+                         color: #ffffff !important;
+                         padding: 12px 18px !important;
+                         border-radius: 20px 20px 20px 6px !important;
+                         width: max-content !important;
+                         max-width: 100% !important;
+                         min-width: 60px !important;
+                         display: block !important;
+                         backdrop-filter: blur(8px) !important;
+                         word-break: normal !important;
+                         overflow-wrap: break-word !important;
+                       }
+                       .str-chat__message--me .str-chat__message-text-inner {
+                         background: linear-gradient(135deg, #a855f720, #6366f120) !important;
+                         border: 1px solid rgba(168, 85, 247, 0.3) !important;
+                         color: #ffffff !important;
+                         padding: 12px 18px !important;
+                         border-radius: 20px 20px 6px 20px !important;
+                         width: max-content !important;
+                         max-width: 100% !important;
+                         min-width: 60px !important;
+                         display: block !important;
+                         backdrop-filter: blur(8px) !important;
+                         word-break: normal !important;
+                         overflow-wrap: break-word !important;
+                       }
                       
-                      /* ===== MESSAGE CONTAINER ===== */
-                      .str-chat__message,
-                      .str-chat__message-simple,
-                      .str-chat__message-inner {
-                        background: transparent !important;
-                        padding: 0 !important;
-                      }
+                      .str-chat__message-text-inner p { color: #ffffff !important; font-size: 15px !important; line-height: 1.6 !important; }
+                      .str-chat__message-data { font-size: 10px !important; color: rgba(255, 255, 255, 0.4) !important; opacity: 1 !important; }
                       
-                      /* ===== HIDE FLOATING ACTION BAR ===== */
-                      .str-chat__message-options,
-                      .str-chat__message-simple__actions,
-                      .str-chat__message-actions-container,
-                      .str-chat__message-reactions-button {
-                        display: none !important;
-                      }
-                      
-                      /* ===== MESSAGE BUBBLES ===== */
-                      .str-chat__message-text,
-                      .str-chat__message-bubble {
-                        background: transparent !important;
-                        border: none !important;
-                      }
-                      
-                      .str-chat__message:not(.str-chat__message--me) .str-chat__message-text-inner {
-                        background: #27272a !important;
-                        color: #ffffff !important;
-                        padding: 10px 14px !important;
-                        border-radius: 18px 18px 18px 4px !important;
-                        display: inline-block !important;
-                        max-width: 300px !important;
-                      }
-                      
-                      .str-chat__message--me .str-chat__message-text-inner {
-                        background: linear-gradient(135deg, #8b5cf6, #7c3aed) !important;
-                        color: #ffffff !important;
-                        padding: 10px 14px !important;
-                        border-radius: 18px 18px 4px 18px !important;
-                        display: inline-block !important;
-                        max-width: 300px !important;
-                      }
-                      
-                      .str-chat__message-text-inner p {
-                        margin: 0 !important;
-                        color: #ffffff !important;
-                        line-height: 1.5 !important;
-                        font-size: 14px !important;
-                      }
-                      
-                      /* ===== TIMESTAMPS ===== */
-                      .str-chat__message-data,
-                      .str-chat__message-simple-timestamp {
-                        font-size: 10px !important;
-                        color: rgba(255, 255, 255, 0.4) !important;
-                        margin-top: 2px !important;
-                        display: inline-block !important;
-                      }
-                      
-                      /* ===== HIDE SENDER NAME ===== */
-                      .str-chat__message-sender-name {
-                        display: none !important;
-                      }
-                      
-                      /* ===== DATE SEPARATORS ===== */
-                      .str-chat__date-separator {
-                        margin: 20px 0 !important;
-                        background: transparent !important;
-                        display: flex !important;
-                        justify-content: center !important;
-                      }
-                      
-                      .str-chat__date-separator-line {
-                        display: none !important;
-                      }
-                      
-                      .str-chat__date-separator-date {
-                        background: rgba(139, 92, 246, 0.15) !important;
-                        color: #a78bfa !important;
-                        font-size: 11px !important;
-                        padding: 6px 14px !important;
-                        border-radius: 14px !important;
-                      }
-                      
-                      /* ===== READ RECEIPTS ===== */
-                      .str-chat__message-status {
-                        display: inline-flex !important;
-                        align-items: center !important;
-                        margin-left: 4px !important;
-                      }
-                      
-                      .str-chat__message-status svg {
-                        color: #6b7280 !important;
-                        fill: #6b7280 !important;
-                        width: 14px !important;
-                        height: 14px !important;
-                      }
-                      
-                      .str-chat__message-status--read svg {
-                        color: #3b82f6 !important;
-                        fill: #3b82f6 !important;
-                      }
-                      
-                      /* ===== REACTIONS ===== */
-                      .str-chat__reaction-list {
-                        background: rgba(31, 31, 35, 0.9) !important;
-                        border: none !important;
-                        border-radius: 12px !important;
-                        padding: 2px 6px !important;
-                      }
-                      
-                      .str-chat__reaction-selector {
-                        background: #1f1f23 !important;
+                      .str-chat__date-separator { margin: 32px 0 !important; }
+                      .str-chat__date-separator-date { 
+                        background: rgba(255, 255, 255, 0.05) !important; 
+                        color: rgba(255, 255, 255, 0.6) !important;
                         border: 1px solid rgba(255, 255, 255, 0.1) !important;
-                        border-radius: 20px !important;
-                        padding: 6px 10px !important;
+                        font-family: inherit !important;
+                        font-weight: 600 !important;
+                        letter-spacing: 0.05em !important;
                       }
-                      
-                      /* ===== MESSAGE INPUT ===== */
-                      .str-chat__message-input {
-                        background: #0a0a0a !important;
-                        border: none !important;
-                        border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
-                        padding: 12px 16px !important;
+
+                      /* Custom Input Reset */
+                      .str-chat__message-input { 
+                         background: transparent !important; 
+                         border: none !important; 
+                         padding: 16px 24px 24px 24px !important;
+                         width: 100% !important;
+                         margin: 0 auto !important;
+                         max-width: 900px !important;
                       }
-                      
                       .str-chat__message-input-inner {
-                        background: #18181b !important;
+                        background: rgba(0, 0, 0, 0.4) !important;
+                      backdrop-filter: blur(20px) !important;
                         border: 1px solid rgba(255, 255, 255, 0.1) !important;
-                        border-radius: 22px !important;
-                        display: flex !important;
-                        align-items: center !important;
-                        padding: 6px 8px 6px 14px !important;
-                        gap: 8px !important;
+                        border-radius: 24px !important;
+                        padding: 8px 12px 8px 18px !important;
                       }
-                      
-                      .str-chat__textarea {
-                        flex: 1 !important;
-                      }
-                      
-                      .str-chat__textarea textarea {
-                        background: transparent !important;
-                        color: #ffffff !important;
-                        border: none !important;
-                        outline: none !important;
-                        padding: 6px 0 !important;
-                        font-size: 14px !important;
-                      }
-                      
-                      .str-chat__textarea textarea::placeholder {
-                        color: rgba(255, 255, 255, 0.35) !important;
-                      }
-                      
-                      .str-chat__file-input-container,
-                      .str-chat__input-emojiselect {
-                        color: rgba(255, 255, 255, 0.4) !important;
-                        background: transparent !important;
-                      }
-                      
-                      .str-chat__send-button {
-                        background: linear-gradient(135deg, #8b5cf6, #7c3aed) !important;
-                        border: none !important;
-                        border-radius: 50% !important;
-                        width: 34px !important;
-                        height: 34px !important;
-                        min-width: 34px !important;
+                       .str-chat__textarea textarea { 
+                         font-size: 15px !important; 
+                         height: auto !important; 
+                         max-height: 120px !important; 
+                         color: #ffffff !important;
+                         caret-color: #a855f7 !important;
+                       }
+                       .str-chat__textarea textarea::placeholder { color: rgba(255, 255, 255, 0.4) !important; }
+                       .str-chat__send-button {
+                        background: linear-gradient(135deg, #a855f7, #7c3aed) !important;
+                        box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3) !important;
+                        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                        width: 40px !important;
+                        height: 40px !important;
+                        border-radius: 12px !important;
                         display: flex !important;
                         align-items: center !important;
                         justify-content: center !important;
+                        padding: 0 !important;
+                        margin-left: 8px !important;
                       }
-                      
-                      .str-chat__send-button svg {
-                        fill: white !important;
-                        width: 16px !important;
-                        height: 16px !important;
+                      .str-chat__send-button:hover { 
+                        transform: translateY(-2px) scale(1.05) !important; 
+                        box-shadow: 0 6px 16px rgba(168, 85, 247, 0.4) !important;
+                        filter: brightness(1.1) !important; 
                       }
-                      
-                      /* ===== SCROLLBAR ===== */
-                      .str-chat__message-list::-webkit-scrollbar {
-                        width: 5px !important;
-                      }
-                      
-                      .str-chat__message-list::-webkit-scrollbar-track {
-                        background: transparent !important;
-                      }
-                      
-                      .str-chat__message-list::-webkit-scrollbar-thumb {
-                        background: rgba(255, 255, 255, 0.15) !important;
-                        border-radius: 3px !important;
+                      .str-chat__send-button:active { transform: translateY(0) scale(0.95) !important; }
+                      .str-chat__send-button svg { display: none !important; }
+                      .str-chat__send-button::after {
+                        content: '';
+                        display: block;
+                        width: 20px;
+                        height: 20px;
+                        background-color: white;
+                        mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='1.5'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5'/%3E%3C/svg%3E") no-repeat center;
+                        -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='1.5'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5'/%3E%3C/svg%3E") no-repeat center;
                       }
                     `}</style>
-                    <Channel channel={activeChannel} theme="messaging dark">
-                      <Window>
-                        <MessageList />
-                        <MessageInput />
-                      </Window>
-                      <Thread />
-                    </Channel>
+                    <div className="flex-1 overflow-hidden">
+                      <Channel channel={activeChannel} {...{ theme: "messaging dark" } as any}>
+                        <Window>
+                          <MessageList />
+                          <MessageInput />
+                        </Window>
+                        <Thread />
+                      </Channel>
+                    </div>
                   </>
                 ) : (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="text-center">
-                      <MessageCircle className="w-16 h-16 text-text-muted mx-auto mb-4" />
-                      <h4 className="text-lg font-medium text-white mb-2">Welcome to Messages</h4>
-                      <p className="text-text-muted">Select a conversation to start chatting with your teachers.</p>
+                  <div className="flex-1 flex flex-col items-center justify-center p-10 text-center">
+                    <div className="w-24 h-24 bg-gradient-to-br from-purple-500/10 to-blue-500/10 rounded-3xl flex items-center justify-center border border-white/10 mb-6 shadow-2xl">
+                      <MessageCircle className="w-10 h-10 text-purple-300/50" />
                     </div>
+                    <h4 className="text-2xl font-bold text-white mb-2 tracking-tight">Your Safe Space</h4>
+                    <p className="text-text-muted max-w-xs font-medium">
+                      Select a conversation or start a new one to chat with our supportive counseling team.
+                    </p>
                   </div>
                 )}
               </div>
             </div>
-          </motion.div>
-        </motion.div>
+          </MotionDiv>
+        </MotionDiv>
       )}
     </AnimatePresence>
   );

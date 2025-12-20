@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import confetti from 'canvas-confetti';
 import { X, CheckCircle, ArrowRight } from 'lucide-react';
 import { ModalProps } from '../types';
@@ -262,6 +263,12 @@ const WaterOrb: React.FC<WaterOrbProps> = ({ percentage, size = 200 }) => {
 const CompletionModal: React.FC<ModalProps> = ({ isOpen, onClose }) => {
     const [showContent, setShowContent] = useState(false);
     const [fillLevel, setFillLevel] = useState(0);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+        return () => setMounted(false);
+    }, []);
 
     // Animation Sequence
     useEffect(() => {
@@ -321,10 +328,10 @@ const CompletionModal: React.FC<ModalProps> = ({ isOpen, onClose }) => {
         frame();
     };
 
-    if (!isOpen) return null;
+    if (!isOpen || !mounted) return null;
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+    return createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center">
             {/* Dark Blurred Backdrop */}
             <div
                 className={`absolute inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity duration-500 ${showContent ? 'opacity-100' : 'opacity-0'}`}
@@ -391,7 +398,8 @@ const CompletionModal: React.FC<ModalProps> = ({ isOpen, onClose }) => {
                 </button>
 
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 

@@ -16,7 +16,7 @@ import { generatePersonalizedQuestions, generateId } from './personalizationServ
 const PLANS_KEY = 'awaaz_session_plans';
 
 export const FALLBACK_QUESTIONS: PreAnalysisQuestion[] = [
-    { id: 'fb1', text: "What is one thing you are looking forward to this week?", type: 'open-ended', category: 'general' },
+    { id: 'fb1', text: "What is one thing you are looking forward to this week?", type: 'multiple-choice', options: ["Friendships", "Sports", "Holidays", "Other"], category: 'general' },
     { id: 'fb2', text: "How is your energy level today?", type: 'scale-1-5', category: 'general' },
     { id: 'fb3', text: "Is there anything specifically bothering you right now?", type: 'yes-no', category: 'stress' },
     { id: 'fb4', text: "Have you been able to spend time with friends or family?", type: 'yes-no', category: 'social' },
@@ -99,6 +99,7 @@ export const createEmptyPlan = (studentId: string, studentName?: string): Sessio
     customQuestions: [],
     focusTopic: '',
     focusIntensity: 'gentle',
+    assignedTasks: [],
     isActive: true,
     useForNextSessionOnly: false,
 });
