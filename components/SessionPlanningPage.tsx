@@ -270,7 +270,7 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
                         <div className="flex items-center gap-4">
                             <button
                                 onClick={onBack}
-                                className="p-2 rounded-lg hover:bg-surface transition-colors text-text-secondary hover:text-text-primary"
+                                className="p-3 min-w-[44px] min-h-[44px] rounded-lg hover:bg-surface active:bg-surface/80 active:scale-95 transition-all text-text-secondary hover:text-text-primary"
                                 aria-label="Go back"
                             >
                                 <ArrowLeft className="w-5 h-5" />
@@ -528,7 +528,7 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
                         <div className="mt-4 flex gap-3">
                             <button
                                 onClick={handleAddQuestion}
-                                className="flex-1 py-3 border-2 border-dashed border-purple-primary/30 rounded-xl text-purple-primary hover:bg-purple-primary/10 transition-colors flex items-center justify-center gap-2"
+                                className="flex-1 py-3 min-h-[44px] border-2 border-dashed border-purple-primary/30 rounded-xl text-purple-primary hover:bg-purple-primary/10 active:bg-purple-primary/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                             >
                                 <Plus className="w-5 h-5" />
                                 Add Custom Question
@@ -537,7 +537,7 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
                             <div className="relative">
                                 <button
                                     onClick={() => setShowTemplateSelector(!showTemplateSelector)}
-                                    className="h-full px-6 border-2 border-dashed border-blue-400/30 rounded-xl text-blue-400 hover:bg-blue-400/10 transition-colors flex items-center justify-center gap-2"
+                                    className="h-full min-h-[44px] px-6 border-2 border-dashed border-blue-400/30 rounded-xl text-blue-400 hover:bg-blue-400/10 active:bg-blue-400/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                                 >
                                     <MessageSquare className="w-5 h-5" />
                                     Use Template
@@ -701,7 +701,7 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
                                     setPlan({ ...plan, assignedTasks: newTasks });
                                     setHasChanges(true);
                                 }}
-                                className="w-full py-3 border-2 border-dashed border-emerald-500/20 rounded-xl text-emerald-400 hover:bg-emerald-500/10 transition-colors flex items-center justify-center gap-2 text-sm"
+                                className="w-full py-3 min-h-[44px] border-2 border-dashed border-emerald-500/20 rounded-xl text-emerald-400 hover:bg-emerald-500/10 active:bg-emerald-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-sm"
                             >
                                 <Plus className="w-4 h-4" />
                                 Add Targeted Task

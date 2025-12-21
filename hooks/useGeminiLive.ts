@@ -149,17 +149,22 @@ export const useGeminiLive = (
                 inputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ latencyHint: 'interactive' as any });
 
                 // DEBUG Watchdog: Monitor AudioContext and Stream health independently of processing
+                let watchdogCount = 0;
                 const watchdogInterval = setInterval(() => {
                     if (isCancelled) { clearInterval(watchdogInterval); return; }
+                    watchdogCount++;
 
                     const ctx = inputAudioContextRef.current;
                     const track = stream?.getAudioTracks()[0];
-                    const trackInfo = track ? `ID:${track.id.substring(0, 4)} En:${track.enabled} Muted:${track.muted} St:${track.readyState}` : 'No Track';
-                    const isProcessorConnected = !!scriptProcessorRef.current;
+                    const isConnected = isConnectedRef.current;
 
-                    console.log(`[GeminiWatchdog] Ctx:${ctx?.state} | Track:${trackInfo} | AppMuted:${mutedRef.current} | Proc:${isProcessorConnected} | Connected:${isConnectedRef.current}`);
+                    // Only log health if there's a problem or every 10 seconds to reduce noise
+                    if (ctx?.state === 'suspended' || !track || track.readyState === 'ended' || watchdogCount % 5 === 0) {
+                        const trackInfo = track ? `ID:${track.id.substring(0, 4)} En:${track.enabled} Muted:${track.muted} St:${track.readyState}` : 'No Track';
+                        console.log(`[GeminiWatchdog] Ctx:${ctx?.state} | Track:${trackInfo} | AppMuted:${mutedRef.current} | Proc:${!!scriptProcessorRef.current} | Connected:${isConnected}`);
+                    }
 
-                    if (ctx?.state === 'suspended') {
+                    if (ctx?.state === 'suspended' && isConnected) {
                         console.warn('[GeminiWatchdog] Context suspended! Forcing resume...');
                         ctx.resume();
                     }
@@ -230,13 +235,13 @@ export const useGeminiLive = (
                                             dataToSend = downsampled;
                                         }
 
-                                        // Debug: check volume levels occasionally
-                                        if (frameCount % 100 === 0) {
+                                        // Debug: check volume levels occasionally (every ~5 seconds)
+                                        if (frameCount % 250 === 0) {
                                             let maxAmp = 0;
                                             for (let i = 0; i < dataToSend.length; i++) maxAmp = Math.max(maxAmp, Math.abs(dataToSend[i]));
 
-                                            // Only warn if truly silent
-                                            if (maxAmp < 0.0001) {
+                                            // Only warn if truly silent and we are unmuted
+                                            if (maxAmp < 0.0001 && !mutedRef.current) {
                                                 console.warn('[GeminiLive] Mic Input SILENT. MaxAmp:', maxAmp.toFixed(6));
                                             }
                                         }

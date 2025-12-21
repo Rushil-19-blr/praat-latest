@@ -1,8 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, MessageCircle, Users, Pencil } from './Icons';
+import { X, MessageCircle, Users, Pencil, ChevronLeft } from './Icons';
 import { useStreamChat } from './StreamChatProvider';
 import { Channel, MessageList, MessageInput, Thread, Window } from 'stream-chat-react';
+import { cn } from '../lib/utils';
+
+const MotionDiv = motion.div as any;
 
 interface TeacherChatModalProps {
   isOpen: boolean;
@@ -231,24 +234,27 @@ const TeacherChatModal: React.FC<TeacherChatModalProps> = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <motion.div
+        <MotionDiv
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
-          className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[9999] flex items-center justify-center p-0 md:p-6"
           onClick={onClose}
         >
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+          <MotionDiv
+            initial={{ scale: 0.95, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.9, opacity: 0, y: 20 }}
-            transition={{ duration: 0.3, ease: 'easeOut' }}
-            onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-4xl h-[80vh] max-h-[600px] bg-background-primary rounded-2xl overflow-hidden shadow-2xl flex"
+            exit={{ scale: 0.95, opacity: 0, y: 20 }}
+            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            onClick={(e: any) => e.stopPropagation()}
+            className="w-full h-full md:max-w-5xl md:h-[80vh] md:max-h-[750px] bg-black/40 backdrop-blur-xl border-white/10 shadow-2xl flex relative md:rounded-[32px] overflow-hidden"
           >
             {/* Sidebar - Channel List */}
-            <div className="w-80 border-r border-white/10 bg-surface/50 flex flex-col">
+            <div className={cn(
+              "w-full md:w-80 border-r border-white/10 bg-white/5 flex flex-col transition-all duration-300",
+              activeChannel ? "hidden md:flex" : "flex"
+            )}>
               <div className="p-4 border-b border-white/10">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-purple-primary/20 rounded-full flex items-center justify-center">
@@ -290,34 +296,43 @@ const TeacherChatModal: React.FC<TeacherChatModalProps> = ({
                       }
                     }
 
+                    const isActive = activeChannel?.id === channel.id;
+
                     return (
-                      <div
+                      <MotionDiv
                         key={channel.id}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
                         onClick={() => selectChannel(channel)}
-                        className={`p-4 cursor-pointer hover:bg-white/5 transition-colors border-l-2 ${activeChannel?.id === channel.id
-                          ? 'border-purple-primary bg-purple-primary/10'
-                          : 'border-transparent'
-                          }`}
+                        className={cn(
+                          "p-4 mx-2 mb-2 rounded-2xl cursor-pointer transition-all duration-200 border group",
+                          isActive
+                            ? "bg-purple-primary/20 border-purple-primary/30 shadow-lg shadow-purple-primary/10"
+                            : "hover:bg-white/[0.03] border-transparent"
+                        )}
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-purple-primary/20 rounded-full flex items-center justify-center">
-                            <MessageCircle className="w-5 h-5 text-purple-primary" />
+                        <div className="flex items-center gap-4">
+                          <div className={cn(
+                            "w-11 h-11 rounded-xl flex items-center justify-center border transition-colors",
+                            isActive ? "bg-purple-primary/40 border-purple-primary/50" : "bg-white/5 border-white/10 group-hover:border-white/20"
+                          )}>
+                            <MessageCircle className={cn("w-5 h-5", isActive ? "text-white" : "text-purple-300")} />
                           </div>
                           <div className="flex-1 min-w-0 flex items-center gap-2">
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-white truncate">
+                              <p className={cn("text-sm font-bold truncate transition-colors", isActive ? "text-white" : "text-white/80")}>
                                 {getDisplayName(studentId)}
                               </p>
                               {lastMessage && (
-                                <p className="text-xs text-text-muted truncate mt-1">
+                                <p className="text-xs text-text-muted truncate font-medium mt-0.5">
                                   {lastMessage}
                                 </p>
                               )}
                             </div>
-                            {activeChannel?.id === channel.id && (
+                            {isActive && (
                               <button
                                 onClick={(e) => handleEditNickname(e, studentId)}
-                                className="w-10 h-10 bg-purple-primary/20 hover:bg-purple-primary/40 rounded-full flex items-center justify-center transition-colors flex-shrink-0"
+                                className="w-10 h-10 bg-purple-primary/20 hover:bg-purple-primary/40 rounded-full flex items-center justify-center transition-colors flex-shrink-0 active:scale-90"
                                 title="Edit nickname"
                               >
                                 <Pencil className="w-5 h-5 text-purple-primary" />
@@ -325,7 +340,7 @@ const TeacherChatModal: React.FC<TeacherChatModalProps> = ({
                             )}
                           </div>
                         </div>
-                      </div>
+                      </MotionDiv>
                     );
                   })
                 )}
@@ -333,19 +348,36 @@ const TeacherChatModal: React.FC<TeacherChatModalProps> = ({
             </div>
 
             {/* Chat Content */}
-            <div className="flex-1 flex flex-col">
-              <div className="flex items-center justify-between p-4 border-b border-white/10 bg-surface/50">
-                <div>
-                  <h3 className="text-lg font-semibold text-white">
-                    {activeChannel ? getDisplayName(getStudentIdFromChannelMembers(activeChannel)) : 'Select a conversation'}
-                  </h3>
-                  <p className="text-sm text-text-muted">
-                    {activeChannel ? getStudentName(getStudentIdFromChannelMembers(activeChannel)) : 'Choose a chat from the sidebar'}
-                  </p>
+            <div className={cn(
+              "flex-1 flex flex-col bg-black/20",
+              activeChannel ? "flex" : "hidden md:flex"
+            )}>
+              {/* Chat Header */}
+              <div className="flex items-center justify-between p-4 md:p-6 border-b border-white/10 bg-white/5">
+                <div className="flex items-center gap-4">
+                  {activeChannel && (
+                    <button
+                      onClick={() => setActiveChannel(null)}
+                      className="md:hidden p-2 -ml-2 hover:bg-white/10 rounded-full transition-colors"
+                    >
+                      <ChevronLeft className="w-6 h-6 text-white" />
+                    </button>
+                  )}
+                  <div className="w-10 h-10 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 rounded-full flex items-center justify-center border border-white/10">
+                    <MessageCircle className="w-5 h-5 text-emerald-300" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-white">
+                      {activeChannel ? getDisplayName(getStudentIdFromChannelMembers(activeChannel)) : 'Select a conversation'}
+                    </h3>
+                    <p className="text-sm text-text-muted">
+                      {activeChannel ? getStudentName(getStudentIdFromChannelMembers(activeChannel)) : 'Choose a chat from the sidebar'}
+                    </p>
+                  </div>
                 </div>
                 <button
                   onClick={onClose}
-                  className="w-8 h-8 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors"
+                  className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors hidden md:flex"
                 >
                   <X className="w-5 h-5 text-white" />
                 </button>
@@ -427,26 +459,30 @@ const TeacherChatModal: React.FC<TeacherChatModalProps> = ({
                         border: none !important;
                       }
                       
-                      /* RECEIVED messages - gray bubble */
+                      /* RECEIVED messages - glass bubble */
                       .str-chat__message:not(.str-chat__message--me) .str-chat__message-text-inner {
-                        background: #27272a !important;
+                        background: rgba(255, 255, 255, 0.05) !important;
+                        border: 1px solid rgba(255, 255, 255, 0.1) !important;
                         color: #ffffff !important;
-                        padding: 10px 14px !important;
-                        border-radius: 18px 18px 18px 4px !important;
+                        padding: 12px 18px !important;
+                        border-radius: 20px 20px 20px 6px !important;
                         display: inline-block !important;
                         max-width: 300px !important;
                         word-wrap: break-word !important;
+                        backdrop-filter: blur(8px) !important;
                       }
                       
-                      /* SENT messages - purple gradient bubble */
+                      /* SENT messages - purple glass gradient bubble */
                       .str-chat__message--me .str-chat__message-text-inner {
-                        background: linear-gradient(135deg, #8b5cf6, #7c3aed) !important;
+                        background: linear-gradient(135deg, #a855f720, #6366f120) !important;
+                        border: 1px solid rgba(168, 85, 247, 0.3) !important;
                         color: #ffffff !important;
-                        padding: 10px 14px !important;
-                        border-radius: 18px 18px 4px 18px !important;
+                        padding: 12px 18px !important;
+                        border-radius: 20px 20px 6px 20px !important;
                         display: inline-block !important;
                         max-width: 300px !important;
                         word-wrap: break-word !important;
+                        backdrop-filter: blur(8px) !important;
                       }
                       
                       .str-chat__message-text-inner p {
@@ -755,13 +791,13 @@ const TeacherChatModal: React.FC<TeacherChatModalProps> = ({
                 )}
               </div>
             </div>
-          </motion.div>
-        </motion.div>
+          </MotionDiv>
+        </MotionDiv>
       )}
 
       {/* Nickname Edit Modal */}
       {editingStudentId && (
-        <motion.div
+        <MotionDiv
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -769,12 +805,12 @@ const TeacherChatModal: React.FC<TeacherChatModalProps> = ({
           className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
           onClick={handleCancelEdit}
         >
-          <motion.div
+          <MotionDiv
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
             transition={{ duration: 0.2 }}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e: any) => e.stopPropagation()}
             className="bg-background-primary rounded-xl p-6 w-full max-w-md border border-white/10 shadow-2xl"
           >
             <h3 className="text-lg font-semibold text-white mb-2">Edit Nickname</h3>
@@ -810,8 +846,8 @@ const TeacherChatModal: React.FC<TeacherChatModalProps> = ({
                 Save
               </button>
             </div>
-          </motion.div>
-        </motion.div>
+          </MotionDiv>
+        </MotionDiv>
       )}
     </AnimatePresence>
   );

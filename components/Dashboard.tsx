@@ -40,6 +40,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
 
     // Onboarding State
     const [onboardingState, setOnboardingState] = useState<OnboardingState>(INITIAL_ONBOARDING_STATE);
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 640);
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
 
     useEffect(() => {
         if (userData?.accountNumber) {
@@ -174,6 +182,35 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
         };
     }, [userData]);
 
+    const modalVariants = {
+        hidden: {
+            opacity: 0,
+            y: isMobile ? '100%' : -20,
+            x: isMobile ? 0 : 20,
+            scale: isMobile ? 1 : 0.9
+        },
+        visible: {
+            opacity: 1,
+            y: 0,
+            x: 0,
+            scale: 1,
+            transition: {
+                type: 'spring',
+                damping: 25,
+                stiffness: 300
+            }
+        },
+        exit: {
+            opacity: 0,
+            y: isMobile ? '100%' : -20,
+            x: isMobile ? 0 : 20,
+            scale: isMobile ? 1 : 0.9,
+            transition: {
+                duration: 0.2
+            }
+        }
+    };
+
     return (
         <>
             <style>{`
@@ -216,16 +253,25 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                     border: 1px solid #333333;
                     border-radius: 50px;
                     padding: 12px;
+                    min-width: 44px;
+                    min-height: 44px;
                     color: #a0a0a0;
                     cursor: pointer;
-                    transition: border-color 0.3s ease, color 0.3s ease, background-color 0.3s ease;
+                    transition: border-color 0.3s ease, color 0.3s ease, background-color 0.3s ease, transform 0.15s ease;
                     position: relative;
                     z-index: 1001;
+                    -webkit-tap-highlight-color: transparent;
                 }
 
-                .accounts-btn:hover {
+                .accounts-btn:hover,
+                .accounts-btn:active {
                     border-color: #a855f7;
                     color: #a855f7;
+                }
+
+                .accounts-btn:active {
+                    transform: scale(0.95);
+                    background-color: rgba(168, 85, 247, 0.15);
                 }
 
                 .accounts-btn.active {
@@ -235,8 +281,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                 }
 
                 .accounts-icon {
-                    width: 20px;
-                    height: 20px;
+                    width: 24px;
+                    height: 24px;
                     fill: currentColor;
                     stroke: currentColor;
                     transition: transform 0.3s ease;
@@ -291,6 +337,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                     border: none;
                     border-radius: 12px;
                     padding: 12px 20px;
+                    min-height: 44px;
                     cursor: pointer;
                     transition: transform 0.2s ease, box-shadow 0.2s ease;
                     display: flex;
@@ -301,11 +348,17 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                     font-size: 15px;
                     font-weight: 600;
                     color: #000000;
+                    -webkit-tap-highlight-color: transparent;
                 }
 
-                .calibration-btn:hover {
+                .calibration-btn:hover,
+                .calibration-btn:active {
                     transform: translateY(-2px) scale(1.05);
                     box-shadow: 0 8px 24px rgba(251, 191, 36, 0.5);
+                }
+
+                .calibration-btn:active {
+                    transform: scale(0.98);
                 }
 
                 .calibration-icon {
@@ -338,6 +391,29 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                     right: 40px;
                     z-index: 1001;
                     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+                }
+
+                @media (max-width: 640px) {
+                    .modal-content {
+                        top: auto;
+                        bottom: 0;
+                        right: 0;
+                        left: 0;
+                        width: 100%;
+                        border-radius: 30px 30px 0 0;
+                        padding-bottom: 50px;
+                        border-bottom: none;
+                        border-left: none;
+                        border-right: none;
+                    }
+
+                    .header {
+                        padding: 15px 20px;
+                    }
+
+                    .main-content {
+                        padding: 20px;
+                    }
                 }
 
                 .close {
@@ -391,7 +467,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
             `}</style>
             <div className="header">
                 <div className="app-logo">
-                    <AnimatedLogo size={100} />
+                    <AnimatedLogo size={isMobile ? 60 : 100} />
                 </div>
                 <div className="flex gap-2">
                     <button
@@ -476,28 +552,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                         />
                         <MotionDiv
                             className="modal-content"
-                            initial={{
-                                opacity: 0,
-                                scale: 0.8,
-                                y: -20,
-                                x: 20
-                            }}
-                            animate={{
-                                opacity: 1,
-                                scale: 1,
-                                y: 0,
-                                x: 0
-                            }}
-                            exit={{
-                                opacity: 0,
-                                scale: 0.8,
-                                y: -20,
-                                x: 20
-                            }}
-                            transition={{
-                                duration: 0.3,
-                                ease: [0.4, 0, 0.2, 1]
-                            }}
+                            variants={modalVariants}
+                            initial="hidden"
+                            animate="visible"
+                            exit="exit"
                         >
                             <div className="account-info">
                                 <div className="account-name">

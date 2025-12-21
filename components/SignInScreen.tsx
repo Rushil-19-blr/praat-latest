@@ -4,6 +4,7 @@ import { SlideToUnlock } from './ui/reward-card';
 import GlassCard from './GlassCard';
 import { cn } from '../lib/utils';
 import { Eye, EyeSlash } from './Icons';
+import { AnimatedLogo } from './ui/AnimatedLogo';
 
 interface SignInScreenProps {
   onSignIn: (code: string, password: string, userType: 'student' | 'teacher') => void;
@@ -79,10 +80,8 @@ const SignInScreen: React.FC<SignInScreenProps> = ({ onSignIn, onCreateAccount }
       </div>
 
       <GlassCard className="relative z-10 w-full max-w-[420px] p-8 md:p-10 !rounded-[40px] border-white/10 shadow-3xl">
-        <div className="text-center mb-10">
-          <h1 className="text-5xl font-black tracking-tighter bg-gradient-to-br from-purple-400 via-purple-500 to-indigo-500 bg-clip-text text-transparent italic">
-            AWAAZ
-          </h1>
+        <div className="flex flex-col items-center justify-center mb-8">
+          <AnimatedLogo size={140} className="-mb-4" />
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-7">
@@ -93,10 +92,10 @@ const SignInScreen: React.FC<SignInScreenProps> = ({ onSignIn, onCreateAccount }
                 type="button"
                 onClick={() => setUserType('student')}
                 className={cn(
-                  "flex-1 py-4 px-4 rounded-[18px] text-[10px] font-black uppercase tracking-widest transition-all duration-300",
+                  "flex-1 py-4 px-4 rounded-[18px] text-[10px] font-bold uppercase tracking-[0.2em] transition-all duration-300",
                   userType === 'student'
-                    ? "bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-xl shadow-purple-500/20 scale-[1.02]"
-                    : "text-white/30 hover:text-white/60 hover:bg-white/5"
+                    ? "bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-xl shadow-purple-500/20 scale-[1.02] ring-1 ring-white/10"
+                    : "text-white/40 hover:text-white/70 hover:bg-white/5"
                 )}
               >
                 Student
@@ -105,10 +104,10 @@ const SignInScreen: React.FC<SignInScreenProps> = ({ onSignIn, onCreateAccount }
                 type="button"
                 onClick={() => setUserType('teacher')}
                 className={cn(
-                  "flex-1 py-4 px-4 rounded-[18px] text-[10px] font-black uppercase tracking-widest transition-all duration-300",
+                  "flex-1 py-4 px-4 rounded-[18px] text-[10px] font-bold uppercase tracking-[0.2em] transition-all duration-300",
                   userType === 'teacher'
-                    ? "bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-xl shadow-purple-500/20 scale-[1.02]"
-                    : "text-white/30 hover:text-white/60 hover:bg-white/5"
+                    ? "bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-xl shadow-purple-500/20 scale-[1.02] ring-1 ring-white/10"
+                    : "text-white/40 hover:text-white/70 hover:bg-white/5"
                 )}
               >
                 Teacher
@@ -118,7 +117,7 @@ const SignInScreen: React.FC<SignInScreenProps> = ({ onSignIn, onCreateAccount }
 
           {/* 4-Digit Code */}
           <div className="space-y-4">
-            <label className="text-[10px] font-black uppercase tracking-widest text-white/20 ml-2">
+            <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/60 ml-2 block">
               {userType === 'teacher' ? 'Admin Credential' : 'Core Identity Code'}
             </label>
             <div className="flex justify-between gap-3">
@@ -133,7 +132,7 @@ const SignInScreen: React.FC<SignInScreenProps> = ({ onSignIn, onCreateAccount }
                   value={digit}
                   onChange={(e) => handleCodeChange(index, e.target.value)}
                   onKeyDown={(e) => handleCodeKeyDown(index, e)}
-                  className="w-full aspect-[4/5] bg-white/[0.03] border border-white/10 rounded-[20px] text-4xl font-black text-center text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all duration-200 placeholder:text-white/5"
+                  className="w-full aspect-[4/5] bg-white/[0.04] border border-white/10 rounded-[20px] text-4xl font-black text-center text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all duration-200 placeholder:text-white/10"
                   required
                 />
               ))}
@@ -142,7 +141,7 @@ const SignInScreen: React.FC<SignInScreenProps> = ({ onSignIn, onCreateAccount }
 
           {/* Password Input */}
           <div className="space-y-3">
-            <label className="text-[10px] font-black uppercase tracking-widest text-white/20 ml-2">
+            <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/60 ml-2 block">
               Security Key
             </label>
             <div className="relative group">
@@ -152,13 +151,13 @@ const SignInScreen: React.FC<SignInScreenProps> = ({ onSignIn, onCreateAccount }
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder={userType === 'teacher' ? 'Enter admin secret' : 'Your secure key'}
-                className="w-full bg-white/[0.03] border border-white/10 rounded-[22px] py-5 px-6 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all duration-300 placeholder:text-white/10"
+                className="w-full bg-white/[0.04] border border-white/10 rounded-[22px] py-5 px-6 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all duration-300 placeholder:text-white/30"
                 required
               />
               <button
                 type="button"
                 onClick={togglePassword}
-                className="absolute right-5 top-1/2 -translate-y-1/2 p-2 rounded-xl transition-colors text-white/20 hover:text-white/50 hover:bg-white/5"
+                className="absolute right-5 top-1/2 -translate-y-1/2 p-3 min-w-[44px] min-h-[44px] rounded-xl transition-all text-white/40 hover:text-white/60 active:text-white/80 active:scale-95 hover:bg-white/5"
               >
                 {showPassword ? <EyeSlash className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
@@ -180,11 +179,11 @@ const SignInScreen: React.FC<SignInScreenProps> = ({ onSignIn, onCreateAccount }
         </form>
 
         <div className="mt-8 pt-6 border-t border-white/5 text-center">
-          <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em]">
+          <p className="text-[10px] font-bold text-white/50 uppercase tracking-[0.2em]">
             New to Awaaz?{' '}
             <button
               onClick={onCreateAccount}
-              className="ml-1 text-purple-400 hover:text-purple-300 transition-colors uppercase"
+              className="ml-1 text-purple-400 hover:text-purple-300 active:text-purple-200 active:scale-95 transition-all uppercase"
             >
               Create Account
             </button>

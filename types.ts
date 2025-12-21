@@ -76,7 +76,7 @@ export interface StudentProfile {
   createdAt: string;
 }
 
-export type PreAnalysisQuestionType = 'scale-1-5' | 'yes-no' | 'multiple-choice';
+export type PreAnalysisQuestionType = 'scale-1-5' | 'yes-no' | 'multiple-choice' | 'open-ended';
 export type PreAnalysisCategory = 'stress' | 'sleep' | 'focus' | 'social' | 'academic' | 'general';
 
 export interface PreAnalysisQuestion {

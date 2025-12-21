@@ -280,9 +280,9 @@ export const generateAndSavePlan = async (plan: SessionPlan): Promise<void> => {
 const counselorToPreAnalysis = (q: CounselorQuestion): PreAnalysisQuestion => ({
     id: q.id,
     text: q.text,
-    type: q.type === 'scale-1-10' || q.type === 'open-ended'
-        ? 'multiple-choice'  // Fallback for unsupported types
-        : q.type as 'scale-1-5' | 'yes-no' | 'multiple-choice',
+    type: q.type === 'scale-1-10'
+        ? 'multiple-choice'
+        : q.type as 'scale-1-5' | 'yes-no' | 'multiple-choice' | 'open-ended',
     options: q.type === 'scale-1-10'
         ? ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']
         : q.options,

@@ -31,6 +31,8 @@ import { MaterialTier } from '../../types';
 import { AccentColorPicker } from './AccentColorPicker';
 import { TierLevelUpModal } from './TierLevelUpModal';
 
+const MotionDiv = motion.div as any;
+
 interface GamifiedSolutionLibraryProps {
     className?: string;
     suggestions?: Array<{ id: string; label: string; type: 'immediate' | 'longterm'; completed: boolean }>;
@@ -176,7 +178,7 @@ export const GamifiedSolutionLibrary: React.FC<GamifiedSolutionLibraryProps> = (
                 />
             )}
 
-            <motion.div
+            <MotionDiv
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="bg-gradient-to-br from-purple-900/20 via-blue-900/20 to-purple-900/20 backdrop-blur-xl rounded-2xl p-6 shadow-2xl"
@@ -191,7 +193,7 @@ export const GamifiedSolutionLibrary: React.FC<GamifiedSolutionLibraryProps> = (
                 </div>
 
                 {/* Tier Card - Featured Section */}
-                <motion.div
+                <MotionDiv
                     whileHover={{ scale: 1.02 }}
                     className="relative overflow-hidden rounded-2xl p-5 mb-6"
                     style={{ background: currentTier.accentColor.gradient }}
@@ -206,7 +208,7 @@ export const GamifiedSolutionLibrary: React.FC<GamifiedSolutionLibraryProps> = (
 
                     <div className="relative flex items-center gap-4">
                         {/* Tier Icon */}
-                        <motion.div
+                        <MotionDiv
                             animate={{
                                 scale: [1, 1.05, 1],
                                 rotate: [0, 2, -2, 0],
@@ -218,7 +220,7 @@ export const GamifiedSolutionLibrary: React.FC<GamifiedSolutionLibraryProps> = (
                                 size={32}
                                 className={currentTier.name === 'Quartz' ? 'text-slate-700' : 'text-white'}
                             />
-                        </motion.div>
+                        </MotionDiv>
 
                         {/* Tier Info */}
                         <div className="flex-1">
@@ -248,7 +250,7 @@ export const GamifiedSolutionLibrary: React.FC<GamifiedSolutionLibraryProps> = (
                                 </span>
                             </div>
                             <div className="w-full h-2 bg-black/20 rounded-full overflow-hidden">
-                                <motion.div
+                                <MotionDiv
                                     initial={{ width: 0 }}
                                     animate={{ width: `${tierProgress.percentage}%` }}
                                     transition={{ duration: 0.8, ease: "easeOut" }}
@@ -263,39 +265,39 @@ export const GamifiedSolutionLibrary: React.FC<GamifiedSolutionLibraryProps> = (
                             <span className="text-white/90 text-sm font-medium">🏆 Maximum Level Reached!</span>
                         </div>
                     )}
-                </motion.div>
+                </MotionDiv>
 
                 {/* Stats Grid */}
-                <div className="grid grid-cols-3 gap-3 mb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
                     {/* Total Points */}
-                    <motion.div
+                    <MotionDiv
                         whileHover={{ scale: 1.05 }}
                         className="accent-bg-subtle rounded-xl p-3 border accent-border-subtle text-center"
                     >
                         <Star className="w-5 h-5 accent-text mx-auto mb-1" />
                         <div className="text-lg font-bold text-white">{completedTasks * 10}</div>
                         <div className="text-xs text-purple-300">Points</div>
-                    </motion.div>
+                    </MotionDiv>
 
                     {/* Streak */}
-                    <motion.div
+                    <MotionDiv
                         whileHover={{ scale: 1.05 }}
                         className="bg-orange-500/20 rounded-xl p-3 border border-orange-400/30 text-center"
                     >
                         <Flame className="w-5 h-5 text-orange-400 mx-auto mb-1" />
                         <div className="text-lg font-bold text-white">{streak}</div>
                         <div className="text-xs text-orange-300">Day Streak</div>
-                    </motion.div>
+                    </MotionDiv>
 
                     {/* Tasks */}
-                    <motion.div
+                    <MotionDiv
                         whileHover={{ scale: 1.05 }}
                         className="bg-blue-500/20 rounded-xl p-3 border border-blue-400/30 text-center"
                     >
                         <Zap className="w-5 h-5 text-blue-400 mx-auto mb-1" />
                         <div className="text-lg font-bold text-white">{completedTasks}</div>
                         <div className="text-xs text-blue-300">Tasks</div>
-                    </motion.div>
+                    </MotionDiv>
                 </div>
 
                 {/* Theme Colors Section */}
@@ -308,17 +310,17 @@ export const GamifiedSolutionLibrary: React.FC<GamifiedSolutionLibraryProps> = (
                             <Sparkles size={14} />
                             Theme Colors
                         </h3>
-                        <motion.div
+                        <MotionDiv
                             animate={{ rotate: showColorPicker ? 90 : 0 }}
                             transition={{ duration: 0.2 }}
                         >
                             <ChevronRight size={16} className="text-purple-400 group-hover:text-purple-300" />
-                        </motion.div>
+                        </MotionDiv>
                     </button>
 
                     <AnimatePresence>
                         {showColorPicker && (
-                            <motion.div
+                            <MotionDiv
                                 initial={{ height: 0, opacity: 0 }}
                                 animate={{ height: 'auto', opacity: 1 }}
                                 exit={{ height: 0, opacity: 0 }}
@@ -330,11 +332,11 @@ export const GamifiedSolutionLibrary: React.FC<GamifiedSolutionLibraryProps> = (
                                     selectedTier={selectedAccentTier}
                                     onSelectColor={handleSelectColor}
                                 />
-                            </motion.div>
+                            </MotionDiv>
                         )}
                     </AnimatePresence>
                 </div>
-            </motion.div>
+            </MotionDiv>
         </div >
     );
 };

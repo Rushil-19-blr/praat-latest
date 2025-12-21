@@ -121,6 +121,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
   const animationFrameRef = useRef<number | null>(null);
   const recordingStateRef = useRef<RecordingState>(recordingState);
   const allClipsRef = useRef<Blob[]>([]); // Keep ref to always have latest clips
+  const streamRef = useRef<MediaStream | null>(null);
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -140,6 +141,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
         }
       });
       setStream(mediaStream);
+      streamRef.current = mediaStream;
       setPermissionError(null);
     } catch (err) {
       if (err instanceof Error) {
@@ -155,14 +157,15 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
   useEffect(() => {
     getMicrophonePermission();
     return () => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
       }
       if (timerRef.current) clearTimeout(timerRef.current as any);
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
       stopSpeech(); // Clean up TTS on unmount
     };
-  }, [getMicrophonePermission, stream]);
+  }, [getMicrophonePermission]);
 
 
 
@@ -481,7 +484,32 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
     }
 
     // Create new MediaRecorder for this clip
-    mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+    const getSupportedMimeType = () => {
+      const types = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/ogg;codecs=opus',
+        'audio/mp4'
+      ];
+      for (const type of types) {
+        if (MediaRecorder.isTypeSupported(type)) {
+          return type;
+        }
+      }
+      return '';
+    };
+
+    const mimeType = getSupportedMimeType();
+    console.log('[Recorder] Selected mimeType:', mimeType);
+
+    try {
+      mediaRecorderRef.current = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    } catch (e) {
+      console.error('[Recorder] Failed to create MediaRecorder:', e);
+      setRecordingState('ERROR');
+      setPermissionError("Your browser doesn't support the required audio recording format.");
+      return;
+    }
 
     mediaRecorderRef.current.ondataavailable = (event) => {
       if (event.data && event.data.size > 0) {

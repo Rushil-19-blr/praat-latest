@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useSwipeable } from 'react-swipeable';
 import { ArrowLeft, ChevronRight, Mic } from 'lucide-react';
 import { BeamsBackground } from './ui/beams-background';
 import { InfinityLoader } from '@/components/ui/infinity-loader';
@@ -215,6 +216,7 @@ const PreRecordingQuestionnaire: React.FC<PreRecordingQuestionnaireProps> = ({
   const isScaleQuestion = activeQuestion?.type === 'scale-1-5';
   const isYesNoQuestion = activeQuestion?.type === 'yes-no';
   const isMultipleChoice = activeQuestion?.type === 'multiple-choice';
+  const isOpenEnded = activeQuestion?.type === 'open-ended';
 
   const getResponseOptions = (): string[] => {
     if (!activeQuestion) return [];
@@ -326,8 +328,15 @@ const PreRecordingQuestionnaire: React.FC<PreRecordingQuestionnaireProps> = ({
     if (activeQuestion) {
       const savedAnswer = answers[activeQuestion.id];
       setSelectedAnswer(savedAnswer !== undefined ? savedAnswer : null);
-      setOpenEndedAnswer('');
-      finalTranscriptRef.current = '';
+
+      // Load saved answer for open-ended questions
+      if (activeQuestion.type === 'open-ended' && typeof savedAnswer === 'string') {
+        setOpenEndedAnswer(savedAnswer);
+        finalTranscriptRef.current = savedAnswer;
+      } else {
+        setOpenEndedAnswer('');
+        finalTranscriptRef.current = '';
+      }
     }
   }, [currentQuestionIndex, showIllnessCheck, activeQuestion, answers]);
 
@@ -342,11 +351,11 @@ const PreRecordingQuestionnaire: React.FC<PreRecordingQuestionnaireProps> = ({
 
   const handleOpenEndedChange = (text: string) => {
     setOpenEndedAnswer(text);
-    // Not strictly needed for logic but preserved
-    if (!showIllnessCheck) {
+    setSelectedAnswer(text || null);
+    if (!showIllnessCheck && activeQuestion) {
       setAnswers(prev => ({
         ...prev,
-        [currentQuestionIndex]: text // Fallback index tracking?
+        [activeQuestion.id]: text
       }));
     }
   };
@@ -415,6 +424,22 @@ const PreRecordingQuestionnaire: React.FC<PreRecordingQuestionnaireProps> = ({
     setShowIllnessCheck(true);
   };
 
+  const handlers = useSwipeable({
+    onSwipedLeft: () => {
+      if (selectedAnswer !== null) {
+        handleNext();
+      }
+    },
+    onSwipedRight: () => {
+      if (!showIllnessCheck && currentQuestionIndex > 0) {
+        handlePrevious();
+      } else if (showIllnessCheck) {
+        setShowIllnessCheck(false);
+      }
+    },
+    trackMouse: true,
+  });
+
   const progress = questions.length > 0 ? ((currentQuestionIndex + 1) / questions.length) * 100 : 0;
 
   return (
@@ -469,7 +494,7 @@ const PreRecordingQuestionnaire: React.FC<PreRecordingQuestionnaireProps> = ({
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto flex items-center relative z-10">
+      <div className="flex-1 overflow-y-auto flex items-center relative z-10" {...handlers}>
         <div className="max-w-2xl mx-auto px-4 py-8 w-full">
           {(showLoader || (!activeQuestion && !showIllnessCheck)) ? (
             <div className="flex flex-col items-center justify-center py-16">
@@ -526,6 +551,29 @@ const PreRecordingQuestionnaire: React.FC<PreRecordingQuestionnaireProps> = ({
                       )}
                     </div>
                   )}
+
+                  {isOpenEnded && (
+                    <div className="space-y-4">
+                      <div className={`relative rounded-xl border-2 transition-all duration-300 ${isRecording ? 'border-purple-primary shadow-[0_0_15px_rgba(139,92,246,0.3)]' : 'border-surface bg-surface/30'}`}>
+                        <textarea
+                          ref={textareaRef}
+                          value={openEndedAnswer}
+                          onChange={(e) => handleOpenEndedChange(e.target.value)}
+                          placeholder="Type your answer here or use the microphone..."
+                          className="w-full h-32 bg-transparent p-4 text-text-primary placeholder:text-text-muted outline-none resize-none"
+                        />
+                        <button
+                          onClick={handleToggleRecording}
+                          className={`absolute bottom-3 right-3 p-3 rounded-full transition-all duration-300 ${isRecording ? 'bg-red-500 scale-110 shadow-lg shadow-red-500/50' : 'bg-purple-primary hover:bg-purple-light shadow-lg shadow-purple-primary/30'}`}
+                        >
+                          <Mic className={`w-5 h-5 text-white ${isRecording ? 'animate-pulse' : ''}`} />
+                        </button>
+                      </div>
+                      <p className="text-xs text-text-muted italic px-1">
+                        {isRecording ? 'Listening... Tip: Speak clearly. Tap the mic to stop.' : 'Tip: You can use your voice to answer.'}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </motion.div>
             </AnimatePresence>
@@ -537,7 +585,7 @@ const PreRecordingQuestionnaire: React.FC<PreRecordingQuestionnaireProps> = ({
             <button
               onClick={showIllnessCheck ? () => setShowIllnessCheck(false) : handlePrevious}
               disabled={!showIllnessCheck && currentQuestionIndex === 0}
-              className={`flex-1 py-4 px-6 rounded-xl font-medium text-text-secondary bg-surface hover:bg-surface/80 transition-all duration-200 border border-surface/50 ${(!showIllnessCheck && currentQuestionIndex === 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`flex-1 py-4 px-6 min-h-[44px] rounded-xl font-medium text-text-secondary bg-surface hover:bg-surface/80 active:bg-surface/60 active:scale-[0.98] transition-all duration-200 border border-surface/50 ${(!showIllnessCheck && currentQuestionIndex === 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               Previous
             </button>
