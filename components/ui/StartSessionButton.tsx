@@ -60,7 +60,7 @@ export const StartSessionButton: React.FC<StartSessionButtonProps> = ({ onStart,
     // Calculate circumference for dashoffset
     // r = 88 (close to 45% of 200px or relative unit)
     // C = 2 * pi * 88 ~= 553
-    const radius = 88;
+    const radius = 120; // Reduced from 135
     const circumference = 2 * Math.PI * radius;
     const dashOffset = circumference - (progress / 100) * circumference;
 
@@ -114,10 +114,11 @@ export const StartSessionButton: React.FC<StartSessionButtonProps> = ({ onStart,
                         scale: isHolding ? 0.98 : 1,
                         boxShadow: isHolding
                             ? "0 0 60px rgba(168, 85, 247, 0.6), inset 0 0 30px rgba(255,255,255,0.2)"
-                            : "0 25px 50px rgba(0,0,0,0.4), inset 0 0 0 rgba(255,255,255,0)"
+                            : "0 25px 50px rgba(0,0,0,0.4), inset 0 0 0 rgba(255,255,255,0)",
+                        width: 220, height: 220, // Reduced from 250px
                     }}
                     className={`
-                        relative w-[250px] h-[250px] rounded-full z-10 
+                        relative w-[220px] h-[220px] rounded-full z-10
                         bg-gradient-to-br from-[#db2777] via-[#9333ea] to-[#7c3aed]
                         flex items-center justify-center
                         border-8 border-white/10
@@ -134,14 +135,14 @@ export const StartSessionButton: React.FC<StartSessionButtonProps> = ({ onStart,
 
                     {/* Voice Icon */}
                     <div className="relative z-10 drop-shadow-[0_4px_4px_rgba(0,0,0,0.3)]">
-                        <Mic className="w-28 h-28 text-white" strokeWidth={1.5} />
+                        <Mic className="w-24 h-24 text-white" strokeWidth={1.5} />
                     </div>
                 </motion.button>
             </div>
 
             {/* Functional & Instructional Text */}
             <div className="flex flex-col items-center gap-2 min-h-[60px] select-none">
-                <h2 className="text-2xl font-bold text-white tracking-tight drop-shadow-md">
+                <h2 className="text-xl font-bold text-white tracking-tight drop-shadow-md">
                     Start Session
                 </h2>
                 <motion.div

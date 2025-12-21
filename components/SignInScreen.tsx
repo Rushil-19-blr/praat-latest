@@ -74,7 +74,7 @@ const SignInScreen: React.FC<SignInScreenProps> = ({ onSignIn, onCreateAccount }
   };
 
   return (
-    <div className="fixed inset-0 min-h-screen w-screen flex items-center justify-center overflow-hidden bg-transparent font-sans text-white">
+    <div className="fixed inset-0 min-h-screen w-screen flex items-center justify-center px-4 overflow-hidden bg-transparent font-sans text-white">
       <div className="absolute inset-0 z-0">
         <BeamsBackground intensity="medium" />
       </div>

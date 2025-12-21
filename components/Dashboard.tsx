@@ -40,6 +40,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
 
     // Onboarding State
     const [onboardingState, setOnboardingState] = useState<OnboardingState>(INITIAL_ONBOARDING_STATE);
+    const [isOnboardingLoading, setIsOnboardingLoading] = useState(true);
     const [isMobile, setIsMobile] = useState(false);
 
     useEffect(() => {
@@ -53,6 +54,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
         if (userData?.accountNumber) {
             const state = OnboardingService.getState(userData.accountNumber);
             setOnboardingState(state);
+            setIsOnboardingLoading(false);
         }
 
         const handleOnboardingUpdate = (e: CustomEvent<{ state: OnboardingState }>) => {
@@ -175,7 +177,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
     const userDisplayData = useMemo(() => {
         if (!userData) return null;
         return {
-            accountInfo: userData.class ? `Class ${userData.class}${userData.section ? ` - Section ${userData.section}` : ''}` : 'Student Account',
+            accountInfo: userData.class ? `Class ${userData.class}${userData.section ? ` - Section ${userData.section}` : ''}` : 'Student Profile',
             accountCode: userData.accountNumber || '----',
             studentName: userData.enrollment || `Student ${userData.accountNumber}`,
             hasAccountNumber: !!userData.accountNumber
@@ -387,7 +389,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                     width: 320px;
                     border: 1px solid #444444;
                     position: fixed;
-                    top: 80px;
+                    top: 100px;
                     right: 40px;
                     z-index: 1001;
                     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
@@ -470,33 +472,37 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                     <AnimatedLogo size={isMobile ? 60 : 100} />
                 </div>
                 <div className="flex gap-2">
-                    <button
-                        id="chat-btn"
-                        className="accounts-btn"
-                        onClick={handleChatOpen}
-                        title="Messages"
-                    >
-                        <MessageCircle className="accounts-icon" />
-                        <span className="notification-dot"></span>
-                    </button>
-                    <button
-                        ref={accountsButtonRef}
-                        className={`accounts-btn ${isModalOpen ? 'active' : ''}`}
-                        onClick={toggleModal}
-                    >
-                        <MotionDiv
-                            animate={{ rotate: isModalOpen ? 90 : 0 }}
-                            transition={{ duration: 0.3, ease: "easeInOut" }}
-                        >
-                            {isModalOpen ? (
-                                <X className="accounts-icon" />
-                            ) : (
-                                <svg className="accounts-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-                                </svg>
-                            )}
-                        </MotionDiv>
-                    </button>
+                    {onboardingState.stage !== 'session_prompt' && onboardingState.stage !== 'calibration_prompt' && (
+                        <>
+                            <button
+                                id="chat-btn"
+                                className="accounts-btn"
+                                onClick={handleChatOpen}
+                                title="Messages"
+                            >
+                                <MessageCircle className="accounts-icon" />
+                                <span className="notification-dot"></span>
+                            </button>
+                            <button
+                                ref={accountsButtonRef}
+                                className={`accounts-btn ${isModalOpen ? 'active' : ''}`}
+                                onClick={toggleModal}
+                            >
+                                <MotionDiv
+                                    animate={{ rotate: isModalOpen ? 90 : 0 }}
+                                    transition={{ duration: 0.3, ease: "easeInOut" }}
+                                >
+                                    {isModalOpen ? (
+                                        <X className="accounts-icon" />
+                                    ) : (
+                                        <svg className="accounts-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                                        </svg>
+                                    )}
+                                </MotionDiv>
+                            </button>
+                        </>
+                    )}
                 </div>
             </div>
 
@@ -559,7 +565,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                         >
                             <div className="account-info">
                                 <div className="account-name">
-                                    {userDisplayData?.accountInfo || 'Student Account'}
+                                    {userDisplayData?.accountInfo || 'Student Profile'}
                                 </div>
                                 <div className="account-code">{userDisplayData?.accountCode || '----'}</div>
                             </div>
@@ -582,7 +588,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
             {/* Onboarding Components */}
             <AnimatePresence>
                 {/* Stage 1: Welcome Carousel */}
-                {onboardingState.stage === 'welcome' && !onboardingState.isSkipped && userData?.accountNumber && (
+                {!isOnboardingLoading && onboardingState.stage === 'welcome' && !onboardingState.isSkipped && userData?.accountNumber && (
                     <WelcomeCarousel
                         studentCode={userData.accountNumber}
                         onComplete={handleWelcomeComplete}

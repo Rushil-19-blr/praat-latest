@@ -63,6 +63,16 @@ export const SpotlightOverlay: React.FC<SpotlightOverlayProps> = ({
         };
     }, [targetId]);
 
+    useEffect(() => {
+        // Prevent background scrolling when spotlight is active
+        const originalStyle = window.getComputedStyle(document.body).overflow;
+        document.body.style.overflow = 'hidden';
+
+        return () => {
+            document.body.style.overflow = originalStyle;
+        };
+    }, []);
+
 
     if (!targetRect) return null;
 

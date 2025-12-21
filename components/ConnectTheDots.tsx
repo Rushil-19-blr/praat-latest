@@ -8,7 +8,7 @@ interface ConnectTheDotsProps {
 }
 
 // Only show grades 6 and above (classes 6-10)
-const CLASSES = Array.from({ length: 5 }, (_, i) => i + 6);
+const CLASSES = Array.from({ length: 7 }, (_, i) => i + 6);
 const SECTIONS = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
 
 const ConnectTheDots: React.FC<ConnectTheDotsProps> = ({ onConnect, isEnabled }) => {

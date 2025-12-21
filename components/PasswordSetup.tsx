@@ -79,11 +79,6 @@ const PasswordSetup: React.FC<PasswordSetupProps> = ({ accountNumber, onSubmit }
                 />
               );
             })}
-            {isPinCorrect && (
-              <div className="absolute -right-2 md:-right-6 top-1/2 -translate-y-1/2 text-green-500 animate-in zoom-in duration-500">
-                <CheckCircleIcon className="w-7 h-7" />
-              </div>
-            )}
           </div>
         </GlassCard>
 

@@ -154,7 +154,6 @@ export const TierLevelUpModal: React.FC<TierLevelUpModalProps> = ({
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     className="absolute inset-0 bg-black/80 backdrop-blur-lg"
-                    onClick={onClose}
                 />
 
                 {/* Modal Content */}
@@ -165,13 +164,6 @@ export const TierLevelUpModal: React.FC<TierLevelUpModalProps> = ({
                     transition={{ type: 'spring', damping: 25, stiffness: 300 }}
                     className="relative z-10 flex flex-col items-center text-center px-8 py-12 max-w-md mx-4"
                 >
-                    {/* Close Button */}
-                    <button
-                        onClick={onClose}
-                        className="absolute top-0 right-0 p-2 text-white/60 hover:text-white transition-colors rounded-full hover:bg-white/10"
-                    >
-                        <X size={24} />
-                    </button>
 
                     {/* Level Up Text */}
                     <motion.div

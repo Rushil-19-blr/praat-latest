@@ -70,7 +70,7 @@ export const WelcomeCarousel: React.FC<WelcomeCarouselProps> = ({ studentCode, o
     });
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-xl p-4" {...handlers}>
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/95 backdrop-blur-xl p-4" {...handlers}>
             <MotionDiv
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}

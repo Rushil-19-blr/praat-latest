@@ -14,11 +14,13 @@ import { resetSensitivityState } from '../utils/sensitivityAdaptation';
 interface VoiceCalibrationScreenProps {
   onCalibrationComplete: (baselineJson: string) => void;
   onClose: () => void;
+  studentId?: string;
 }
 
 const VoiceCalibrationScreen: React.FC<VoiceCalibrationScreenProps> = ({
   onCalibrationComplete,
-  onClose
+  onClose,
+  studentId
 }) => {
   const [recordingState, setRecordingState] = useState<RecordingState>('IDLE');
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -40,7 +42,8 @@ const VoiceCalibrationScreen: React.FC<VoiceCalibrationScreenProps> = ({
 
   // Check if baseline exists on mount
   useEffect(() => {
-    const storedBaseline = localStorage.getItem('voiceBaseline');
+    const baselineKey = studentId ? `voiceBaseline_${studentId}` : 'voiceBaseline';
+    const storedBaseline = localStorage.getItem(baselineKey);
     setHasBaseline(!!storedBaseline);
 
     // Check if we should show help automatically
@@ -48,7 +51,7 @@ const VoiceCalibrationScreen: React.FC<VoiceCalibrationScreenProps> = ({
     if (!shouldHideHelp) {
       setShowHelp(true);
     }
-  }, []);
+  }, [studentId]);
 
   const getMicrophonePermission = useCallback(async () => {
     if (stream) return;
@@ -129,7 +132,7 @@ const VoiceCalibrationScreen: React.FC<VoiceCalibrationScreenProps> = ({
   }, [recordingState]);
 
   const startRecording = () => {
-    if (!stream || recordingState !== 'IDLE') return;
+    if (!stream || (recordingState !== 'IDLE' && recordingState !== 'ERROR')) return;
 
     setPermissionError(null);
     setRecordingState('RECORDING');
@@ -216,7 +219,8 @@ const VoiceCalibrationScreen: React.FC<VoiceCalibrationScreenProps> = ({
       };
 
       const baselineJson = JSON.stringify(baselineData);
-      localStorage.setItem('voiceBaseline', baselineJson);
+      const baselineKey = studentId ? `voiceBaseline_${studentId}` : 'voiceBaseline';
+      localStorage.setItem(baselineKey, baselineJson);
 
       // Reset adaptive sensitivity state when new baseline is created
       // This ensures sensitivity starts conservative for the new baseline
@@ -257,6 +261,13 @@ const VoiceCalibrationScreen: React.FC<VoiceCalibrationScreenProps> = ({
           return;
         }
 
+        // Check for minimum 8 seconds duration
+        if (recordingDuration < 8) {
+          setRecordingState('ERROR');
+          setPermissionError("Recording too short. Please record for at least 8 seconds to get an accurate voice baseline.");
+          return;
+        }
+
         const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
 
         if (blob.size > 2000) {
@@ -289,20 +300,35 @@ const VoiceCalibrationScreen: React.FC<VoiceCalibrationScreenProps> = ({
 
   const headerText = "Your Voice";
 
-  const Header = () => (
-    <header className="fixed top-0 left-0 right-0 h-[90px] flex items-center justify-between px-4 z-10 max-w-2xl mx-auto">
-      <button onClick={onClose} className="glass-base w-11 h-11 rounded-full flex items-center justify-center transition-all hover:bg-purple-primary/20">
-        <ChevronLeft className="w-5 h-5 text-white" />
-      </button>
-      <div className="text-center flex-1">
-        <h1 className="text-lg font-medium text-white">{headerText}</h1>
-        <div className="h-0.5 w-1/2 mx-auto bg-purple-primary" />
-      </div>
-      <button onClick={() => setShowHelp(true)} className="glass-base w-11 h-11 rounded-full flex items-center justify-center transition-all hover:bg-purple-primary/20">
-        <QuestionMarkCircle className="w-5 h-5 text-white" />
-      </button>
-    </header>
-  );
+  const Header = () => {
+    const handleBackClick = () => {
+      // Only allow back navigation if user has completed calibration
+      if (hasBaseline) {
+        onClose();
+      }
+      // For users without baseline, back button is hidden anyway
+    };
+
+    return (
+      <header className="fixed top-0 left-0 right-0 h-[90px] flex items-center justify-between px-4 z-10 max-w-2xl mx-auto">
+        {/* Hide back button completely for new users without baseline */}
+        {hasBaseline ? (
+          <button onClick={handleBackClick} className="glass-base w-11 h-11 rounded-full flex items-center justify-center transition-all hover:bg-purple-primary/20">
+            <ChevronLeft className="w-5 h-5 text-white" />
+          </button>
+        ) : (
+          <div className="w-11 h-11" />
+        )}
+        <div className="text-center flex-1">
+          <h1 className="text-lg font-medium text-white">{headerText}</h1>
+          <div className="h-0.5 w-1/2 mx-auto bg-purple-primary" />
+        </div>
+        <button onClick={() => setShowHelp(true)} className="glass-base w-11 h-11 rounded-full flex items-center justify-center transition-all hover:bg-purple-primary/20">
+          <QuestionMarkCircle className="w-5 h-5 text-white" />
+        </button>
+      </header>
+    );
+  };
 
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 pt-[100px] pb-[60px] relative overflow-hidden">
@@ -319,9 +345,17 @@ const VoiceCalibrationScreen: React.FC<VoiceCalibrationScreenProps> = ({
       <GlassCard className="w-full max-w-sm mx-auto p-4 z-10 relative" variant="purple">
         <div className="text-center">
           {recordingState === 'RECORDING' && (
-            <p className="text-2xl font-mono text-white tabular-nums">
-              {`00:${recordingDuration.toString().padStart(2, '0')}`}
-            </p>
+            <div className="flex flex-col items-center gap-1 mb-2">
+              <div className="flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full bg-red-500 ${recordingDuration > 0 ? 'animate-pulse' : ''}`} />
+                <p className="text-3xl font-mono font-bold text-white tabular-nums">
+                  {`00:${recordingDuration.toString().padStart(2, '0')}`}
+                </p>
+              </div>
+              <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">
+                00:08 Minimum Required
+              </p>
+            </div>
           )}
           <p className={`text-sm mt-1 transition-colors duration-300 ${statusColor[recordingState]}`}>
             {statusText[recordingState]}
@@ -338,6 +372,8 @@ const VoiceCalibrationScreen: React.FC<VoiceCalibrationScreenProps> = ({
           )}
         </div>
       </GlassCard>
+
+
 
       <div className="relative flex items-center justify-center my-10 h-[280px] w-[280px] z-10">
         {/* Voice Powered Orb - replaces the purple ring */}

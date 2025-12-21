@@ -9,8 +9,7 @@ import PostAnalysisSuggestionsScreen from './components/PostAnalysisSuggestionsS
 import ConnectTheDots from './components/ConnectTheDots';
 import ConfirmationPopup from './components/ConfirmationPopup';
 import EnrollmentNumber from './components/EnrollmentNumber';
-import ScratchCard from './components/ScratchCard';
-import PasswordSetup from './components/PasswordSetup';
+import PinCreationScreen from './components/PinCreationScreen';
 import SuccessPopup from './components/SuccessPopup';
 import SignInScreen from './components/SignInScreen';
 import TeacherDashboard from './components/TeacherDashboard';
@@ -28,7 +27,7 @@ import type { QuestionnaireAnswers } from './components/PreRecordingQuestionnair
 import './utils/storageUtils';
 import { OnboardingService } from './services/onboardingService';
 
-type AppState = 'SIGNIN' | 'SIGNUP' | 'CONFIRMATION' | 'ENROLLMENT' | 'SCRATCH_CARD' | 'PASSWORD_SETUP' | 'SUCCESS' | 'DASHBOARD' | 'QUESTIONNAIRE' | 'RECORDING' | 'CALIBRATION_FLOW' | 'RESULTS' | 'SUGGESTIONS' | 'TEACHER_DASHBOARD' | 'STUDENT_DETAIL' | 'STUDENT_REPORT' | 'SESSION_PLANNING';
+type AppState = 'SIGNIN' | 'SIGNUP' | 'CONFIRMATION' | 'ENROLLMENT' | 'PIN_CREATION' | 'SUCCESS' | 'DASHBOARD' | 'QUESTIONNAIRE' | 'RECORDING' | 'CALIBRATION_FLOW' | 'RESULTS' | 'SUGGESTIONS' | 'TEACHER_DASHBOARD' | 'STUDENT_DETAIL' | 'STUDENT_REPORT' | 'SESSION_PLANNING';
 
 const App: React.FC = () => {
   const [appState, setAppState] = useState<AppState>('SIGNIN');
@@ -68,9 +67,22 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const storedBaseline = localStorage.getItem('voiceBaseline');
-    if (storedBaseline) {
-      setBaselineData(storedBaseline);
+    const userDataStr = localStorage.getItem('userData');
+    if (userDataStr) {
+      try {
+        const userData = JSON.parse(userDataStr);
+        const studentId = userData.accountNumber;
+        if (studentId) {
+          setAccountNumber(studentId);
+          const baselineKey = `voiceBaseline_${studentId}`;
+          const storedBaseline = localStorage.getItem(baselineKey) || localStorage.getItem('voiceBaseline');
+          if (storedBaseline) {
+            setBaselineData(storedBaseline);
+          }
+        }
+      } catch (e) {
+        console.error('Error loading user baseline:', e);
+      }
     }
 
     // Load real student data from localStorage on initial mount
@@ -170,6 +182,16 @@ const App: React.FC = () => {
         // Store the current user's data for the session
         localStorage.setItem('userData', JSON.stringify(matchingAccount));
         localStorage.setItem('isSignedIn', 'true');
+        setAccountNumber(matchingAccount.accountNumber);
+
+        // Load user-specific baseline
+        const userBaseline = localStorage.getItem(`voiceBaseline_${matchingAccount.accountNumber}`);
+        if (userBaseline) {
+          setBaselineData(userBaseline);
+        } else {
+          setBaselineData(null);
+        }
+
         setAppState('DASHBOARD');
       } else {
         throw new Error('Invalid credentials');
@@ -221,23 +243,19 @@ const App: React.FC = () => {
 
   const handleEnrollmentSubmit = useCallback((enrollment: string) => {
     setEnrollmentNumber(enrollment);
-    // Generate a 4-digit account number based on enrollment
-    const accountNum = Math.floor(1000 + Math.random() * 9000).toString();
-    setAccountNumber(accountNum);
-    setAppState('SCRATCH_CARD');
+    // Move directly to custom PIN creation
+    setAppState('PIN_CREATION');
   }, []);
 
-  const handleScratchCardComplete = useCallback(() => {
-    setAppState('PASSWORD_SETUP');
-  }, []);
+  const handlePinCreationComplete = useCallback((pin: string, password: string) => {
+    setAccountNumber(pin); // Store the custom PIN as account number
 
-  const handlePasswordSetupComplete = useCallback((password: string) => {
     // Store signup data in the accounts array to support multiple accounts
     const newAccountData = {
       class: selectedClass,
       section: selectedSection,
       enrollment: enrollmentNumber,
-      accountNumber: accountNumber,
+      accountNumber: pin,
       password: password
     };
 
@@ -310,7 +328,7 @@ const App: React.FC = () => {
     }
 
     // Initialize Onboarding for this new student
-    OnboardingService.initializeForNewUser(accountNumber);
+    OnboardingService.initializeForNewUser(pin);
 
     setAppState('SUCCESS');
   }, [selectedClass, selectedSection, enrollmentNumber, accountNumber]);
@@ -445,10 +463,44 @@ const App: React.FC = () => {
   }, []);
 
   const handleVoiceCalibrationComplete = useCallback((baselineJson: string) => {
-    localStorage.setItem('voiceBaseline', baselineJson);
+    const baselineKey = accountNumber ? `voiceBaseline_${accountNumber}` : 'voiceBaseline';
+    localStorage.setItem(baselineKey, baselineJson);
     setBaselineData(baselineJson);
+
+    // Save baseline to account data for persistence
+    const storedAccounts = localStorage.getItem('studentAccounts');
+    if (storedAccounts && accountNumber) {
+      try {
+        const accounts = JSON.parse(storedAccounts);
+        const updatedAccounts = accounts.map((acc: any) =>
+          acc.accountNumber === accountNumber ? { ...acc, voiceBaseline: baselineJson } : acc
+        );
+        localStorage.setItem('studentAccounts', JSON.stringify(updatedAccounts));
+
+        // Also update current userData in session
+        const userData = localStorage.getItem('userData');
+        if (userData) {
+          const parsed = JSON.parse(userData);
+          if (parsed.accountNumber === accountNumber) {
+            localStorage.setItem('userData', JSON.stringify({ ...parsed, voiceBaseline: baselineJson }));
+          }
+        }
+
+        // Advance onboarding state if needed
+        OnboardingService.completeStep(accountNumber, 'calibration');
+        const state = OnboardingService.getState(accountNumber);
+        if (!state.hasSeenWelcome) {
+          OnboardingService.completeStep(accountNumber, 'welcome');
+        }
+        // If they did calibration, they are fully setup
+        OnboardingService.skipOnboarding(accountNumber);
+      } catch (e) {
+        console.error('Error updating account baseline:', e);
+      }
+    }
+
     setAppState('DASHBOARD');
-  }, []);
+  }, [accountNumber]);
 
   const handleResultsClose = useCallback(() => {
     setAnalysisData(null);
@@ -567,34 +619,17 @@ const App: React.FC = () => {
             </motion.div>
           )}
 
-          {appState === 'SCRATCH_CARD' && (
+          {appState === 'PIN_CREATION' && (
             <motion.div
-              key="scratch-card"
+              key="pin-creation"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.3 }}
-              className="w-full h-full flex items-center justify-center pt-16"
+              className="w-full h-full flex items-center justify-center pt-4"
             >
-              <ScratchCard
-                accountNumber={accountNumber}
-                onComplete={handleScratchCardComplete}
-              />
-            </motion.div>
-          )}
-
-          {appState === 'PASSWORD_SETUP' && (
-            <motion.div
-              key="password-setup"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="w-full h-full flex items-center justify-center pt-16"
-            >
-              <PasswordSetup
-                accountNumber={accountNumber}
-                onSubmit={handlePasswordSetupComplete}
+              <PinCreationScreen
+                onSubmit={handlePinCreationComplete}
               />
             </motion.div>
           )}
@@ -753,6 +788,7 @@ const App: React.FC = () => {
               <VoiceCalibrationScreen
                 onClose={handleCloseModal}
                 onCalibrationComplete={handleVoiceCalibrationComplete}
+                studentId={userType === 'student' ? accountNumber : undefined}
               />
             </motion.div>
           )}
