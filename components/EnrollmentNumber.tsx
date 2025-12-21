@@ -19,9 +19,9 @@ const EnrollmentNumber: React.FC<EnrollmentNumberProps> = ({ onSubmit }) => {
   return (
     <div className="w-full max-w-[440px] mx-auto p-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <GlassCard className="p-10 md:p-12 !rounded-[40px] border-white/10 shadow-3xl text-center">
-        <h1 className="text-3xl font-black tracking-tighter text-white uppercase italic mb-2">ACCESS GRANTED</h1>
+        <h1 className="text-3xl font-black tracking-tighter text-white uppercase italic mb-2">ENROLLMENT NUMBER</h1>
         <p className="text-[10px] font-black text-white/20 mb-10 uppercase tracking-[0.2em] leading-relaxed">
-          Please enter your <span className="text-purple-400">Assigned ID</span> to continue.
+          Please enter your <span className="text-purple-400">Enrollment Number</span> to continue.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-8">
