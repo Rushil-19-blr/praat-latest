@@ -9,6 +9,7 @@ import { LiquidButton } from './ui/liquid-button';
 
 // HACK: Cast motion components to 'any' to bypass type errors.
 const MotionDiv = motion.div as any;
+const MotionButton = motion.button as any;
 
 // --- Stress Chart Component (Sparkline) ---
 const StressChart: React.FC<{ data: number[]; id?: string }> = ({ data, id = 'default' }) => {
@@ -243,6 +244,7 @@ const HighAlertsSection: React.FC<{
                                 onClick={() => onSelectStudent(student.code)}
                                 onChatClick={() => onChatClick(student.code)}
                                 onEditNickname={onEditNickname}
+                                onPlanSession={onPlanSession}
                                 isHighAlert={true}
                             />
                         </div>
@@ -448,14 +450,14 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
             <header className="flex items-center justify-between pt-4 pb-6">
                 <div className="flex items-center gap-2">
                     {selectedClassId && (
-                        <motion.button
+                        <MotionButton
                             onClick={() => setSelectedClassId(null)}
                             className="w-11 h-11 bg-surface rounded-full flex items-center justify-center hover:bg-surface/80 transition-all active:scale-90"
                             initial={{ scale: 0 }}
                             animate={{ scale: 1 }}
                         >
                             <ChevronLeft className="w-6 h-6 text-text-secondary" />
-                        </motion.button>
+                        </MotionButton>
                     )}
                     <div>
                         <h1 className="text-4xl font-bold text-text-primary">
@@ -532,6 +534,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
                                     setIsChatOpen(true);
                                 }}
                                 onEditNickname={handleEditNickname}
+                                onPlanSession={onPlanSession}
                             />
 
                             <h2 className="text-xl font-bold uppercase text-text-muted tracking-wider mb-4 px-2">All Classes</h2>

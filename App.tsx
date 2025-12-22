@@ -41,6 +41,9 @@ const App: React.FC = () => {
   const [preAnalysisSession, setPreAnalysisSession] = useState<PreAnalysisSession | null>(null);
   const [planningStudentId, setPlanningStudentId] = useState<string | null>(null);
 
+  // HACK: Cast motion.div to any to fix type errors
+  const MotionDiv = motion.div as any;
+
   // Signup flow state
   const [selectedClass, setSelectedClass] = useState<number | null>(null);
   const [selectedSection, setSelectedSection] = useState<string | null>(null);
@@ -574,7 +577,7 @@ const App: React.FC = () => {
         <AnimatePresence initial={false}>
           {/* Sign-in Screen */}
           {appState === 'SIGNIN' && (
-            <motion.div
+            <MotionDiv
               key="signin"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -586,12 +589,12 @@ const App: React.FC = () => {
                 onSignIn={handleSignIn}
                 onCreateAccount={handleCreateAccount}
               />
-            </motion.div>
+            </MotionDiv>
           )}
 
           {/* Signup Flow Components */}
           {appState === 'SIGNUP' && (
-            <motion.div
+            <MotionDiv
               key="signup"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -602,12 +605,13 @@ const App: React.FC = () => {
               <ConnectTheDots
                 onConnect={handleClassSectionConnect}
                 isEnabled={true}
+                selectedClass={selectedClass}
               />
-            </motion.div>
+            </MotionDiv>
           )}
 
           {appState === 'ENROLLMENT' && (
-            <motion.div
+            <MotionDiv
               key="enrollment"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -616,11 +620,11 @@ const App: React.FC = () => {
               className="w-full h-full flex items-center justify-center pt-16"
             >
               <EnrollmentNumber onSubmit={handleEnrollmentSubmit} />
-            </motion.div>
+            </MotionDiv>
           )}
 
           {appState === 'PIN_CREATION' && (
-            <motion.div
+            <MotionDiv
               key="pin-creation"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -631,11 +635,11 @@ const App: React.FC = () => {
               <PinCreationScreen
                 onSubmit={handlePinCreationComplete}
               />
-            </motion.div>
+            </MotionDiv>
           )}
 
           {appState === 'DASHBOARD' && (
-            <motion.div
+            <MotionDiv
               key="dashboard"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -648,11 +652,11 @@ const App: React.FC = () => {
                 onStartCalibration={handleStartCalibration}
                 onSignOut={handleSignOut}
               />
-            </motion.div>
+            </MotionDiv>
           )}
 
           {appState === 'QUESTIONNAIRE' && (
-            <motion.div
+            <MotionDiv
               key="questionnaire"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -665,11 +669,11 @@ const App: React.FC = () => {
                 onBack={handleQuestionnaireBack}
                 studentId={userType === 'student' ? accountNumber : (selectedStudent?.code || planningStudentId || undefined)}
               />
-            </motion.div>
+            </MotionDiv>
           )}
 
           {appState === 'TEACHER_DASHBOARD' && (
-            <motion.div
+            <MotionDiv
               key="teacher-dashboard"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -684,11 +688,11 @@ const App: React.FC = () => {
                 onRefresh={loadStudentData}
                 onPlanSession={handlePlanSession}
               />
-            </motion.div>
+            </MotionDiv>
           )}
 
           {appState === 'STUDENT_DETAIL' && selectedStudent && (
-            <motion.div
+            <MotionDiv
               key="student-detail"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -702,11 +706,11 @@ const App: React.FC = () => {
                 isTeacherView={true}
                 onReportClick={handleReportClick}
               />
-            </motion.div>
+            </MotionDiv>
           )}
 
           {appState === 'STUDENT_REPORT' && selectedStudent && analysisData && (
-            <motion.div
+            <MotionDiv
               key="student-report"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -719,11 +723,11 @@ const App: React.FC = () => {
                 analysisData={analysisData}
                 onBack={handleReportBack}
               />
-            </motion.div>
+            </MotionDiv>
           )}
 
           {appState === 'SESSION_PLANNING' && planningStudentId && (
-            <motion.div
+            <MotionDiv
               key="session-planning"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -737,7 +741,7 @@ const App: React.FC = () => {
                 onBack={handlePlanningBack}
                 onSave={handlePlanningSave}
               />
-            </motion.div>
+            </MotionDiv>
           )}
         </AnimatePresence>
 
@@ -777,7 +781,7 @@ const App: React.FC = () => {
 
         <AnimatePresence>
           {appState === 'CALIBRATION_FLOW' && (
-            <motion.div
+            <MotionDiv
               key="calibration-screen"
               className="fixed inset-0 z-50 bg-background-primary overflow-y-auto"
               initial={{ opacity: 0 }}
@@ -790,13 +794,13 @@ const App: React.FC = () => {
                 onCalibrationComplete={handleVoiceCalibrationComplete}
                 studentId={userType === 'student' ? accountNumber : undefined}
               />
-            </motion.div>
+            </MotionDiv>
           )}
         </AnimatePresence>
 
         <AnimatePresence>
           {appState === 'RESULTS' && analysisData && (
-            <motion.div
+            <MotionDiv
               key="results-page"
               className="fixed inset-0 z-50 bg-background-primary overflow-y-auto"
               initial="initial"
@@ -811,13 +815,13 @@ const App: React.FC = () => {
                 onNext={handleNextToSuggestions}
                 onSelfReportSubmit={handleSelfReportSubmit}
               />
-            </motion.div>
+            </MotionDiv>
           )}
         </AnimatePresence>
 
         <AnimatePresence>
           {appState === 'SUGGESTIONS' && analysisData && (
-            <motion.div
+            <MotionDiv
               key="suggestions-page"
               className="fixed inset-0 z-50 bg-background-primary overflow-y-auto"
               initial="initial"
@@ -830,7 +834,7 @@ const App: React.FC = () => {
                 onBack={handleSuggestionsBack}
                 onClose={handleSuggestionsClose}
               />
-            </motion.div>
+            </MotionDiv>
           )}
         </AnimatePresence>
       </div>

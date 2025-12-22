@@ -5,13 +5,14 @@ import { cn } from '../lib/utils';
 interface ConnectTheDotsProps {
   onConnect: (classNum: number, section: string) => void;
   isEnabled: boolean;
+  selectedClass?: number | null;
 }
 
 // Only show grades 6 and above (classes 6-10)
 const CLASSES = Array.from({ length: 7 }, (_, i) => i + 6);
 const SECTIONS = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
 
-const ConnectTheDots: React.FC<ConnectTheDotsProps> = ({ onConnect, isEnabled }) => {
+const ConnectTheDots: React.FC<ConnectTheDotsProps> = ({ onConnect, isEnabled, selectedClass }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [startPos, setStartPos] = useState<{ x: number; y: number; classNum: number } | null>(null);
   const [currentPos, setCurrentPos] = useState<{ x: number; y: number } | null>(null);
@@ -134,7 +135,7 @@ const ConnectTheDots: React.FC<ConnectTheDotsProps> = ({ onConnect, isEnabled })
                 className={cn(
                   "w-20 h-14 flex items-center justify-center bg-white/[0.03] border border-white/10 rounded-2xl text-white text-xl font-black transition-all duration-300",
                   "hover:bg-purple-500/20 hover:border-purple-500/50 hover:scale-105 active:scale-95",
-                  startPos?.classNum === classNum && "bg-purple-500 border-purple-400 shadow-lg shadow-purple-500/40"
+                  (startPos?.classNum === classNum || selectedClass === classNum) && "bg-purple-500 border-purple-400 shadow-lg shadow-purple-500/40"
                 )}
               >
                 {classNum}
