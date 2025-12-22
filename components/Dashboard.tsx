@@ -4,6 +4,7 @@ import { GamifiedSolutionLibrary } from './ui/gamified-solution-library';
 import AnimatedLogo from './ui/AnimatedLogo';
 import StudentChatModal from './StudentChatModal';
 import { MessageCircle, X } from './Icons';
+import { SyncStatusIndicator } from './ui/SyncStatusIndicator';
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { StartSessionButton } from './ui/StartSessionButton';
@@ -220,7 +221,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                     margin: 0;
                     padding: 0;
                     background-color: transparent;
-                    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    font-family: 'Inter', sans-serif;
                     color: #ffffff;
                     min-height: 100vh;
                 }
@@ -243,6 +244,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                 .app-logo h1 {
                     margin: 0;
                     font-size: 36px;
+                    font-family: 'Playfair Display', serif;
                     font-weight: 700;
                     background: linear-gradient(135deg, #a855f7, #8b5cf6);
                     -webkit-background-clip: text;
@@ -471,7 +473,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                 <div className="app-logo">
                     <AnimatedLogo size={isMobile ? 60 : 100} />
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-4 items-center">
+                    <SyncStatusIndicator />
                     {onboardingState.stage !== 'session_prompt' && onboardingState.stage !== 'calibration_prompt' && (
                         <>
                             <button

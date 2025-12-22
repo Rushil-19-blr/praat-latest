@@ -21,7 +21,7 @@ const SuccessPopup: React.FC<SuccessPopupProps> = ({ accountNumber, onProceed })
             <CheckCircleIcon className="w-10 h-10 text-green-400" />
           </div>
 
-          <h2 className="text-3xl font-black tracking-tighter text-white uppercase italic mb-3">MISSION SUCCESS</h2>
+          <h2 className="text-4xl font-black font-serif tracking-tight text-white uppercase italic mb-3">MISSION SUCCESS</h2>
           <p className="text-[10px] font-bold text-white/40 mb-10 uppercase tracking-[0.2em] leading-relaxed">
             Your secure account has been <span className="text-green-400">Initialized</span>.
           </p>

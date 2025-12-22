@@ -1,11 +1,8 @@
-/**
- * Gamification Service
- * Handles tier progression, accent color unlocking, and level-up detection
- */
-
 import { MaterialTier, GamificationData, TierAccentColor } from '../types';
+import { StorageService } from './storageService';
 
 // ===== Tier Definitions =====
+// ... (rest of the definitions are same, I will keep them but replace the storage functions)
 
 export const MATERIAL_TIERS: MaterialTier[] = [
     {
@@ -94,69 +91,45 @@ export const MATERIAL_TIERS: MaterialTier[] = [
     },
 ];
 
-// ===== Helper Functions =====
+// ... (calculateTier, getTierProgress, etc. remain unchanged)
 
-/**
- * Calculate current tier based on completed tasks
- */
 export function calculateTier(completedTasks: number): MaterialTier {
     for (let i = MATERIAL_TIERS.length - 1; i >= 0; i--) {
         if (completedTasks >= MATERIAL_TIERS[i].tasksMin) {
             return MATERIAL_TIERS[i];
         }
     }
-    return MATERIAL_TIERS[0]; // Default to Wood
+    return MATERIAL_TIERS[0];
 }
 
-/**
- * Get progress towards next tier
- */
 export function getTierProgress(completedTasks: number): { current: number; max: number; percentage: number; nextTier: MaterialTier | null } {
     const currentTier = calculateTier(completedTasks);
     const nextTier = MATERIAL_TIERS.find(t => t.level === currentTier.level + 1) || null;
-
-    if (!nextTier) {
-        // Max tier reached
-        return { current: completedTasks, max: completedTasks, percentage: 100, nextTier: null };
-    }
-
+    if (!nextTier) return { current: completedTasks, max: completedTasks, percentage: 100, nextTier: null };
     const tierStart = currentTier.tasksMin;
     const tierEnd = nextTier.tasksMin;
     const progress = completedTasks - tierStart;
     const range = tierEnd - tierStart;
     const percentage = Math.min((progress / range) * 100, 100);
-
     return { current: progress, max: range, percentage, nextTier };
 }
 
-/**
- * Check if user just leveled up
- */
 export function checkTierUp(previousTasks: number, currentTasks: number): MaterialTier | null {
     const previousTier = calculateTier(previousTasks);
     const currentTier = calculateTier(currentTasks);
-
-    if (currentTier.level > previousTier.level) {
-        return currentTier;
-    }
+    if (currentTier.level > previousTier.level) return currentTier;
     return null;
 }
 
-/**
- * Get all unlocked accent colors based on current tier
- */
 export function getUnlockedColors(currentTierLevel: number): MaterialTier[] {
     return MATERIAL_TIERS.filter(tier => tier.level <= currentTierLevel);
 }
 
-/**
- * Get tier by level
- */
 export function getTierByLevel(level: number): MaterialTier | undefined {
     return MATERIAL_TIERS.find(t => t.level === level);
 }
 
-// ===== LocalStorage Management =====
+// ===== Hybrid Storage Management =====
 
 const GAMIFICATION_KEY_PREFIX = 'gamification_data_';
 
@@ -164,14 +137,11 @@ const GAMIFICATION_KEY_PREFIX = 'gamification_data_';
  * Get gamification data for a student
  */
 export function getGamificationData(studentCode: string): GamificationData {
-    try {
-        const key = `${GAMIFICATION_KEY_PREFIX}${studentCode}`;
-        const saved = localStorage.getItem(key);
-        if (saved) {
-            return JSON.parse(saved);
-        }
-    } catch (error) {
-        console.error('Error loading gamification data:', error);
+    const key = `${GAMIFICATION_KEY_PREFIX}${studentCode}`;
+    const saved = StorageService.getItem<GamificationData>(key);
+
+    if (saved) {
+        return saved;
     }
 
     // Default data
@@ -187,34 +157,24 @@ export function getGamificationData(studentCode: string): GamificationData {
  * Save gamification data for a student
  */
 export function saveGamificationData(studentCode: string, data: GamificationData): void {
-    try {
-        const key = `${GAMIFICATION_KEY_PREFIX}${studentCode}`;
-        localStorage.setItem(key, JSON.stringify(data));
-    } catch (error) {
-        console.error('Error saving gamification data:', error);
-    }
+    const key = `${GAMIFICATION_KEY_PREFIX}${studentCode}`;
+    StorageService.setItem(key, data, studentCode, 'state');
 }
 
 /**
  * Update completed tasks and check for tier up
- * Returns the new tier if leveled up, null otherwise
  */
 export function updateCompletedTasks(studentCode: string, newTaskCount: number): MaterialTier | null {
     const data = getGamificationData(studentCode);
     const previousTasks = data.completedTasks;
 
-    // Update task count
     data.completedTasks = newTaskCount;
-
-    // Check for tier up
     const newTier = checkTierUp(previousTasks, newTaskCount);
     if (newTier) {
         data.currentTier = newTier.level;
     }
 
-    // Save updated data
     saveGamificationData(studentCode, data);
-
     return newTier;
 }
 
@@ -223,8 +183,6 @@ export function updateCompletedTasks(studentCode: string, newTaskCount: number):
  */
 export function setSelectedAccentTier(studentCode: string, tierLevel: number): void {
     const data = getGamificationData(studentCode);
-
-    // Only allow selecting unlocked tiers
     if (tierLevel <= data.currentTier) {
         data.selectedAccentTier = tierLevel;
         saveGamificationData(studentCode, data);
@@ -243,20 +201,16 @@ export function applyAccentColor(tierLevel: number): void {
     root.style.setProperty('--accent-secondary', tier.accentColor.secondary);
     root.style.setProperty('--accent-gradient', tier.accentColor.gradient);
 
-    // Store in localStorage for persistence
-    localStorage.setItem('selected_accent_tier', tierLevel.toString());
+    // Apply via static key for convenience (doesn't sync to firebase, purely local preference)
+    StorageService.setItem('selected_accent_tier', tierLevel.toString(), 'default', 'state');
 }
 
 /**
  * Load and apply saved accent color on app start
  */
 export function loadSavedAccentColor(): void {
-    try {
-        const savedTier = localStorage.getItem('selected_accent_tier');
-        if (savedTier) {
-            applyAccentColor(parseInt(savedTier, 10));
-        }
-    } catch (error) {
-        console.error('Error loading saved accent color:', error);
+    const savedTier = StorageService.getItem<string>('selected_accent_tier');
+    if (savedTier) {
+        applyAccentColor(parseInt(savedTier, 10));
     }
 }

@@ -20,7 +20,7 @@ export interface AnalysisData {
   audioUrl: string;
   aiSummary: string;
   date: string;
-  questionnaireAnswers?: { [questionIndex: number]: string }; // Optional questionnaire answers
+  questionnaireAnswers?: { [questionId: string]: string | number }; // Optional questionnaire answers
   liveSessionAnswers?: { questionText: string; studentAnswer: string }[]; // Live Gemini conversation Q&A
   selfReportScore?: number;
   counselorReport?: string; // Persisted generated report

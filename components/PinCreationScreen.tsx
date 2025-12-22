@@ -106,7 +106,7 @@ const PinCreationScreen: React.FC<PinCreationScreenProps> = ({ onSubmit }) => {
 
                 {/* Step 1: PIN Creation */}
                 <GlassCard className="p-8 md:p-10 !rounded-[40px] border-white/10 shadow-3xl">
-                    <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/20 mb-8 text-center italic">STEP 1: CREATE YOUR IDENTITY CODE</h2>
+                    <h2 className="text-xl font-black font-serif tracking-wider text-white/40 mb-8 text-center italic">STEP 1: CREATE YOUR IDENTITY CODE</h2>
 
                     <div className="relative mb-6">
                         <div className="flex items-center gap-3 justify-center mb-6">

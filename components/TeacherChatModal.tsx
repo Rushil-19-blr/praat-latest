@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { StorageService } from '../services/storageService';
 import { X, MessageCircle, Users, Pencil, ChevronLeft } from './Icons';
 import { useStreamChat } from './StreamChatProvider';
 import { Channel, MessageList, MessageInput, Thread, Window } from 'stream-chat-react';
@@ -32,8 +33,8 @@ const TeacherChatModal: React.FC<TeacherChatModalProps> = ({
 
   // Nickname management functions
   const getNicknames = useCallback((): Record<string, string> => {
-    const stored = localStorage.getItem('studentNicknames');
-    return stored ? JSON.parse(stored) : {};
+    const stored = StorageService.getItem<Record<string, string>>('studentNicknames');
+    return stored || {};
   }, []);
 
   const setNickname = useCallback((studentId: string, nickname: string) => {
@@ -43,8 +44,8 @@ const TeacherChatModal: React.FC<TeacherChatModalProps> = ({
     } else {
       delete nicknames[studentId];
     }
-    localStorage.setItem('studentNicknames', JSON.stringify(nicknames));
-  }, [getNicknames]);
+    StorageService.setItem('studentNicknames', nicknames, teacherId, 'state');
+  }, [getNicknames, teacherId]);
 
   const getNickname = useCallback((studentId: string): string | null => {
     const nicknames = getNicknames();

@@ -1,4 +1,5 @@
 import { OnboardingState, OnboardingStage, INITIAL_ONBOARDING_STATE } from '../types/onboarding';
+import { StorageService } from './storageService';
 
 const ONBOARDING_KEY_PREFIX = 'onboarding_state_';
 
@@ -9,14 +10,10 @@ export const OnboardingService = {
     getState: (studentCode: string): OnboardingState => {
         if (!studentCode) return INITIAL_ONBOARDING_STATE;
 
-        try {
-            const key = `${ONBOARDING_KEY_PREFIX}${studentCode}`;
-            const saved = localStorage.getItem(key);
-            if (saved) {
-                return JSON.parse(saved);
-            }
-        } catch (error) {
-            console.error('Error loading onboarding state:', error);
+        const key = `${ONBOARDING_KEY_PREFIX}${studentCode}`;
+        const saved = StorageService.getItem<OnboardingState>(key);
+        if (saved) {
+            return saved;
         }
 
         return INITIAL_ONBOARDING_STATE;
@@ -24,7 +21,6 @@ export const OnboardingService = {
 
     /**
      * Initialize onboarding for a brand new user
-     * Should ONLY be called upon successful sign-up
      */
     initializeForNewUser: (studentCode: string) => {
         if (!studentCode) return;
@@ -32,12 +28,12 @@ export const OnboardingService = {
         const key = `${ONBOARDING_KEY_PREFIX}${studentCode}`;
 
         // Only initialize if no state exists
-        if (!localStorage.getItem(key)) {
+        if (!StorageService.getItem(key)) {
             const newState: OnboardingState = {
                 ...INITIAL_ONBOARDING_STATE,
                 isNewUser: true
             };
-            localStorage.setItem(key, JSON.stringify(newState));
+            OnboardingService.saveState(studentCode, newState);
         }
     },
 
@@ -86,19 +82,15 @@ export const OnboardingService = {
     },
 
     /**
-     * Save state to localStorage and dispatch event for UI updates
+     * Save state using Hybrid Storage
      */
     saveState: (studentCode: string, state: OnboardingState) => {
-        try {
-            const key = `${ONBOARDING_KEY_PREFIX}${studentCode}`;
-            localStorage.setItem(key, JSON.stringify(state));
+        const key = `${ONBOARDING_KEY_PREFIX}${studentCode}`;
+        StorageService.setItem(key, state, studentCode, 'state');
 
-            // Dispatch event so components can react reactively
-            window.dispatchEvent(new CustomEvent('onboardingUpdated', {
-                detail: { studentCode, state }
-            }));
-        } catch (error) {
-            console.error('Error saving onboarding state:', error);
-        }
+        // Dispatch event so components can react reactively
+        window.dispatchEvent(new CustomEvent('onboardingUpdated', {
+            detail: { studentCode, state }
+        }));
     }
 };

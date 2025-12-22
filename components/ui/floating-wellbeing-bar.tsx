@@ -21,6 +21,7 @@ import {
     Coffee,
     CheckSquare
 } from 'lucide-react';
+import { StorageService } from '../../services/storageService';
 
 // --- Types ---
 interface SuggestionItem {
@@ -105,20 +106,18 @@ const RippleFilter = () => (
 export const FloatingWellbeingBar: React.FC<FloatingWellbeingBarProps> = ({ className, onTasksCompleted }) => {
     // Load all items from storage
     const loadAllItems = React.useCallback(() => {
-        const userData = localStorage.getItem('userData');
+        const userData = StorageService.getItem<any>('userData');
         if (userData) {
             try {
-                const parsedUserData = JSON.parse(userData);
-                const studentCode = parsedUserData.accountNumber;
+                const studentCode = userData.accountNumber;
 
                 // 1. Fetch teacher-assigned tasks from SessionPlan
                 const plansKey = 'awaaz_session_plans'; // Const from planningService
-                const savedPlans = localStorage.getItem(plansKey);
+                const savedPlans = StorageService.getItem<Record<string, any>>(plansKey);
                 let teacherTasks: SuggestionItem[] = [];
 
                 if (savedPlans) {
-                    const plans = JSON.parse(savedPlans);
-                    const plan = plans[studentCode];
+                    const plan = savedPlans[studentCode];
                     if (plan && plan.isActive && plan.assignedTasks) {
                         teacherTasks = plan.assignedTasks
                             .filter((t: string) => t.trim() !== '')
@@ -133,15 +132,13 @@ export const FloatingWellbeingBar: React.FC<FloatingWellbeingBarProps> = ({ clas
 
                 // 2. Fetch AI suggestions
                 const suggestionsKey = `suggestions_${studentCode}`;
-                const savedSuggestions = localStorage.getItem(suggestionsKey);
+                const suggestionsData = StorageService.getItem<any>(suggestionsKey);
                 let aiItems: any[] = [];
 
-                if (savedSuggestions) {
-                    const suggestionsData = JSON.parse(savedSuggestions);
+                if (suggestionsData) {
                     if (suggestionsData.suggestions && suggestionsData.suggestions.length > 0) {
                         const completionKey = `suggestions_completed_${studentCode}`;
-                        const savedCompletion = localStorage.getItem(completionKey);
-                        const completedMap = savedCompletion ? JSON.parse(savedCompletion) : {};
+                        const completedMap = StorageService.getItem<Record<string, boolean>>(completionKey) || {};
                         const suggestionsWithCompletion = suggestionsData.suggestions.map((s: SuggestionItem) => ({
                             ...s,
                             completed: completedMap[s.id] || false
@@ -177,13 +174,11 @@ export const FloatingWellbeingBar: React.FC<FloatingWellbeingBarProps> = ({ clas
     const [allItems, setAllItems] = React.useState(() => loadAllItems());
     const [checked, setChecked] = React.useState<boolean[]>(() => {
         const items = loadAllItems();
-        const userData = localStorage.getItem('userData');
+        const userData = StorageService.getItem<any>('userData');
         if (userData && items.length > 0) {
             try {
-                const parsed = JSON.parse(userData);
-                const code = parsed.accountNumber;
-                const saved = localStorage.getItem(`suggestions_completed_${code}`);
-                const map = saved ? JSON.parse(saved) : {};
+                const code = userData.accountNumber;
+                const map = StorageService.getItem<Record<string, boolean>>(`suggestions_completed_${code}`) || {};
                 return items.map(item => {
                     const id = 'suggestionId' in item ? (item.suggestionId as string) : item.id.toString();
                     return map[id] || false;
@@ -217,14 +212,12 @@ export const FloatingWellbeingBar: React.FC<FloatingWellbeingBarProps> = ({ clas
             isInitialMount.current = false;
             return;
         }
-        const userData = localStorage.getItem('userData');
+        const userData = StorageService.getItem<any>('userData');
         if (userData && allItems.length > 0) {
             try {
-                const parsed = JSON.parse(userData);
-                const code = parsed.accountNumber;
+                const code = userData.accountNumber;
                 const key = `suggestions_completed_${code}`;
-                const saved = localStorage.getItem(key);
-                const map = saved ? JSON.parse(saved) : {};
+                const map = StorageService.getItem<Record<string, boolean>>(key) || {};
 
                 allItems.forEach((item, idx) => {
                     const id = 'suggestionId' in item ? (item.suggestionId as string) : item.id.toString();
@@ -235,16 +228,15 @@ export const FloatingWellbeingBar: React.FC<FloatingWellbeingBarProps> = ({ clas
                     if (checked[idx] && !wasCompleted) {
                         const todayDate = new Date().toISOString().split('T')[0];
                         const streakCompletionKey = `streak_completions_${code}`;
-                        const savedStreakDates = localStorage.getItem(streakCompletionKey);
-                        const streakDates: Record<string, string> = savedStreakDates ? JSON.parse(savedStreakDates) : {};
+                        const streakDates = StorageService.getItem<Record<string, string>>(streakCompletionKey) || {};
                         streakDates[id] = todayDate;
-                        localStorage.setItem(streakCompletionKey, JSON.stringify(streakDates));
+                        StorageService.setItem(streakCompletionKey, streakDates, code, 'state');
 
                         // Dispatch event for gamification system
                         window.dispatchEvent(new CustomEvent('taskCompleted', { detail: { taskId: id, date: todayDate } }));
                     }
                 });
-                localStorage.setItem(key, JSON.stringify(map));
+                StorageService.setItem(key, map, code, 'state');
 
                 // Check if all tasks completed
                 if (checked.every(c => c === true) && allItems.length > 0) {

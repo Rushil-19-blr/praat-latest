@@ -23,9 +23,8 @@ import { BeamsBackground } from './components/ui/beams-background';
 import { GlassFilter } from './components/ui/liquid-radio';
 import type { AnalysisData, Student, PreAnalysisSession } from './types';
 import type { QuestionnaireAnswers } from './components/PreRecordingQuestionnaire';
-// Import storage utilities - makes clearAllStorage() available globally
-import './utils/storageUtils';
 import { OnboardingService } from './services/onboardingService';
+import { StorageService } from './services/storageService';
 
 type AppState = 'SIGNIN' | 'SIGNUP' | 'CONFIRMATION' | 'ENROLLMENT' | 'PIN_CREATION' | 'SUCCESS' | 'DASHBOARD' | 'QUESTIONNAIRE' | 'RECORDING' | 'CALIBRATION_FLOW' | 'RESULTS' | 'SUGGESTIONS' | 'TEACHER_DASHBOARD' | 'STUDENT_DETAIL' | 'STUDENT_REPORT' | 'SESSION_PLANNING';
 
@@ -52,43 +51,33 @@ const App: React.FC = () => {
   const [showConfirmation, setShowConfirmation] = useState(false);
 
   const loadStudentData = useCallback(() => {
-    // Get all student data from localStorage
-    const allStudentsData = localStorage.getItem('allStudentsData');
-    if (allStudentsData) {
-      try {
-        const studentsData = JSON.parse(allStudentsData);
-        setStudents(studentsData);
-      } catch (error) {
-        console.error('Error parsing student data:', error);
-        // Fallback to empty array if data is corrupted
-        setStudents([]);
-      }
+    // Get all student data using Hybrid Storage
+    const studentsData = StorageService.getItem<Student[]>('allStudentsData');
+    if (studentsData) {
+      setStudents(studentsData);
     } else {
-      // Initialize with empty array if no data exists
       setStudents([]);
     }
   }, []);
 
   useEffect(() => {
-    const userDataStr = localStorage.getItem('userData');
-    if (userDataStr) {
-      try {
-        const userData = JSON.parse(userDataStr);
-        const studentId = userData.accountNumber;
-        if (studentId) {
-          setAccountNumber(studentId);
-          const baselineKey = `voiceBaseline_${studentId}`;
-          const storedBaseline = localStorage.getItem(baselineKey) || localStorage.getItem('voiceBaseline');
-          if (storedBaseline) {
-            setBaselineData(storedBaseline);
-          }
+    const userData = StorageService.getItem<any>('userData');
+    if (userData) {
+      const studentId = userData.accountNumber;
+      if (studentId) {
+        setAccountNumber(studentId);
+        const baselineKey = `voiceBaseline_${studentId}`;
+        const storedBaseline = StorageService.getItem<string>(baselineKey) || StorageService.getItem<string>('voiceBaseline');
+        if (storedBaseline) {
+          setBaselineData(storedBaseline);
         }
-      } catch (e) {
-        console.error('Error loading user baseline:', e);
+
+        // Pull latest data from Firebase if signed in
+        StorageService.pullFromFirebase(studentId);
       }
     }
 
-    // Load real student data from localStorage on initial mount
+    // Load real student data on initial mount
     loadStudentData();
   }, [loadStudentData]);
 
@@ -109,8 +98,8 @@ const App: React.FC = () => {
       const adminPassword = 'admin123';
 
       if (code === adminCode && password === adminPassword) {
-        localStorage.setItem('isTeacherSignedIn', 'true');
-        // Reload student data to get latest students including newly created ones
+        StorageService.setItem('isTeacherSignedIn', true, 'admin');
+        // Reload student data
         loadStudentData();
         setAppState('TEACHER_DASHBOARD');
       } else {
@@ -130,45 +119,26 @@ const App: React.FC = () => {
           section: 'A'
         };
 
-        localStorage.setItem('userData', JSON.stringify(defaultStudent));
-        localStorage.setItem('isSignedIn', 'true');
+        StorageService.setItem('userData', defaultStudent, '9999');
+        StorageService.setItem('isSignedIn', true, '9999');
         setAppState('DASHBOARD');
         return;
       }
 
-      let studentAccountsData = localStorage.getItem('studentAccounts');
-      let studentAccounts: any[] = [];
+      let studentAccounts = StorageService.getItem<any[]>('studentAccounts') || [];
 
       // Backward compatibility: Migrate old userData to studentAccounts if it exists
-      if (!studentAccountsData) {
+      if (studentAccounts.length === 0) {
         const oldUserData = localStorage.getItem('userData');
         if (oldUserData) {
           try {
             const parsedOldData = JSON.parse(oldUserData);
             // Migrate old account to new format
             studentAccounts = [parsedOldData];
-            localStorage.setItem('studentAccounts', JSON.stringify(studentAccounts));
+            StorageService.setItem('studentAccounts', studentAccounts, 'migration_user', 'state');
           } catch (error) {
             console.error('Error migrating old user data:', error);
           }
-        }
-      } else {
-        try {
-          const parsed = JSON.parse(studentAccountsData);
-          // Ensure it's an array - if it's an object, convert it to an array
-          if (Array.isArray(parsed)) {
-            studentAccounts = parsed;
-          } else if (parsed && typeof parsed === 'object') {
-            // If it's a single object, convert to array
-            studentAccounts = [parsed];
-          } else {
-            // If it's not an array or object, start fresh
-            studentAccounts = [];
-          }
-        } catch (error) {
-          console.error('Error parsing studentAccounts from localStorage:', error);
-          // If parsing fails, start with empty array
-          studentAccounts = [];
         }
       }
 
@@ -183,12 +153,13 @@ const App: React.FC = () => {
 
       if (matchingAccount) {
         // Store the current user's data for the session
-        localStorage.setItem('userData', JSON.stringify(matchingAccount));
-        localStorage.setItem('isSignedIn', 'true');
+        StorageService.setItem('userData', matchingAccount, matchingAccount.accountNumber);
+        StorageService.setItem('isSignedIn', true, matchingAccount.accountNumber);
         setAccountNumber(matchingAccount.accountNumber);
 
         // Load user-specific baseline
-        const userBaseline = localStorage.getItem(`voiceBaseline_${matchingAccount.accountNumber}`);
+        const baselineKey = `voiceBaseline_${matchingAccount.accountNumber}`;
+        const userBaseline = StorageService.getItem<string>(baselineKey);
         if (userBaseline) {
           setBaselineData(userBaseline);
         } else {
@@ -263,28 +234,7 @@ const App: React.FC = () => {
     };
 
     // Get existing student accounts or create new array
-    const studentAccountsData = localStorage.getItem('studentAccounts');
-    let studentAccounts: any[] = [];
-
-    if (studentAccountsData) {
-      try {
-        const parsed = JSON.parse(studentAccountsData);
-        // Ensure it's an array - if it's an object, convert it to an array
-        if (Array.isArray(parsed)) {
-          studentAccounts = parsed;
-        } else if (parsed && typeof parsed === 'object') {
-          // If it's a single object, convert to array
-          studentAccounts = [parsed];
-        } else {
-          // If it's not an array or object, start fresh
-          studentAccounts = [];
-        }
-      } catch (error) {
-        console.error('Error parsing studentAccounts from localStorage:', error);
-        // If parsing fails, start with empty array
-        studentAccounts = [];
-      }
-    }
+    let studentAccounts = StorageService.getItem<any[]>('studentAccounts') || [];
 
     // Check if account already exists (shouldn't happen, but just in case)
     const accountIndex = studentAccounts.findIndex(acc => acc.accountNumber === accountNumber);
@@ -292,21 +242,20 @@ const App: React.FC = () => {
     if (accountIndex === -1) {
       // Add new account to the array
       studentAccounts.push(newAccountData);
-      localStorage.setItem('studentAccounts', JSON.stringify(studentAccounts));
+      StorageService.setItem('studentAccounts', studentAccounts, pin, 'state');
     } else {
       // Update existing account (shouldn't normally happen)
       studentAccounts[accountIndex] = newAccountData;
-      localStorage.setItem('studentAccounts', JSON.stringify(studentAccounts));
+      StorageService.setItem('studentAccounts', studentAccounts, pin, 'state');
     }
 
     // Store current user data for the session (auto-sign in after successful signup)
-    localStorage.setItem('isSignedUp', 'true');
-    localStorage.setItem('isSignedIn', 'true');
-    localStorage.setItem('userData', JSON.stringify(newAccountData));
+    StorageService.setItem('isSignedUp', true, pin, 'state');
+    StorageService.setItem('isSignedIn', true, pin, 'state');
+    StorageService.setItem('userData', newAccountData, pin, 'state');
 
     // Add student to allStudentsData immediately so teacher can see them
-    const allStudentsData = localStorage.getItem('allStudentsData');
-    let studentsData: Student[] = allStudentsData ? JSON.parse(allStudentsData) : [];
+    let studentsData: Student[] = StorageService.getItem<Student[]>('allStudentsData') || [];
 
     // Check if student already exists (shouldn't happen, but just in case)
     const studentIndex = studentsData.findIndex(s => s.code === accountNumber);
@@ -324,7 +273,7 @@ const App: React.FC = () => {
       studentsData.push(newStudent);
 
       // Save updated students data
-      localStorage.setItem('allStudentsData', JSON.stringify(studentsData));
+      StorageService.setItem('allStudentsData', studentsData, accountNumber, 'global');
 
       // Update local state
       setStudents(studentsData);
@@ -355,9 +304,9 @@ const App: React.FC = () => {
     };
     setPreAnalysisSession(session);
 
-    // Optionally store in localStorage for future reference
-    localStorage.setItem('questionnaireAnswers', JSON.stringify(answers));
-    localStorage.setItem('currentPreAnalysisSession', JSON.stringify(session));
+    // Optionally store in Hybrid Storage
+    StorageService.setItem('questionnaireAnswers', answers, accountNumber, 'state');
+    StorageService.setItem('currentPreAnalysisSession', session, accountNumber, 'state');
     setAppState('RECORDING');
   }, []);
 
@@ -370,9 +319,8 @@ const App: React.FC = () => {
 
   const handleAnalysisComplete = useCallback((data: AnalysisData) => {
     const { aiSummary, ...rest } = data;
-    // Get questionnaire answers from localStorage if available
-    const storedAnswers = localStorage.getItem('questionnaireAnswers');
-    const questionnaireAnswers = storedAnswers ? JSON.parse(storedAnswers) : null;
+    // Get questionnaire answers from Hybrid Storage if available
+    const questionnaireAnswers = StorageService.getItem<QuestionnaireAnswers>('questionnaireAnswers');
 
     const analysisDataWithDate = {
       ...rest,
@@ -383,18 +331,16 @@ const App: React.FC = () => {
     setAnalysisData(analysisDataWithDate);
 
     // Save analysis data to student's history
-    const userData = localStorage.getItem('userData');
+    const userData = StorageService.getItem<any>('userData');
     if (userData) {
       try {
-        const parsedUserData = JSON.parse(userData);
-        const studentCode = parsedUserData.accountNumber;
-        const studentName = parsedUserData.enrollment || 'Unknown Student';
-        const studentClass = parsedUserData.class || 10;
-        const studentSection = parsedUserData.section || 'A';
+        const studentCode = userData.accountNumber;
+        const studentName = userData.enrollment || 'Unknown Student';
+        const studentClass = userData.class || 10;
+        const studentSection = userData.section || 'A';
 
         // Get existing students data
-        const allStudentsData = localStorage.getItem('allStudentsData');
-        let studentsData: Student[] = allStudentsData ? JSON.parse(allStudentsData) : [];
+        let studentsData = StorageService.getItem<Student[]>('allStudentsData') || [];
 
         // Find existing student or create new one
         let studentIndex = studentsData.findIndex(s => s.code === studentCode);
@@ -419,7 +365,7 @@ const App: React.FC = () => {
         }
 
         // Save updated students data
-        localStorage.setItem('allStudentsData', JSON.stringify(studentsData));
+        StorageService.setItem('allStudentsData', studentsData, studentCode, 'global');
 
         // Update local state
         setStudents(studentsData);
@@ -434,16 +380,14 @@ const App: React.FC = () => {
   const handleSelfReportSubmit = useCallback((score: number) => {
     setAnalysisData(prev => prev ? { ...prev, selfReportScore: score } : prev);
     try {
-      const userData = localStorage.getItem('userData');
+      const userData = StorageService.getItem<any>('userData');
       if (!userData) {
         return;
       }
-      const { accountNumber } = JSON.parse(userData);
+      const { accountNumber } = userData;
       if (!accountNumber) return;
 
-      const allStudentsData = localStorage.getItem('allStudentsData');
-      if (!allStudentsData) return;
-      const students: Student[] = JSON.parse(allStudentsData);
+      const students = StorageService.getItem<Student[]>('allStudentsData') || [];
       const studentIndex = students.findIndex(s => s.code === accountNumber);
       if (studentIndex === -1 || students[studentIndex].analysisHistory.length === 0) return;
 
@@ -452,7 +396,7 @@ const App: React.FC = () => {
         ...students[studentIndex].analysisHistory[latestIndex],
         selfReportScore: score,
       };
-      localStorage.setItem('allStudentsData', JSON.stringify(students));
+      StorageService.setItem('allStudentsData', students, accountNumber, 'global');
       setStudents(students);
     } catch (error) {
       console.error('Failed to store self-report score', error);
@@ -460,32 +404,30 @@ const App: React.FC = () => {
   }, []);
 
   const handleCalibrationComplete = useCallback((baselineJson: string) => {
-    localStorage.setItem('voiceBaseline', baselineJson);
+    StorageService.setItem('voiceBaseline', baselineJson, 'global_baseline', 'state');
     setBaselineData(baselineJson);
     setAppState('DASHBOARD');
   }, []);
 
   const handleVoiceCalibrationComplete = useCallback((baselineJson: string) => {
     const baselineKey = accountNumber ? `voiceBaseline_${accountNumber}` : 'voiceBaseline';
-    localStorage.setItem(baselineKey, baselineJson);
+    StorageService.setItem(baselineKey, baselineJson, accountNumber || 'default', 'state');
     setBaselineData(baselineJson);
 
     // Save baseline to account data for persistence
-    const storedAccounts = localStorage.getItem('studentAccounts');
-    if (storedAccounts && accountNumber) {
+    const accounts = StorageService.getItem<any[]>('studentAccounts');
+    if (accounts && accountNumber) {
       try {
-        const accounts = JSON.parse(storedAccounts);
         const updatedAccounts = accounts.map((acc: any) =>
           acc.accountNumber === accountNumber ? { ...acc, voiceBaseline: baselineJson } : acc
         );
-        localStorage.setItem('studentAccounts', JSON.stringify(updatedAccounts));
+        StorageService.setItem('studentAccounts', updatedAccounts, accountNumber, 'state');
 
         // Also update current userData in session
-        const userData = localStorage.getItem('userData');
+        const userData = StorageService.getItem<any>('userData');
         if (userData) {
-          const parsed = JSON.parse(userData);
-          if (parsed.accountNumber === accountNumber) {
-            localStorage.setItem('userData', JSON.stringify({ ...parsed, voiceBaseline: baselineJson }));
+          if (userData.accountNumber === accountNumber) {
+            StorageService.setItem('userData', { ...userData, voiceBaseline: baselineJson }, accountNumber, 'state');
           }
         }
 

@@ -7,6 +7,7 @@ import { useSwipeable } from 'react-swipeable';
 import { LiquidButton } from './ui/liquid-button';
 import { InfinityLoader } from '@/components/ui/infinity-loader';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { StorageService } from '../services/storageService';
 
 interface PostAnalysisSuggestionsScreenProps {
   analysisData: AnalysisData;
@@ -353,11 +354,10 @@ const PostAnalysisSuggestionsScreen: React.FC<PostAnalysisSuggestionsScreenProps
 
   // Save suggestions to localStorage for the todo list
   useEffect(() => {
-    const userData = localStorage.getItem('userData');
+    const userData = StorageService.getItem<any>('userData');
     if (userData) {
       try {
-        const parsedUserData = JSON.parse(userData);
-        const studentCode = parsedUserData.accountNumber;
+        const studentCode = userData.accountNumber;
 
         // Combine immediate and long-term suggestions
         const allSuggestions = [
@@ -383,7 +383,7 @@ const PostAnalysisSuggestionsScreen: React.FC<PostAnalysisSuggestionsScreenProps
           date: new Date().toISOString(),
           nextSession: suggestions.nextSession
         };
-        localStorage.setItem(suggestionsKey, JSON.stringify(suggestionsData));
+        StorageService.setItem(suggestionsKey, suggestionsData, studentCode, 'state');
 
         // Dispatch custom event to notify todo list to refresh
         window.dispatchEvent(new Event('suggestionsUpdated'));

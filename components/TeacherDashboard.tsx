@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Student, RiskLevel } from '../types';
+import { StorageService } from '../services/storageService';
 import { UserCircle, ChevronLeft, MessageCircle, ChatBubble, Pencil, Calendar } from './Icons';
 import GlassCard from './GlassCard';
 import TeacherChatModal from './TeacherChatModal';
@@ -90,8 +91,8 @@ const StudentWidget: React.FC<{
 
     // Nickname management functions
     const getNicknames = useCallback((): Record<string, string> => {
-        const stored = localStorage.getItem('studentNicknames');
-        return stored ? JSON.parse(stored) : {};
+        const stored = StorageService.getItem<Record<string, string>>('studentNicknames');
+        return stored || {};
     }, []);
 
     const getNickname = useCallback((studentId: string): string | null => {
@@ -231,7 +232,7 @@ const HighAlertsSection: React.FC<{
 
     return (
         <div className="mb-8">
-            <h2 className="text-xl font-bold uppercase text-red-500 tracking-wider mb-4 px-2 flex items-center gap-2">
+            <h2 className="text-xl font-bold font-serif uppercase text-red-500 tracking-wider mb-4 px-2 flex items-center gap-2">
                 <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
                 HIGH ALERTS
             </h2>
@@ -284,7 +285,7 @@ const HighRiskStudentsWidget: React.FC<{
 
     return (
         <div className="mb-8">
-            <h2 className="text-xl font-bold uppercase text-red-500 tracking-wider mb-4 px-2 flex items-center gap-2">
+            <h2 className="text-xl font-bold font-serif uppercase text-red-500 tracking-wider mb-4 px-2 flex items-center gap-2">
                 <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
                 HIGH-RISK STUDENTS ALERT
             </h2>
@@ -374,8 +375,8 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
         } else {
             delete nicknames[studentId];
         }
-        localStorage.setItem('studentNicknames', JSON.stringify(nicknames));
-    }, [getNicknames]);
+        StorageService.setItem('studentNicknames', nicknames, teacherId, 'state');
+    }, [getNicknames, teacherId]);
 
     const handleEditNickname = useCallback((studentId: string) => {
         const nicknames = getNicknames();
@@ -460,7 +461,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
                         </MotionButton>
                     )}
                     <div>
-                        <h1 className="text-4xl font-bold text-text-primary">
+                        <h1 className="text-4xl font-bold font-serif text-text-primary">
                             {selectedClass ? selectedClass.name : 'Dashboard'}
                         </h1>
                         <p className="text-xl font-normal text-text-muted mt-1">
@@ -537,7 +538,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
                                 onPlanSession={onPlanSession}
                             />
 
-                            <h2 className="text-xl font-bold uppercase text-text-muted tracking-wider mb-4 px-2">All Classes</h2>
+                            <h2 className="text-xl font-bold font-serif uppercase text-text-muted tracking-wider mb-4 px-2">All Classes</h2>
                             {classSummaries.length === 0 ? (
                                 <div className="text-center py-12">
                                     <div className="w-16 h-16 bg-surface rounded-full flex items-center justify-center mx-auto mb-4">
@@ -564,7 +565,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
                                             transition={{ type: 'spring', stiffness: 300 }}
                                         >
                                             <GlassCard className="p-5 flex flex-col justify-between h-36 active:bg-white/5 transition-colors" variant="purple">
-                                                <h3 className="text-2xl font-bold text-purple-light">{summary.name}</h3>
+                                                <h3 className="text-2xl font-bold font-serif text-purple-light">{summary.name}</h3>
                                                 <div className="text-right">
                                                     <p className="text-xl font-medium text-text-secondary">{summary.studentCount} Students</p>
                                                     <p className="text-xl font-normal text-text-muted">Avg {summary.averageStress}% Stress</p>
@@ -596,7 +597,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
 
 
                             <div>
-                                <h2 className="text-xl font-bold uppercase text-text-muted tracking-wider mb-4 px-2">ALL STUDENTS IN CLASS</h2>
+                                <h2 className="text-xl font-bold font-serif uppercase text-text-muted tracking-wider mb-4 px-2">ALL STUDENTS IN CLASS</h2>
                                 <MotionDiv
                                     variants={containerVariants}
                                     initial="hidden"

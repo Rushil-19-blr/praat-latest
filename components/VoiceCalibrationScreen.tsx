@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { webmBlobToWavMono16k } from '../utils/audio';
 import { extractFeaturesWithPraat } from '../services/praat';
+import { StorageService } from '../services/storageService';
 import { BACKEND_URL } from '../config';
 import type { RecordingState } from '../types';
 import GlassCard from './GlassCard';
@@ -43,7 +44,7 @@ const VoiceCalibrationScreen: React.FC<VoiceCalibrationScreenProps> = ({
   // Check if baseline exists on mount
   useEffect(() => {
     const baselineKey = studentId ? `voiceBaseline_${studentId}` : 'voiceBaseline';
-    const storedBaseline = localStorage.getItem(baselineKey);
+    const storedBaseline = StorageService.getItem<string>(baselineKey);
     setHasBaseline(!!storedBaseline);
 
     // Check if we should show help automatically
@@ -220,7 +221,7 @@ const VoiceCalibrationScreen: React.FC<VoiceCalibrationScreenProps> = ({
 
       const baselineJson = JSON.stringify(baselineData);
       const baselineKey = studentId ? `voiceBaseline_${studentId}` : 'voiceBaseline';
-      localStorage.setItem(baselineKey, baselineJson);
+      StorageService.setItem(baselineKey, baselineJson, studentId || 'default', 'state');
 
       // Reset adaptive sensitivity state when new baseline is created
       // This ensures sensitivity starts conservative for the new baseline
@@ -504,7 +505,7 @@ const VoiceCalibrationScreen: React.FC<VoiceCalibrationScreenProps> = ({
         isOpen={showSuccessPopup}
         onContinue={() => {
           setShowSuccessPopup(false);
-          const baselineJson = localStorage.getItem('voiceBaseline');
+          const baselineJson = StorageService.getItem<string>('voiceBaseline');
           if (baselineJson) {
             onCalibrationComplete(baselineJson);
           }

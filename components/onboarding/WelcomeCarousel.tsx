@@ -33,7 +33,7 @@ export const WelcomeCarousel: React.FC<WelcomeCarouselProps> = ({ studentCode, o
         {
             icon: <BarChart3 className="w-16 h-16 text-purple-400" />,
             title: "Real-time Insights",
-            desc: "Get immediate visual feedback and track your stress trends with medical-grade accuracy.",
+            desc: "Get immediate visual feedback and track your stress trends with high-precision analysis.",
             color: "from-purple-500/20 to-pink-500/20"
         },
         {

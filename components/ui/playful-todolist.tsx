@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 
 import { Checkbox } from '@/components/ui/checkbox';
 import CompletionModal from '../CompletionModal';
+import { StorageService } from '../../services/storageService';
 
 interface SuggestionItem {
   id: string;
@@ -91,21 +92,18 @@ const getPathTransition = (isChecked: boolean): Transition => ({
 export const Component = () => {
   // Load ALL available items from localStorage or defaults
   const loadAllItems = React.useCallback(() => {
-    const userData = localStorage.getItem('userData');
+    const userData = StorageService.getItem<any>('userData');
     if (userData) {
       try {
-        const parsedUserData = JSON.parse(userData);
-        const studentCode = parsedUserData.accountNumber;
+        const studentCode = userData.accountNumber;
         const suggestionsKey = `suggestions_${studentCode}`;
-        const savedSuggestions = localStorage.getItem(suggestionsKey);
+        const suggestionsData = StorageService.getItem<any>(suggestionsKey);
 
-        if (savedSuggestions) {
-          const suggestionsData = JSON.parse(savedSuggestions);
+        if (suggestionsData) {
           if (suggestionsData.suggestions && suggestionsData.suggestions.length > 0) {
             // Load saved completion state
             const completionKey = `suggestions_completed_${studentCode}`;
-            const savedCompletion = localStorage.getItem(completionKey);
-            const completedMap = savedCompletion ? JSON.parse(savedCompletion) : {};
+            const completedMap = StorageService.getItem<Record<string, boolean>>(completionKey) || {};
 
             // Update suggestions with saved completion state
             const suggestionsWithCompletion = suggestionsData.suggestions.map((s: SuggestionItem) => ({
@@ -130,7 +128,7 @@ export const Component = () => {
   // Get the current batch of items to display (max 4)
   const getCurrentBatch = React.useCallback(() => {
     const allItems = loadAllItems();
-    const userData = localStorage.getItem('userData');
+    const userData = StorageService.getItem<any>('userData');
 
     if (!userData) {
       // For default items, just return first 4
@@ -138,17 +136,14 @@ export const Component = () => {
     }
 
     try {
-      const parsedUserData = JSON.parse(userData);
-      const studentCode = parsedUserData.accountNumber;
+      const studentCode = userData.accountNumber;
       const batchKey = `suggestions_current_batch_${studentCode}`;
       const completionKey = `suggestions_completed_${studentCode}`;
       const shownKey = `suggestions_shown_${studentCode}`; // Still track shown items to avoid repeats
 
       // 1. Check for existing active batch
-      const savedBatch = localStorage.getItem(batchKey);
-      if (savedBatch) {
-        const currentBatchIds = JSON.parse(savedBatch);
-
+      const currentBatchIds = StorageService.getItem<string[]>(batchKey);
+      if (currentBatchIds) {
         // Find the actual items for these IDs
         const currentBatchItems = allItems.filter(item => {
           const itemId = 'suggestionId' in item ? (item.suggestionId as string) : item.id.toString();
@@ -156,8 +151,7 @@ export const Component = () => {
         });
 
         // Check if ALL items in this batch are completed
-        const savedCompletion = localStorage.getItem(completionKey);
-        const completedMap = savedCompletion ? JSON.parse(savedCompletion) : {};
+        const completedMap = StorageService.getItem<Record<string, boolean>>(completionKey) || {};
 
         const allBatchCompleted = currentBatchItems.every(item => {
           const itemId = 'suggestionId' in item ? (item.suggestionId as string) : item.id.toString();
@@ -173,8 +167,8 @@ export const Component = () => {
       }
 
       // 2. Generate NEW batch
-      const savedShown = localStorage.getItem(shownKey);
-      const shownSet = savedShown ? new Set(JSON.parse(savedShown)) : new Set();
+      const shownList = StorageService.getItem<string[]>(shownKey);
+      const shownSet = new Set(shownList || []);
 
       // Find items that haven't been shown yet
       const unshownItems = allItems.filter(item => {
@@ -189,7 +183,7 @@ export const Component = () => {
       } else {
         // All items shown! Reset shown set (except maybe the ones we just finished?)
         // For now, simple reset
-        localStorage.removeItem(shownKey);
+        StorageService.removeItem(shownKey, studentCode, 'state');
         nextBatchItems = allItems.slice(0, 4);
       }
 
@@ -197,11 +191,11 @@ export const Component = () => {
       const nextBatchIds = nextBatchItems.map(item =>
         'suggestionId' in item ? (item.suggestionId as string) : item.id.toString()
       );
-      localStorage.setItem(batchKey, JSON.stringify(nextBatchIds));
+      StorageService.setItem(batchKey, nextBatchIds, studentCode, 'state');
 
       // Add to shown set
       nextBatchIds.forEach(id => shownSet.add(id));
-      localStorage.setItem(shownKey, JSON.stringify([...shownSet]));
+      StorageService.setItem(shownKey, [...shownSet], studentCode, 'state');
 
       return nextBatchItems;
 
@@ -214,14 +208,12 @@ export const Component = () => {
   const [displayedItems, setDisplayedItems] = React.useState(() => getCurrentBatch());
   const [checked, setChecked] = React.useState(() => {
     const initialItems = getCurrentBatch();
-    const userData = localStorage.getItem('userData');
+    const userData = StorageService.getItem<any>('userData');
     if (userData && initialItems.length > 0) {
       try {
-        const parsedUserData = JSON.parse(userData);
-        const studentCode = parsedUserData.accountNumber;
+        const studentCode = userData.accountNumber;
         const completionKey = `suggestions_completed_${studentCode}`;
-        const savedCompletion = localStorage.getItem(completionKey);
-        const completedMap = savedCompletion ? JSON.parse(savedCompletion) : {};
+        const completedMap = StorageService.getItem<Record<string, boolean>>(completionKey) || {};
 
         // Load checked state from localStorage
         return initialItems.map((item) => {
@@ -244,14 +236,12 @@ export const Component = () => {
   // Update checked state when displayedItems change (only if it's a batch update)
   React.useEffect(() => {
     if (isUpdatingBatch.current) {
-      const userData = localStorage.getItem('userData');
+      const userData = StorageService.getItem<any>('userData');
       if (userData && displayedItems.length > 0) {
         try {
-          const parsedUserData = JSON.parse(userData);
-          const studentCode = parsedUserData.accountNumber;
+          const studentCode = userData.accountNumber;
           const completionKey = `suggestions_completed_${studentCode}`;
-          const savedCompletion = localStorage.getItem(completionKey);
-          const completedMap = savedCompletion ? JSON.parse(savedCompletion) : {};
+          const completedMap = StorageService.getItem<Record<string, boolean>>(completionKey) || {};
 
           // Load checked state from localStorage for new batch
           const newChecked = displayedItems.map((item) => {
@@ -280,16 +270,14 @@ export const Component = () => {
       return;
     }
 
-    const userData = localStorage.getItem('userData');
+    const userData = StorageService.getItem<any>('userData');
     if (userData && displayedItems.length > 0) {
       try {
-        const parsedUserData = JSON.parse(userData);
-        const studentCode = parsedUserData.accountNumber;
+        const studentCode = userData.accountNumber;
         const completionKey = `suggestions_completed_${studentCode}`;
 
         // Load existing completion map
-        const savedCompletion = localStorage.getItem(completionKey);
-        const completedMap: Record<string, boolean> = savedCompletion ? JSON.parse(savedCompletion) : {};
+        const completedMap = StorageService.getItem<Record<string, boolean>>(completionKey) || {};
 
         // Update completion state for displayed items
         displayedItems.forEach((item, idx) => {
@@ -297,7 +285,7 @@ export const Component = () => {
           completedMap[itemId] = checked[idx];
         });
 
-        localStorage.setItem(completionKey, JSON.stringify(completedMap));
+        StorageService.setItem(completionKey, completedMap, studentCode, 'state');
 
         // Check if all current items are completed
         const allCurrentCompleted = checked.every(c => c === true);
@@ -339,15 +327,14 @@ export const Component = () => {
   const handleLongPressStart = () => {
     longPressTimerRef.current = setTimeout(() => {
       // Reset shown items and load first batch
-      const userData = localStorage.getItem('userData');
+      const userData = StorageService.getItem<any>('userData');
       if (userData) {
         try {
-          const parsedUserData = JSON.parse(userData);
-          const studentCode = parsedUserData.accountNumber;
+          const studentCode = userData.accountNumber;
           const shownKey = `suggestions_shown_${studentCode}`;
           const batchKey = `suggestions_current_batch_${studentCode}`;
-          localStorage.removeItem(shownKey);
-          localStorage.removeItem(batchKey);
+          StorageService.removeItem(shownKey, studentCode, 'state');
+          StorageService.removeItem(batchKey, studentCode, 'state');
         } catch (error) {
           console.error('Error resetting shown items:', error);
         }
