@@ -255,7 +255,7 @@ const TeacherChatModal: React.FC<TeacherChatModalProps> = ({
               "w-full md:w-80 border-r border-white/10 bg-white/5 flex flex-col transition-all duration-300",
               activeChannel ? "hidden md:flex" : "flex"
             )}>
-              <div className="p-4 border-b border-white/10">
+              <div className="p-4 border-b border-white/10 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-purple-primary/20 rounded-full flex items-center justify-center">
                     <Users className="w-5 h-5 text-purple-primary" />
@@ -265,6 +265,12 @@ const TeacherChatModal: React.FC<TeacherChatModalProps> = ({
                     <p className="text-sm text-text-muted">{channels.length} conversations</p>
                   </div>
                 </div>
+                <button
+                  onClick={onClose}
+                  className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors md:hidden"
+                >
+                  <X className="w-5 h-5 text-white" />
+                </button>
               </div>
 
               <div className="flex-1 overflow-y-auto">
@@ -377,7 +383,7 @@ const TeacherChatModal: React.FC<TeacherChatModalProps> = ({
                 </div>
                 <button
                   onClick={onClose}
-                  className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors hidden md:flex"
+                  className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors"
                 >
                   <X className="w-5 h-5 text-white" />
                 </button>

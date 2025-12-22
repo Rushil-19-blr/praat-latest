@@ -254,7 +254,7 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
     }
 
     const validQuestionCount = plan.customQuestions.filter(q => q.text.trim() !== '').length;
-    const remainingAIQuestions = Math.max(0, 5 - validQuestionCount);
+    const remainingAIQuestions = Math.max(0, 4 - validQuestionCount);
 
     return (
         <div className="min-h-screen w-full bg-background-primary text-text-primary flex flex-col relative">
@@ -385,7 +385,7 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
                             <div>
                                 <h2 className="text-xl font-semibold text-white tracking-tight">Custom Pre-Session Questions</h2>
                                 <p className="text-sm text-text-muted mt-1">
-                                    Define up to 5 specific questions for the student to answer before their session.
+                                    Define up to 4 specific questions for the student to answer before their session.
                                 </p>
                             </div>
                         </div>
@@ -528,10 +528,10 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
                         <div className="mt-4 flex gap-3">
                             <button
                                 onClick={handleAddQuestion}
-                                className="flex-1 py-3 min-h-[44px] border-2 border-dashed border-purple-primary/30 rounded-xl text-purple-primary hover:bg-purple-primary/10 active:bg-purple-primary/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                                className="flex-1 py-3 min-h-[44px] border-2 border-dashed border-purple-primary/30 rounded-xl text-purple-primary hover:bg-purple-primary/10 active:bg-purple-primary/20 active:scale-[0.98] transition-all flex items-center justify-center gap-3 px-4"
                             >
-                                <Plus className="w-5 h-5" />
-                                Add Custom Question
+                                <Plus className="w-5 h-5 flex-shrink-0" />
+                                <span className="font-medium">Add Custom Question</span>
                             </button>
 
                             <div className="relative">
@@ -628,9 +628,9 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
                                 <HelpCircle className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
                                 <p className="text-sm text-blue-300">
                                     {validQuestionCount === 0 ? (
-                                        "No questions added yet. AI will generate all 5 personalized questions."
-                                    ) : validQuestionCount >= 5 ? (
-                                        "You've added 5+ questions. Only your custom questions will be used."
+                                        "No questions added yet. AI will generate all 4 personalized questions."
+                                    ) : validQuestionCount >= 4 ? (
+                                        "You've added 4+ questions. Only your custom questions will be used."
                                     ) : (
                                         <>You've added {validQuestionCount} question{validQuestionCount !== 1 ? 's' : ''}. AI will generate {remainingAIQuestions} complementary question{remainingAIQuestions !== 1 ? 's' : ''} on the same topics.</>
                                     )}

@@ -258,7 +258,7 @@ For multiple-choice, add "options": ["Option1", "Option2", "Option3"]`;
 export const generateAndSavePlan = async (plan: SessionPlan): Promise<void> => {
     // 1. Calculate how many AI questions we need
     const validQuestions = plan.customQuestions.filter(q => q.text.trim() !== '');
-    const targetTotal = 5;
+    const targetTotal = 4;
     const remaining = Math.max(0, targetTotal - validQuestions.length);
 
     let generatedQuestions: PreAnalysisQuestion[] = [];
@@ -309,7 +309,7 @@ export const getQuestionsForSession = async (
         return generatePersonalizedQuestions(studentHistory);
     }
 
-    const targetTotal = 5;
+    const targetTotal = 4;
 
     // Counselor provided enough questions? Use only theirs
     if (validQuestions.length >= targetTotal) {
