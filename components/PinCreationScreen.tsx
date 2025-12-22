@@ -106,10 +106,10 @@ const PinCreationScreen: React.FC<PinCreationScreenProps> = ({ onSubmit }) => {
 
                 {/* Step 1: PIN Creation */}
                 <GlassCard className="p-8 md:p-10 !rounded-[40px] border-white/10 shadow-3xl">
-                    <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/20 mb-8 text-center italic">STEP 1: CREATE YOUR PIN</h2>
+                    <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/20 mb-8 text-center italic">STEP 1: CREATE YOUR IDENTITY CODE</h2>
 
                     <div className="relative mb-6">
-                        <div className="flex items-center gap-3 justify-center">
+                        <div className="flex items-center gap-3 justify-center mb-6">
                             {pin.map((digit, i) => {
                                 // Determine border color based on status
                                 let statusClasses = "bg-white/[0.03] border-white/10 text-white shadow-inner";
@@ -141,8 +141,19 @@ const PinCreationScreen: React.FC<PinCreationScreenProps> = ({ onSubmit }) => {
                             })}
                         </div>
 
+                        <button
+                            type="button"
+                            onClick={() => {
+                                const randomCode = Math.floor(1000 + Math.random() * 9000).toString();
+                                setPin(randomCode.split(''));
+                            }}
+                            className="w-full py-3 rounded-xl bg-white/[0.02] border border-white/5 text-[8px] font-black uppercase tracking-[0.2em] text-white/30 hover:bg-white/5 hover:border-white/10 hover:text-white/60 transition-all duration-300 mb-2"
+                        >
+                            Generate Random Identity Code
+                        </button>
+
                         {/* Availability Feedback Message */}
-                        <div className="h-6 mt-4 flex items-center justify-center">
+                        <div className="h-6 flex items-center justify-center">
                             {isPinComplete && pinAvailability === 'checking' && (
                                 <p className="text-white/50 text-[10px] font-black uppercase tracking-widest animate-pulse">Checking availability...</p>
                             )}
