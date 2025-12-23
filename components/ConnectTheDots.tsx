@@ -115,7 +115,7 @@ const ConnectTheDots: React.FC<ConnectTheDotsProps> = ({ onConnect, isEnabled })
       <GlassCard className="w-full p-8 md:p-10 !rounded-[32px] border-white/10 shadow-2xl relative overflow-visible">
         <div className="text-center mb-10">
           <h1 className="text-2xl font-black tracking-widest text-white uppercase italic">IDENTITY SELECT</h1>
-          <p className="text-[10px] font-bold text-white/40 mt-3 uppercase tracking-[0.2em] leading-relaxed">
+          <p className="text-[10px] font-bold text-white/60 mt-3 uppercase tracking-[0.2em] leading-relaxed">
             Drag from your <span className="text-purple-400">Class</span> to your <span className="text-indigo-400">Section</span>
           </p>
         </div>
@@ -125,7 +125,7 @@ const ConnectTheDots: React.FC<ConnectTheDotsProps> = ({ onConnect, isEnabled })
 
           {/* Classes Column */}
           <div className="flex flex-col gap-4 z-10">
-            <p className="text-[9px] font-black text-white/20 uppercase tracking-widest mb-2 text-center">Grades</p>
+            <p className="text-[9px] font-bold text-white/60 uppercase tracking-widest mb-2 text-center">Grades</p>
             {CLASSES.map((classNum) => (
               <button
                 key={`class-${classNum}`}
@@ -144,7 +144,7 @@ const ConnectTheDots: React.FC<ConnectTheDotsProps> = ({ onConnect, isEnabled })
 
           {/* Sections Column */}
           <div className="flex flex-col gap-4 z-10">
-            <p className="text-[9px] font-black text-white/20 uppercase tracking-widest mb-2 text-center">Section</p>
+            <p className="text-[9px] font-bold text-white/60 uppercase tracking-widest mb-2 text-center">Section</p>
             {SECTIONS.map((section) => (
               <button
                 key={`section-${section}`}

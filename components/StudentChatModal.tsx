@@ -167,7 +167,7 @@ const StudentChatModal: React.FC<StudentChatModalProps> = ({
                 <button
                   onClick={createNewChatWithTeacher}
                   disabled={isCreatingChannel}
-                  className="w-full px-4 py-3.5 bg-purple-primary text-white rounded-2xl hover:bg-purple-600 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-black text-sm uppercase tracking-wider shadow-lg shadow-purple-primary/20"
+                  className="w-full px-4 py-3.5 bg-purple-primary text-white rounded-2xl hover:bg-purple-600 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-bold text-sm uppercase tracking-wider shadow-lg shadow-purple-primary/20"
                 >
                   {isCreatingChannel ? (
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />

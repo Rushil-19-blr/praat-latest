@@ -3,6 +3,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, MessageCircle, Users, Pencil } from './Icons';
 import { useStreamChat } from './StreamChatProvider';
 import { Channel, MessageList, MessageInput, Thread, Window } from 'stream-chat-react';
+import { cn } from '../lib/utils';
+import { HybridStorageService } from '../services/hybridStorageService';
+
+const MotionDiv = motion.div as any;
 
 interface TeacherChatModalProps {
   isOpen: boolean;
@@ -40,7 +44,7 @@ const TeacherChatModal: React.FC<TeacherChatModalProps> = ({
     } else {
       delete nicknames[studentId];
     }
-    localStorage.setItem('studentNicknames', JSON.stringify(nicknames));
+    HybridStorageService.set('studentNicknames', nicknames);
   }, [getNicknames]);
 
   const getNickname = useCallback((studentId: string): string | null => {
@@ -231,7 +235,7 @@ const TeacherChatModal: React.FC<TeacherChatModalProps> = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <motion.div
+        <MotionDiv
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -239,7 +243,7 @@ const TeacherChatModal: React.FC<TeacherChatModalProps> = ({
           className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4"
           onClick={onClose}
         >
-          <motion.div
+          <MotionDiv
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -755,13 +759,13 @@ const TeacherChatModal: React.FC<TeacherChatModalProps> = ({
                 )}
               </div>
             </div>
-          </motion.div>
-        </motion.div>
+          </MotionDiv>
+        </MotionDiv>
       )}
 
       {/* Nickname Edit Modal */}
       {editingStudentId && (
-        <motion.div
+        <MotionDiv
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -769,7 +773,7 @@ const TeacherChatModal: React.FC<TeacherChatModalProps> = ({
           className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
           onClick={handleCancelEdit}
         >
-          <motion.div
+          <MotionDiv
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -810,8 +814,8 @@ const TeacherChatModal: React.FC<TeacherChatModalProps> = ({
                 Save
               </button>
             </div>
-          </motion.div>
-        </motion.div>
+          </MotionDiv>
+        </MotionDiv>
       )}
     </AnimatePresence>
   );

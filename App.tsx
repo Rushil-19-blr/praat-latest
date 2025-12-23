@@ -27,8 +27,12 @@ import type { QuestionnaireAnswers } from './components/PreRecordingQuestionnair
 // Import storage utilities - makes clearAllStorage() available globally
 import './utils/storageUtils';
 import { OnboardingService } from './services/onboardingService';
+import { HybridStorageService } from './services/hybridStorageService';
 
 type AppState = 'SIGNIN' | 'SIGNUP' | 'CONFIRMATION' | 'ENROLLMENT' | 'SCRATCH_CARD' | 'PASSWORD_SETUP' | 'SUCCESS' | 'DASHBOARD' | 'QUESTIONNAIRE' | 'RECORDING' | 'CALIBRATION_FLOW' | 'RESULTS' | 'SUGGESTIONS' | 'TEACHER_DASHBOARD' | 'STUDENT_DETAIL' | 'STUDENT_REPORT' | 'SESSION_PLANNING';
+
+// HACK: Cast motion components to 'any' to bypass type errors.
+const MotionDiv = motion.div as any;
 
 const App: React.FC = () => {
   const [appState, setAppState] = useState<AppState>('SIGNIN');
@@ -49,25 +53,53 @@ const App: React.FC = () => {
   const [accountNumber, setAccountNumber] = useState<string>('');
   const [showConfirmation, setShowConfirmation] = useState(false);
 
-  const loadStudentData = useCallback(() => {
-    // Get all student data from localStorage
-    const allStudentsData = localStorage.getItem('allStudentsData');
-    if (allStudentsData) {
-      try {
-        const studentsData = JSON.parse(allStudentsData);
-        setStudents(studentsData);
-      } catch (error) {
-        console.error('Error parsing student data:', error);
-        // Fallback to empty array if data is corrupted
-        setStudents([]);
+  const loadStudentData = useCallback(async () => {
+    try {
+      console.log('📥 Loading student data...');
+
+      // 1. Load all users (students)
+      const usersData = await HybridStorageService.getAllUsers();
+      if (usersData && usersData.length > 0) {
+        localStorage.setItem('allStudentsData', JSON.stringify(usersData));
+        setStudents(usersData);
+        console.log('✅ Loaded', usersData.length, 'students');
+      } else {
+        // Fallback to localStorage
+        const localData = localStorage.getItem('allStudentsData');
+        if (localData) {
+          const studentsData = JSON.parse(localData);
+          setStudents(studentsData);
+        } else {
+          setStudents([]);
+        }
       }
-    } else {
-      // Initialize with empty array if no data exists
-      setStudents([]);
+
+      // 2. Load nicknames (Teacher Settings)
+      if (HybridStorageService.isOnline()) {
+        const nicknames = await HybridStorageService.pullFromFirebase('studentNicknames');
+        if (nicknames) {
+          localStorage.setItem('studentNicknames', JSON.stringify(nicknames));
+          console.log('✅ Loaded nicknames from Firebase');
+        }
+      }
+    } catch (error) {
+      console.error('Error loading student data:', error);
+      // Fallback
+      const localData = localStorage.getItem('allStudentsData');
+      if (localData) {
+        try {
+          setStudents(JSON.parse(localData));
+        } catch {
+          setStudents([]);
+        }
+      }
     }
   }, []);
 
   useEffect(() => {
+    // Expose HybridStorageService to window for manual migration
+    (window as any).HybridStorageService = HybridStorageService;
+
     const storedBaseline = localStorage.getItem('voiceBaseline');
     if (storedBaseline) {
       setBaselineData(storedBaseline);
@@ -115,7 +147,7 @@ const App: React.FC = () => {
           section: 'A'
         };
 
-        localStorage.setItem('userData', JSON.stringify(defaultStudent));
+        HybridStorageService.set('userData', defaultStudent);
         localStorage.setItem('isSignedIn', 'true');
         setAppState('DASHBOARD');
         return;
@@ -132,7 +164,7 @@ const App: React.FC = () => {
             const parsedOldData = JSON.parse(oldUserData);
             // Migrate old account to new format
             studentAccounts = [parsedOldData];
-            localStorage.setItem('studentAccounts', JSON.stringify(studentAccounts));
+            HybridStorageService.set('studentAccounts', studentAccounts);
           } catch (error) {
             console.error('Error migrating old user data:', error);
           }
@@ -168,8 +200,48 @@ const App: React.FC = () => {
 
       if (matchingAccount) {
         // Store the current user's data for the session
-        localStorage.setItem('userData', JSON.stringify(matchingAccount));
+        HybridStorageService.set('userData', matchingAccount);
         localStorage.setItem('isSignedIn', 'true');
+        setAccountNumber(matchingAccount.accountNumber);
+
+        // Pull latest data from Firebase if available
+        if (HybridStorageService.isOnline()) {
+          try {
+            console.log('📥 Syncing student data from Firebase...');
+
+            // Pull user-specific data
+            const userBaseline = await HybridStorageService.pullFromFirebase(`voiceBaseline_${matchingAccount.accountNumber}`);
+            if (userBaseline) {
+              localStorage.setItem(`voiceBaseline_${matchingAccount.accountNumber}`, JSON.stringify(userBaseline));
+              setBaselineData(JSON.stringify(userBaseline));
+              console.log('✅ Synced voice baseline from Firebase');
+            }
+
+            // Pull suggestions data
+            const suggestions = await HybridStorageService.pullFromFirebase(`suggestions_${matchingAccount.accountNumber}`);
+            if (suggestions) {
+              localStorage.setItem(`suggestions_${matchingAccount.accountNumber}`, JSON.stringify(suggestions));
+              console.log('✅ Synced suggestions from Firebase');
+            }
+
+            // Pull student history
+            const studentHistory = await HybridStorageService.pullFromFirebase(`awaaz_student_${matchingAccount.accountNumber}`);
+            if (studentHistory) {
+              localStorage.setItem(`awaaz_student_${matchingAccount.accountNumber}`, JSON.stringify(studentHistory));
+              console.log('✅ Synced student history from Firebase');
+            }
+          } catch (error) {
+            console.error('Error syncing from Firebase:', error);
+          }
+        } else {
+          // Offline mode - load from localStorage
+          const userBaseline = localStorage.getItem(`voiceBaseline_${matchingAccount.accountNumber}`);
+          if (userBaseline) {
+            setBaselineData(userBaseline);
+          } else {
+            setBaselineData(null);
+          }
+        }
         setAppState('DASHBOARD');
       } else {
         throw new Error('Invalid credentials');
@@ -181,7 +253,10 @@ const App: React.FC = () => {
     setAppState('SIGNUP');
   }, []);
 
-  const handleSignOut = useCallback(() => {
+  const handleSignOut = useCallback(async () => {
+    // Sync pending data to Firebase before logout
+    await HybridStorageService.syncOnLogout();
+
     localStorage.removeItem('isSignedIn');
     localStorage.removeItem('isTeacherSignedIn');
     setAppState('SIGNIN');
@@ -271,17 +346,17 @@ const App: React.FC = () => {
     if (accountIndex === -1) {
       // Add new account to the array
       studentAccounts.push(newAccountData);
-      localStorage.setItem('studentAccounts', JSON.stringify(studentAccounts));
+      HybridStorageService.set('studentAccounts', studentAccounts);
     } else {
       // Update existing account (shouldn't normally happen)
       studentAccounts[accountIndex] = newAccountData;
-      localStorage.setItem('studentAccounts', JSON.stringify(studentAccounts));
+      HybridStorageService.set('studentAccounts', studentAccounts);
     }
 
     // Store current user data for the session (auto-sign in after successful signup)
     localStorage.setItem('isSignedUp', 'true');
     localStorage.setItem('isSignedIn', 'true');
-    localStorage.setItem('userData', JSON.stringify(newAccountData));
+    HybridStorageService.set('userData', newAccountData);
 
     // Add student to allStudentsData immediately so teacher can see them
     const allStudentsData = localStorage.getItem('allStudentsData');
@@ -303,7 +378,7 @@ const App: React.FC = () => {
       studentsData.push(newStudent);
 
       // Save updated students data
-      localStorage.setItem('allStudentsData', JSON.stringify(studentsData));
+      HybridStorageService.set('allStudentsData', studentsData);
 
       // Update local state
       setStudents(studentsData);
@@ -398,7 +473,7 @@ const App: React.FC = () => {
         }
 
         // Save updated students data
-        localStorage.setItem('allStudentsData', JSON.stringify(studentsData));
+        HybridStorageService.set('allStudentsData', studentsData);
 
         // Update local state
         setStudents(studentsData);
@@ -431,7 +506,7 @@ const App: React.FC = () => {
         ...students[studentIndex].analysisHistory[latestIndex],
         selfReportScore: score,
       };
-      localStorage.setItem('allStudentsData', JSON.stringify(students));
+      HybridStorageService.set('allStudentsData', students);
       setStudents(students);
     } catch (error) {
       console.error('Failed to store self-report score', error);
@@ -439,14 +514,47 @@ const App: React.FC = () => {
   }, []);
 
   const handleCalibrationComplete = useCallback((baselineJson: string) => {
-    localStorage.setItem('voiceBaseline', baselineJson);
+    HybridStorageService.set('voiceBaseline', baselineJson);
     setBaselineData(baselineJson);
     setAppState('DASHBOARD');
   }, []);
 
   const handleVoiceCalibrationComplete = useCallback((baselineJson: string) => {
-    localStorage.setItem('voiceBaseline', baselineJson);
+    const baselineKey = accountNumber ? `voiceBaseline_${accountNumber}` : 'voiceBaseline';
+    HybridStorageService.set(baselineKey, baselineJson);
     setBaselineData(baselineJson);
+
+    // Save baseline to account data for persistence
+    const storedAccounts = localStorage.getItem('studentAccounts');
+    if (storedAccounts && accountNumber) {
+      try {
+        const accounts = JSON.parse(storedAccounts);
+        const updatedAccounts = accounts.map((acc: any) =>
+          acc.accountNumber === accountNumber ? { ...acc, voiceBaseline: baselineJson } : acc
+        );
+        HybridStorageService.set('studentAccounts', updatedAccounts);
+
+        // Also update current userData in session
+        const userData = localStorage.getItem('userData');
+        if (userData) {
+          const parsed = JSON.parse(userData);
+          if (parsed.accountNumber === accountNumber) {
+            HybridStorageService.set('userData', { ...parsed, voiceBaseline: baselineJson });
+          }
+        }
+
+        // Advance onboarding state if needed
+        OnboardingService.completeStep(accountNumber, 'calibration');
+        const state = OnboardingService.getState(accountNumber);
+        if (!state.hasSeenWelcome) {
+          OnboardingService.completeStep(accountNumber, 'welcome');
+        }
+        // If they did calibration, they are fully setup
+        OnboardingService.skipOnboarding(accountNumber);
+      } catch (e) {
+        console.error('Error updating account baseline:', e);
+      }
+    }
     setAppState('DASHBOARD');
   }, []);
 
@@ -522,7 +630,7 @@ const App: React.FC = () => {
         <AnimatePresence initial={false}>
           {/* Sign-in Screen */}
           {appState === 'SIGNIN' && (
-            <motion.div
+            <MotionDiv
               key="signin"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -534,12 +642,12 @@ const App: React.FC = () => {
                 onSignIn={handleSignIn}
                 onCreateAccount={handleCreateAccount}
               />
-            </motion.div>
+            </MotionDiv>
           )}
 
           {/* Signup Flow Components */}
           {appState === 'SIGNUP' && (
-            <motion.div
+            <MotionDiv
               key="signup"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -551,11 +659,11 @@ const App: React.FC = () => {
                 onConnect={handleClassSectionConnect}
                 isEnabled={true}
               />
-            </motion.div>
+            </MotionDiv>
           )}
 
           {appState === 'ENROLLMENT' && (
-            <motion.div
+            <MotionDiv
               key="enrollment"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -564,11 +672,11 @@ const App: React.FC = () => {
               className="w-full h-full flex items-center justify-center pt-16"
             >
               <EnrollmentNumber onSubmit={handleEnrollmentSubmit} />
-            </motion.div>
+            </MotionDiv>
           )}
 
           {appState === 'SCRATCH_CARD' && (
-            <motion.div
+            <MotionDiv
               key="scratch-card"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -580,11 +688,11 @@ const App: React.FC = () => {
                 accountNumber={accountNumber}
                 onComplete={handleScratchCardComplete}
               />
-            </motion.div>
+            </MotionDiv>
           )}
 
           {appState === 'PASSWORD_SETUP' && (
-            <motion.div
+            <MotionDiv
               key="password-setup"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -596,11 +704,11 @@ const App: React.FC = () => {
                 accountNumber={accountNumber}
                 onSubmit={handlePasswordSetupComplete}
               />
-            </motion.div>
+            </MotionDiv>
           )}
 
           {appState === 'DASHBOARD' && (
-            <motion.div
+            <MotionDiv
               key="dashboard"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -613,11 +721,11 @@ const App: React.FC = () => {
                 onStartCalibration={handleStartCalibration}
                 onSignOut={handleSignOut}
               />
-            </motion.div>
+            </MotionDiv>
           )}
 
           {appState === 'QUESTIONNAIRE' && (
-            <motion.div
+            <MotionDiv
               key="questionnaire"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -630,11 +738,11 @@ const App: React.FC = () => {
                 onBack={handleQuestionnaireBack}
                 studentId={userType === 'student' ? accountNumber : (selectedStudent?.code || planningStudentId || undefined)}
               />
-            </motion.div>
+            </MotionDiv>
           )}
 
           {appState === 'TEACHER_DASHBOARD' && (
-            <motion.div
+            <MotionDiv
               key="teacher-dashboard"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -649,11 +757,11 @@ const App: React.FC = () => {
                 onRefresh={loadStudentData}
                 onPlanSession={handlePlanSession}
               />
-            </motion.div>
+            </MotionDiv>
           )}
 
           {appState === 'STUDENT_DETAIL' && selectedStudent && (
-            <motion.div
+            <MotionDiv
               key="student-detail"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -667,11 +775,11 @@ const App: React.FC = () => {
                 isTeacherView={true}
                 onReportClick={handleReportClick}
               />
-            </motion.div>
+            </MotionDiv>
           )}
 
           {appState === 'STUDENT_REPORT' && selectedStudent && analysisData && (
-            <motion.div
+            <MotionDiv
               key="student-report"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -684,11 +792,11 @@ const App: React.FC = () => {
                 analysisData={analysisData}
                 onBack={handleReportBack}
               />
-            </motion.div>
+            </MotionDiv>
           )}
 
           {appState === 'SESSION_PLANNING' && planningStudentId && (
-            <motion.div
+            <MotionDiv
               key="session-planning"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -702,7 +810,7 @@ const App: React.FC = () => {
                 onBack={handlePlanningBack}
                 onSave={handlePlanningSave}
               />
-            </motion.div>
+            </MotionDiv>
           )}
         </AnimatePresence>
 
@@ -742,7 +850,7 @@ const App: React.FC = () => {
 
         <AnimatePresence>
           {appState === 'CALIBRATION_FLOW' && (
-            <motion.div
+            <MotionDiv
               key="calibration-screen"
               className="fixed inset-0 z-50 bg-background-primary overflow-y-auto"
               initial={{ opacity: 0 }}
@@ -754,13 +862,13 @@ const App: React.FC = () => {
                 onClose={handleCloseModal}
                 onCalibrationComplete={handleVoiceCalibrationComplete}
               />
-            </motion.div>
+            </MotionDiv>
           )}
         </AnimatePresence>
 
         <AnimatePresence>
           {appState === 'RESULTS' && analysisData && (
-            <motion.div
+            <MotionDiv
               key="results-page"
               className="fixed inset-0 z-50 bg-background-primary overflow-y-auto"
               initial="initial"
@@ -775,13 +883,13 @@ const App: React.FC = () => {
                 onNext={handleNextToSuggestions}
                 onSelfReportSubmit={handleSelfReportSubmit}
               />
-            </motion.div>
+            </MotionDiv>
           )}
         </AnimatePresence>
 
         <AnimatePresence>
           {appState === 'SUGGESTIONS' && analysisData && (
-            <motion.div
+            <MotionDiv
               key="suggestions-page"
               className="fixed inset-0 z-50 bg-background-primary overflow-y-auto"
               initial="initial"
@@ -794,7 +902,7 @@ const App: React.FC = () => {
                 onBack={handleSuggestionsBack}
                 onClose={handleSuggestionsClose}
               />
-            </motion.div>
+            </MotionDiv>
           )}
         </AnimatePresence>
       </div>

@@ -11,6 +11,10 @@ import { BeamsBackground } from './ui/beams-background';
 import CalibrationSuccessPopup from './CalibrationSuccessPopup';
 import { resetSensitivityState } from '../utils/sensitivityAdaptation';
 
+// HACK: Cast motion components to 'any' to bypass type errors.
+const MotionDiv = motion.div as any;
+const MotionButton = motion.button as any;
+
 interface VoiceCalibrationScreenProps {
   onCalibrationComplete: (baselineJson: string) => void;
   onClose: () => void;
@@ -319,9 +323,17 @@ const VoiceCalibrationScreen: React.FC<VoiceCalibrationScreenProps> = ({
       <GlassCard className="w-full max-w-sm mx-auto p-4 z-10 relative" variant="purple">
         <div className="text-center">
           {recordingState === 'RECORDING' && (
-            <p className="text-2xl font-mono text-white tabular-nums">
-              {`00:${recordingDuration.toString().padStart(2, '0')}`}
-            </p>
+            <div className="flex flex-col items-center gap-1 mb-2">
+              <div className="flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full bg-red-500 ${recordingDuration > 0 ? 'animate-pulse' : ''}`} />
+                <p className="text-3xl font-mono font-bold text-white tabular-nums">
+                  {`00:${recordingDuration.toString().padStart(2, '0')}`}
+                </p>
+              </div>
+              <p className="text-sm font-bold text-white/60 uppercase tracking-widest">
+                00:08 Minimum Required
+              </p>
+            </div>
           )}
           <p className={`text-sm mt-1 transition-colors duration-300 ${statusColor[recordingState]}`}>
             {statusText[recordingState]}
@@ -353,7 +365,7 @@ const VoiceCalibrationScreen: React.FC<VoiceCalibrationScreenProps> = ({
           />
         </div>
 
-        <motion.button
+        <MotionButton
           onMouseDown={startRecording}
           onMouseUp={stopRecording}
           onMouseLeave={stopRecording}
@@ -372,10 +384,10 @@ const VoiceCalibrationScreen: React.FC<VoiceCalibrationScreenProps> = ({
             scale: recordingState === 'RECORDING' ? 1 : 1
           }}
         >
-          <motion.div animate={{ scale: recordingState === 'RECORDING' ? [1, 1.2, 1] : 1 }} transition={{ duration: 0.8, repeat: recordingState === 'RECORDING' ? Infinity : 0 }}>
+          <MotionDiv animate={{ scale: recordingState === 'RECORDING' ? [1, 1.2, 1] : 1 }} transition={{ duration: 0.8, repeat: recordingState === 'RECORDING' ? Infinity : 0 }}>
             <MicrophoneFilled className="w-16 h-16 text-white" />
-          </motion.div>
-        </motion.button>
+          </MotionDiv>
+        </MotionButton>
       </div>
 
       <AnimatePresence>
@@ -388,8 +400,8 @@ const VoiceCalibrationScreen: React.FC<VoiceCalibrationScreenProps> = ({
 
       <AnimatePresence>
         {showHelp && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowHelp(false)} className="fixed inset-0 bg-black/60 backdrop-blur-md z-40 flex items-center justify-center p-4" >
-            <motion.div
+          <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowHelp(false)} className="fixed inset-0 bg-black/60 backdrop-blur-md z-40 flex items-center justify-center p-4" >
+            <MotionDiv
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
@@ -456,8 +468,8 @@ const VoiceCalibrationScreen: React.FC<VoiceCalibrationScreenProps> = ({
                   </button>
                 </div>
               </GlassCard>
-            </motion.div>
-          </motion.div>
+            </MotionDiv>
+          </MotionDiv>
         )}
       </AnimatePresence>
 

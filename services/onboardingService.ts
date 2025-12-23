@@ -1,4 +1,5 @@
 import { OnboardingState, OnboardingStage, INITIAL_ONBOARDING_STATE } from '../types/onboarding';
+import { HybridStorageService } from './hybridStorageService';
 
 const ONBOARDING_KEY_PREFIX = 'onboarding_state_';
 
@@ -11,7 +12,7 @@ export const OnboardingService = {
 
         try {
             const key = `${ONBOARDING_KEY_PREFIX}${studentCode}`;
-            const saved = localStorage.getItem(key);
+            const saved = HybridStorageService.get(key);
             if (saved) {
                 return JSON.parse(saved);
             }
@@ -32,12 +33,12 @@ export const OnboardingService = {
         const key = `${ONBOARDING_KEY_PREFIX}${studentCode}`;
 
         // Only initialize if no state exists
-        if (!localStorage.getItem(key)) {
+        if (!HybridStorageService.get(key)) {
             const newState: OnboardingState = {
                 ...INITIAL_ONBOARDING_STATE,
                 isNewUser: true
             };
-            localStorage.setItem(key, JSON.stringify(newState));
+            HybridStorageService.set(key, JSON.stringify(newState));
         }
     },
 
@@ -91,7 +92,7 @@ export const OnboardingService = {
     saveState: (studentCode: string, state: OnboardingState) => {
         try {
             const key = `${ONBOARDING_KEY_PREFIX}${studentCode}`;
-            localStorage.setItem(key, JSON.stringify(state));
+            HybridStorageService.set(key, JSON.stringify(state));
 
             // Dispatch event so components can react reactively
             window.dispatchEvent(new CustomEvent('onboardingUpdated', {

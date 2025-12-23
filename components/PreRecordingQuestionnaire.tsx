@@ -13,6 +13,9 @@ import {
 } from '../services/personalizationService';
 import { getQuestionsForSession } from '../services/planningService';
 
+// HACK: Cast motion components to 'any' to bypass type errors.
+const MotionDiv = motion.div as any;
+
 // Type definitions for Web Speech API
 interface SpeechRecognition extends EventTarget {
   continuous: boolean;
@@ -480,7 +483,7 @@ const PreRecordingQuestionnaire: React.FC<PreRecordingQuestionnaireProps> = ({
           {!showIllnessCheck && (
             <>
               <div className="w-full h-2 bg-surface rounded-full overflow-hidden">
-                <motion.div
+                <MotionDiv
                   className="h-full bg-gradient-to-r from-purple-primary to-purple-light"
                   initial={{ width: 0 }}
                   animate={{ width: `${progress}%` }}
@@ -507,7 +510,7 @@ const PreRecordingQuestionnaire: React.FC<PreRecordingQuestionnaireProps> = ({
             </div>
           ) : (activeQuestion && (
             <AnimatePresence mode="wait">
-              <motion.div
+              <MotionDiv
                 key={showIllnessCheck ? 'illness' : currentQuestionIndex}
                 initial={{ opacity: 0, x: 50 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -573,7 +576,7 @@ const PreRecordingQuestionnaire: React.FC<PreRecordingQuestionnaireProps> = ({
                               <div className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${isSelected ? 'border-purple-primary bg-purple-primary scale-110' : 'border-text-muted'}`}>
                                 {isSelected && <div className="w-3 h-3 rounded-full bg-white" />}
                               </div>
-                              <span className={`text-base flex-1 ${isSelected ? 'text-text-primary font-medium' : 'text-text-secondary'}`}>
+                              <span className={`text-base flex-1 ${isSelected ? 'text-text-primary font-medium' : 'text-white/60'}`}>
                                 {option}
                               </span>
                             </label>
@@ -582,8 +585,31 @@ const PreRecordingQuestionnaire: React.FC<PreRecordingQuestionnaireProps> = ({
                       )}
                     </div>
                   )}
+
+                  {isOpenEnded && (
+                    <div className="space-y-4">
+                      <div className={`relative rounded-xl border-2 transition-all duration-300 ${isRecording ? 'border-purple-primary shadow-[0_0_15px_rgba(139,92,246,0.3)]' : 'border-surface bg-surface/30'}`}>
+                        <textarea
+                          ref={textareaRef}
+                          value={openEndedAnswer}
+                          onChange={(e) => handleOpenEndedChange(e.target.value)}
+                          placeholder="Type your answer here or use the microphone..."
+                          className="w-full h-32 bg-transparent p-4 text-text-primary placeholder:text-white/30 outline-none resize-none"
+                        />
+                        <button
+                          onClick={handleToggleRecording}
+                          className={`absolute bottom-3 right-3 p-3 rounded-full transition-all duration-300 ${isRecording ? 'bg-red-500 scale-110 shadow-lg shadow-red-500/50' : 'bg-purple-primary hover:bg-purple-light shadow-lg shadow-purple-primary/30'}`}
+                        >
+                          <Mic className={`w-5 h-5 text-white ${isRecording ? 'animate-pulse' : ''}`} />
+                        </button>
+                      </div>
+                      <p className="text-xs text-white/50 italic px-1">
+                        {isRecording ? 'Listening... Tip: Speak clearly. Tap the mic to stop.' : 'Tip: You can use your voice to answer.'}
+                      </p>
+                    </div>
+                  )}
                 </div>
-              </motion.div>
+              </MotionDiv>
             </AnimatePresence>
           ))}
 
@@ -593,7 +619,7 @@ const PreRecordingQuestionnaire: React.FC<PreRecordingQuestionnaireProps> = ({
             <button
               onClick={showIllnessCheck ? () => setShowIllnessCheck(false) : handlePrevious}
               disabled={!showIllnessCheck && currentQuestionIndex === 0}
-              className={`flex-1 py-4 px-6 rounded-xl font-medium text-text-secondary bg-surface hover:bg-surface/80 transition-all duration-200 border border-surface/50 ${(!showIllnessCheck && currentQuestionIndex === 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`flex-1 py-4 px-6 min-h-[44px] rounded-xl font-medium text-white/60 bg-surface hover:bg-surface/80 active:bg-surface/60 active:scale-[0.98] transition-all duration-200 border border-surface/50 ${(!showIllnessCheck && currentQuestionIndex === 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               Previous
             </button>

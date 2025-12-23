@@ -12,6 +12,7 @@ import type {
     PreAnalysisCategory
 } from '../types';
 import { generatePersonalizedQuestions, generateId } from './personalizationService';
+import { HybridStorageService } from './hybridStorageService';
 
 const PLANS_KEY = 'awaaz_session_plans';
 
@@ -27,7 +28,8 @@ export const FALLBACK_QUESTIONS: PreAnalysisQuestion[] = [
 
 export const getAllSessionPlans = (): Record<string, SessionPlan> => {
     try {
-        return JSON.parse(localStorage.getItem(PLANS_KEY) || '{}');
+        const raw = HybridStorageService.get(PLANS_KEY);
+        return raw ? JSON.parse(raw) : {};
     } catch (e) {
         console.error('[PlanningService] Error reading all plans:', e);
         return {};
@@ -59,7 +61,7 @@ export const saveSessionPlan = (plan: SessionPlan): void => {
             ...plan,
             updatedAt: new Date().toISOString()
         };
-        localStorage.setItem(PLANS_KEY, JSON.stringify(plans));
+        HybridStorageService.set(PLANS_KEY, plans);
         console.log('[PlanningService] Plan saved for student:', plan.studentId);
     } catch (e) {
         console.error('[PlanningService] Error saving plan:', e);
@@ -70,7 +72,7 @@ export const deleteSessionPlan = (studentId: string): void => {
     try {
         const plans = getAllSessionPlans();
         delete plans[studentId];
-        localStorage.setItem(PLANS_KEY, JSON.stringify(plans));
+        HybridStorageService.set(PLANS_KEY, plans);
         console.log('[PlanningService] Plan deleted for student:', studentId);
     } catch (e) {
         console.error('[PlanningService] Error deleting plan:', e);

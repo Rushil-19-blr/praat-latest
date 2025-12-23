@@ -16,6 +16,7 @@ import type {
     LearningAnalytics,
     LiveSessionQuestion,
 } from '../types';
+import { HybridStorageService } from './hybridStorageService';
 
 const STORAGE_KEY_PREFIX = 'awaaz_student_';
 
@@ -63,7 +64,7 @@ export const saveStudentHistory = (history: StudentHistory, studentId?: string):
     const key = `${STORAGE_KEY_PREFIX}${id}`;
 
     try {
-        localStorage.setItem(key, JSON.stringify(history));
+        HybridStorageService.set(key, history);
     } catch (e) {
         console.error('[PersonalizationService] Failed to save student history:', e);
     }

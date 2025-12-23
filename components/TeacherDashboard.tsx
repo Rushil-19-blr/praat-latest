@@ -6,6 +6,7 @@ import GlassCard from './GlassCard';
 import TeacherChatModal from './TeacherChatModal';
 import { Gauge } from './ui/gauge-1';
 import { LiquidButton } from './ui/liquid-button';
+import { HybridStorageService } from '../services/hybridStorageService';
 
 // HACK: Cast motion components to 'any' to bypass type errors.
 const MotionDiv = motion.div as any;
@@ -195,8 +196,8 @@ const StudentWidget: React.FC<{
                     </div>
                 ) : (
                     <div className="flex flex-col items-center justify-center gap-2 flex-1">
-                        <p className="text-text-muted text-sm text-center">{hasPendingAnalysis ? "Analysis Pending" : "No analysis yet"}</p>
-                        <p className="text-text-muted/70 text-xs text-center">
+                        <p className="text-white/50 text-sm text-center">{hasPendingAnalysis ? "Analysis Pending" : "No analysis yet"}</p>
+                        <p className="text-white/30 text-xs text-center">
                             {hasPendingAnalysis
                                 ? "First analysis completed.\nAwaiting second session."
                                 : "Student has not completed\nvoice analysis"}
@@ -363,7 +364,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
         } else {
             delete nicknames[studentId];
         }
-        localStorage.setItem('studentNicknames', JSON.stringify(nicknames));
+        HybridStorageService.set('studentNicknames', nicknames);
     }, [getNicknames]);
 
     const handleEditNickname = useCallback((studentId: string) => {
@@ -525,14 +526,14 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
                                 onEditNickname={handleEditNickname}
                             />
 
-                            <h2 className="text-xl font-bold uppercase text-text-muted tracking-wider mb-4 px-2">All Classes</h2>
+                            <h2 className="text-xl font-bold uppercase text-white/50 tracking-wider mb-4 px-2">All Classes</h2>
                             {classSummaries.length === 0 ? (
                                 <div className="text-center py-12">
                                     <div className="w-16 h-16 bg-surface rounded-full flex items-center justify-center mx-auto mb-4">
-                                        <UserCircle className="w-8 h-8 text-text-muted" />
+                                        <UserCircle className="w-8 h-8 text-white/40" />
                                     </div>
                                     <h3 className="text-3xl font-semibold text-text-primary mb-2">No Students Yet</h3>
-                                    <p className="text-xl font-normal text-text-muted mb-4">Students will appear here once they complete their first voice analysis session.</p>
+                                    <p className="text-xl font-normal text-white/50 mb-4">Students will appear here once they complete their first voice analysis session.</p>
                                     <button
                                         onClick={onRefresh}
                                         className="px-4 py-2 bg-purple-primary text-white rounded-lg hover:bg-purple-dark transition-colors text-sm font-medium"
@@ -583,7 +584,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
 
 
                             <div>
-                                <h2 className="text-xl font-bold uppercase text-text-muted tracking-wider mb-4 px-2">ALL STUDENTS IN CLASS</h2>
+                                <h2 className="text-xl font-bold uppercase text-white/50 tracking-wider mb-4 px-2">ALL STUDENTS IN CLASS</h2>
                                 <MotionDiv
                                     variants={containerVariants}
                                     initial="hidden"

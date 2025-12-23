@@ -4,6 +4,8 @@
  */
 
 import { MaterialTier, GamificationData, TierAccentColor } from '../types';
+import { HybridStorageService } from './hybridStorageService';
+
 
 // ===== Tier Definitions =====
 
@@ -166,7 +168,7 @@ const GAMIFICATION_KEY_PREFIX = 'gamification_data_';
 export function getGamificationData(studentCode: string): GamificationData {
     try {
         const key = `${GAMIFICATION_KEY_PREFIX}${studentCode}`;
-        const saved = localStorage.getItem(key);
+        const saved = HybridStorageService.get(key);
         if (saved) {
             return JSON.parse(saved);
         }
@@ -189,7 +191,7 @@ export function getGamificationData(studentCode: string): GamificationData {
 export function saveGamificationData(studentCode: string, data: GamificationData): void {
     try {
         const key = `${GAMIFICATION_KEY_PREFIX}${studentCode}`;
-        localStorage.setItem(key, JSON.stringify(data));
+        HybridStorageService.set(key, data);
     } catch (error) {
         console.error('Error saving gamification data:', error);
     }
@@ -244,7 +246,7 @@ export function applyAccentColor(tierLevel: number): void {
     root.style.setProperty('--accent-gradient', tier.accentColor.gradient);
 
     // Store in localStorage for persistence
-    localStorage.setItem('selected_accent_tier', tierLevel.toString());
+    HybridStorageService.set('selected_accent_tier', tierLevel.toString());
 }
 
 /**
@@ -252,7 +254,7 @@ export function applyAccentColor(tierLevel: number): void {
  */
 export function loadSavedAccentColor(): void {
     try {
-        const savedTier = localStorage.getItem('selected_accent_tier');
+        const savedTier = HybridStorageService.get('selected_accent_tier');
         if (savedTier) {
             applyAccentColor(parseInt(savedTier, 10));
         }

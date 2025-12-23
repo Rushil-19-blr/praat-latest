@@ -19,9 +19,9 @@ const EnrollmentNumber: React.FC<EnrollmentNumberProps> = ({ onSubmit }) => {
   return (
     <div className="w-full max-w-[440px] mx-auto p-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <GlassCard className="p-10 md:p-12 !rounded-[40px] border-white/10 shadow-3xl text-center">
-        <h1 className="text-3xl font-black tracking-tighter text-white uppercase italic mb-2">ACCESS GRANTED</h1>
-        <p className="text-[10px] font-black text-white/20 mb-10 uppercase tracking-[0.2em] leading-relaxed">
-          Please enter your <span className="text-purple-400">Assigned ID</span> to continue.
+        <h1 className="text-3xl font-black tracking-tighter text-white uppercase italic mb-2">ENROLLMENT NUMBER</h1>
+        <p className="text-[10px] font-bold text-white/60 mb-10 uppercase tracking-[0.2em] leading-relaxed">
+          Please enter your <span className="text-purple-400">Enrollment Number</span> to continue.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-8">
@@ -32,7 +32,7 @@ const EnrollmentNumber: React.FC<EnrollmentNumberProps> = ({ onSubmit }) => {
               pattern="[0-9]*"
               value={enrollmentNumber}
               onChange={(e) => setEnrollmentNumber(e.target.value)}
-              className="w-full bg-white/[0.03] border border-white/10 rounded-[24px] text-white text-center text-5xl font-black py-8 focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 focus:outline-none transition-all duration-300 placeholder:text-white/5"
+              className="w-full bg-white/[0.04] border border-white/10 rounded-[24px] text-white text-center text-5xl font-black py-8 focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 focus:outline-none transition-all duration-300 placeholder:text-white/30"
               placeholder="000000"
               autoFocus
             />

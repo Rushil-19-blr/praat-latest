@@ -8,6 +8,10 @@ import { InfinityLoader } from '@/components/ui/infinity-loader';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { BeamsBackground } from './ui/beams-background';
 import { Zap, Heart } from 'lucide-react';
+import { HybridStorageService } from '../services/hybridStorageService';
+
+// HACK: Cast motion components to 'any' to bypass type errors.
+const MotionDiv = motion.div as any;
 
 interface PostAnalysisSuggestionsScreenProps {
   analysisData: AnalysisData;
@@ -379,7 +383,7 @@ const PostAnalysisSuggestionsScreen: React.FC<PostAnalysisSuggestionsScreenProps
           date: new Date().toISOString(),
           nextSession: suggestions.nextSession
         };
-        localStorage.setItem(suggestionsKey, JSON.stringify(suggestionsData));
+        HybridStorageService.set(suggestionsKey, suggestionsData);
 
         // Dispatch custom event to notify todo list to refresh
         window.dispatchEvent(new Event('suggestionsUpdated'));
@@ -440,7 +444,7 @@ const PostAnalysisSuggestionsScreen: React.FC<PostAnalysisSuggestionsScreenProps
       <div className="flex-1 overflow-y-auto relative z-10">
         <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
           {/* Top Banner - Positive Affirmation */}
-          <motion.div
+          <MotionDiv
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
@@ -450,10 +454,10 @@ const PostAnalysisSuggestionsScreen: React.FC<PostAnalysisSuggestionsScreenProps
                 {affirmation}
               </p>
             </div>
-          </motion.div>
+          </MotionDiv>
 
           {/* Main Section - Personalized Suggestions */}
-          <motion.div
+          <MotionDiv
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.1 }}
@@ -480,7 +484,7 @@ const PostAnalysisSuggestionsScreen: React.FC<PostAnalysisSuggestionsScreenProps
                     </div>
                     <div className="space-y-3">
                       {suggestions.immediate.slice(0, 3).map((suggestion, index) => (
-                        <motion.div
+                        <MotionDiv
                           key={index}
                           initial={{ opacity: 0, x: -20 }}
                           animate={{ opacity: 1, x: 0 }}
@@ -488,7 +492,7 @@ const PostAnalysisSuggestionsScreen: React.FC<PostAnalysisSuggestionsScreenProps
                           className="bg-white/5 border border-white/10 rounded-xl p-4 hover:bg-white/10 transition-colors"
                         >
                           <p className="text-sm text-white leading-relaxed">{suggestion}</p>
-                        </motion.div>
+                        </MotionDiv>
                       ))}
                     </div>
                   </div>
@@ -503,7 +507,7 @@ const PostAnalysisSuggestionsScreen: React.FC<PostAnalysisSuggestionsScreenProps
                     </div>
                     <div className="space-y-3">
                       {suggestions.longTerm.slice(0, 3).map((suggestion, index) => (
-                        <motion.div
+                        <MotionDiv
                           key={index}
                           initial={{ opacity: 0, x: -20 }}
                           animate={{ opacity: 1, x: 0 }}
@@ -511,17 +515,17 @@ const PostAnalysisSuggestionsScreen: React.FC<PostAnalysisSuggestionsScreenProps
                           className="bg-white/5 border border-white/10 rounded-xl p-4 hover:bg-white/10 transition-colors"
                         >
                           <p className="text-sm text-white leading-relaxed">{suggestion}</p>
-                        </motion.div>
+                        </MotionDiv>
                       ))}
                     </div>
                   </div>
                 </>
               )}
             </GlassCard>
-          </motion.div>
+          </MotionDiv>
 
           {/* Close/Finish Button */}
-          <motion.div
+          <MotionDiv
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.2 }}
@@ -533,7 +537,7 @@ const PostAnalysisSuggestionsScreen: React.FC<PostAnalysisSuggestionsScreenProps
             >
               Return to Dashboard
             </LiquidButton>
-          </motion.div>
+          </MotionDiv>
         </div>
       </div>
     </div>
