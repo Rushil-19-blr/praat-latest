@@ -241,7 +241,7 @@ const CalibrationScreen: React.FC<CalibrationScreenProps> = ({ onComplete, onClo
 
         <div className="relative w-full max-w-md p-6 bg-surface rounded-2xl border border-purple-primary/30 shadow-2xl shadow-black/40">
           <AnimatePresence mode="wait">
-            <motion.p key={currentQuote} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }} className="text-lg font-serif text-center text-white min-h-[60px] flex items-center justify-center">
+            <motion.p key={currentQuote} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }} className="text-lg text-center text-white min-h-[60px] flex items-center justify-center">
               "{currentQuote}"
             </motion.p>
           </AnimatePresence>

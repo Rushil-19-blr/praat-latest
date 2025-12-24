@@ -73,9 +73,31 @@ export const StorageService = {
         const localData = localStorage.getItem(key);
         if (localData) {
             try {
-                return JSON.parse(localData) as T;
+                const parsed = JSON.parse(localData);
+                // Unwrap if it was wrapped for Firebase
+                if (parsed && typeof parsed === 'object' && 'value' in parsed && Object.keys(parsed).length <= 3 && ('_updatedAt' in parsed || true)) {
+                    // Check if it's a wrapped primitive or array
+                    // The wrapper usually has 'value', '_updatedAt', and '_userId'
+                    return parsed.value as T;
+                }
+                return parsed as T;
             } catch (e) {
                 console.error(`Error parsing local data for ${key}:`, e);
+            }
+        }
+        return null;
+    },
+
+    /**
+     * Get raw item containing metadata (for internal use)
+     */
+    getRawItem(key: string): any | null {
+        const localData = localStorage.getItem(key);
+        if (localData) {
+            try {
+                return JSON.parse(localData);
+            } catch (e) {
+                return null;
             }
         }
         return null;

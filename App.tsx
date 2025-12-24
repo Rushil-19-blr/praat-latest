@@ -237,7 +237,7 @@ const App: React.FC = () => {
     let studentAccounts = StorageService.getItem<any[]>('studentAccounts') || [];
 
     // Check if account already exists (shouldn't happen, but just in case)
-    const accountIndex = studentAccounts.findIndex(acc => acc.accountNumber === accountNumber);
+    const accountIndex = studentAccounts.findIndex((acc: any) => acc.accountNumber === pin);
 
     if (accountIndex === -1) {
       // Add new account to the array
@@ -258,7 +258,7 @@ const App: React.FC = () => {
     let studentsData: Student[] = StorageService.getItem<Student[]>('allStudentsData') || [];
 
     // Check if student already exists (shouldn't happen, but just in case)
-    const studentIndex = studentsData.findIndex(s => s.code === accountNumber);
+    const studentIndex = studentsData.findIndex(s => s.code === pin);
 
     if (studentIndex === -1) {
       // Create new student entry with empty analysisHistory
@@ -273,7 +273,7 @@ const App: React.FC = () => {
       studentsData.push(newStudent);
 
       // Save updated students data
-      StorageService.setItem('allStudentsData', studentsData, accountNumber, 'global');
+      StorageService.setItem('allStudentsData', studentsData, pin, 'global');
 
       // Update local state
       setStudents(studentsData);

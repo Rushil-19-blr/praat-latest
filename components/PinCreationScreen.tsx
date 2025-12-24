@@ -3,6 +3,8 @@ import { LockIcon, EyeIcon, EyeOffIcon } from './icons/index';
 import GlassCard from './GlassCard';
 import { cn } from '../lib/utils';
 
+import { StorageService } from '../services/storageService';
+
 interface PinCreationScreenProps {
     onSubmit: (pin: string, password: string) => void;
 }
@@ -36,20 +38,15 @@ const PinCreationScreen: React.FC<PinCreationScreenProps> = ({ onSubmit }) => {
 
         // Simulate network delay for better UX (and to show loading state)
         setTimeout(() => {
-            // Check local storage for existing accounts
-            const studentAccountsData = localStorage.getItem('studentAccounts');
+            // Check storage for existing accounts
+            const accounts = StorageService.getItem<any[]>('studentAccounts');
             let isTaken = false;
 
-            if (studentAccountsData) {
-                try {
-                    const accounts = JSON.parse(studentAccountsData);
-                    if (Array.isArray(accounts)) {
-                        isTaken = accounts.some((acc: any) => acc.accountNumber === code);
-                    } else if (typeof accounts === 'object') {
-                        isTaken = accounts.accountNumber === code;
-                    }
-                } catch (e) {
-                    console.error('Error parsing student accounts to check PIN:', e);
+            if (accounts) {
+                if (Array.isArray(accounts)) {
+                    isTaken = accounts.some((acc: any) => acc.accountNumber === code);
+                } else if (typeof accounts === 'object') {
+                    isTaken = (accounts as any).accountNumber === code;
                 }
             }
 
@@ -106,7 +103,7 @@ const PinCreationScreen: React.FC<PinCreationScreenProps> = ({ onSubmit }) => {
 
                 {/* Step 1: PIN Creation */}
                 <GlassCard className="p-8 md:p-10 !rounded-[40px] border-white/10 shadow-3xl">
-                    <h2 className="text-xl font-black font-serif tracking-wider text-white/40 mb-8 text-center italic">STEP 1: CREATE YOUR IDENTITY CODE</h2>
+                    <h2 className="text-xl font-bold tracking-wider text-white/40 mb-8 text-center italic">STEP 1: CREATE YOUR IDENTITY CODE</h2>
 
                     <div className="relative mb-6">
                         <div className="flex items-center gap-3 justify-center mb-6">
