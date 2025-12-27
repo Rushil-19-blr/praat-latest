@@ -7,20 +7,23 @@ interface SmartOptionsProps {
     isVisible: boolean;
 }
 
+const MotionDiv = motion.div as any;
+const MotionButton = motion.button as any;
+
 const SmartOptions: React.FC<SmartOptionsProps> = ({ options, onSelect, isVisible }) => {
     return (
         <AnimatePresence>
             {isVisible && options.length > 0 && (
-                <motion.div
+                <MotionDiv
                     initial={{ opacity: 0, y: 30 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 30 }}
                     transition={{ duration: 0.3, ease: "easeOut" }}
-                    className="absolute bottom-28 left-0 right-0 z-50 flex flex-col items-center justify-end px-4 pointer-events-none"
+                    className="absolute bottom-32 sm:bottom-28 left-0 right-0 z-50 flex flex-col items-center justify-end px-4 pointer-events-none"
                 >
                     <div className="flex flex-wrap gap-3 justify-center max-w-2xl pointer-events-auto">
                         {options.map((option, index) => (
-                            <motion.button
+                            <MotionButton
                                 key={index}
                                 initial={{ opacity: 0, scale: 0.9, y: 10 }}
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -34,10 +37,10 @@ const SmartOptions: React.FC<SmartOptionsProps> = ({ options, onSelect, isVisibl
                                 }}
                             >
                                 {option}
-                            </motion.button>
+                            </MotionButton>
                         ))}
                     </div>
-                </motion.div>
+                </MotionDiv>
             )}
         </AnimatePresence>
     );

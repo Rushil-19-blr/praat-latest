@@ -20,7 +20,7 @@ export interface AnalysisData {
   audioUrl: string;
   aiSummary: string;
   date: string;
-  questionnaireAnswers?: { [questionIndex: number]: string }; // Optional questionnaire answers
+  questionnaireAnswers?: { [questionId: string]: string | number }; // Optional questionnaire answers
   liveSessionAnswers?: { questionText: string; studentAnswer: string }[]; // Live Gemini conversation Q&A
   selfReportScore?: number;
   counselorReport?: string; // Persisted generated report
@@ -76,7 +76,7 @@ export interface StudentProfile {
   createdAt: string;
 }
 
-export type PreAnalysisQuestionType = 'scale-1-5' | 'yes-no' | 'multiple-choice';
+export type PreAnalysisQuestionType = 'scale-1-5' | 'yes-no' | 'multiple-choice' | 'open-ended';
 export type PreAnalysisCategory = 'stress' | 'sleep' | 'focus' | 'social' | 'academic' | 'general';
 
 export interface PreAnalysisQuestion {
@@ -175,7 +175,34 @@ export interface SessionPlan {
   focusTopic: string;
   focusIntensity: FocusIntensity;
 
+  // Teacher-assigned daily tasks
+  assignedTasks?: string[];
+
   // Plan state
   isActive: boolean;
   useForNextSessionOnly: boolean;
+}
+
+// ===== Gamification Types =====
+
+export interface TierAccentColor {
+  primary: string;
+  secondary: string;
+  gradient: string;
+}
+
+export interface MaterialTier {
+  level: number;
+  name: string;
+  tasksMin: number;
+  tasksMax: number | null; // null for Diamond (infinite)
+  accentColor: TierAccentColor;
+  iconName: string; // Lucide icon name
+}
+
+export interface GamificationData {
+  completedTasks: number;
+  currentTier: number;
+  selectedAccentTier: number; // Which tier's color is active
+  lastTierShown: number | null; // To track if we showed level-up popup
 }

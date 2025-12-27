@@ -1,6 +1,10 @@
 import React, { useState, useRef } from 'react';
 import { BeamsBackground } from './ui/beams-background';
 import { SlideToUnlock } from './ui/reward-card';
+import GlassCard from './GlassCard';
+import { cn } from '../lib/utils';
+import { Eye, EyeSlash } from './Icons';
+import { AnimatedLogo } from './ui/AnimatedLogo';
 
 interface SignInScreenProps {
   onSignIn: (code: string, password: string, userType: 'student' | 'teacher') => void;
@@ -70,243 +74,122 @@ const SignInScreen: React.FC<SignInScreenProps> = ({ onSignIn, onCreateAccount }
   };
 
   return (
-    <div style={{
-      margin: 0,
-      padding: 0,
-      backgroundColor: 'transparent',
-      fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      minHeight: '100vh',
-      width: '100vw',
-      color: '#ffffff',
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      overflow: 'hidden'
-    }}>
-      <div style={{
-        position: 'absolute',
-        inset: 0,
-        zIndex: 0
-      }}>
+    <div className="fixed inset-0 min-h-screen w-screen flex items-center justify-center px-4 overflow-hidden bg-transparent font-sans text-white">
+      <div className="absolute inset-0 z-0">
         <BeamsBackground intensity="medium" />
       </div>
-      <div style={{
-        background: 'linear-gradient(135deg, rgba(26, 26, 26, 0.9) 0%, rgba(13, 13, 13, 0.9) 100%)',
-        backdropFilter: 'blur(10px)',
-        borderRadius: '20px',
-        padding: '40px',
-        boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)',
-        width: '100%',
-        maxWidth: '400px',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
-        position: 'relative',
-        zIndex: 10
-      }}>
-        <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-          <h1 style={{
-            color: '#ffffff',
-            fontSize: '28px',
-            fontWeight: 600,
-            margin: 0,
-            background: 'linear-gradient(135deg, #a855f7, #8b5cf6)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text'
-          }}>
-            AWAAZ
-          </h1>
+
+      <GlassCard className="relative z-10 w-full max-w-[420px] p-8 md:p-10 !rounded-[40px] border-white/10 shadow-3xl">
+        <div className="flex flex-col items-center justify-center mb-8">
+          <AnimatedLogo size={140} className="-mb-4" />
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <form onSubmit={handleSubmit} className="space-y-7">
           {/* User Type Selection */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <label style={{ fontSize: '14px', color: '#a0a0a0', fontWeight: 500 }}>
-              Login As
-            </label>
-            <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+          <div className="space-y-2.5">
+            <div className="flex p-1.5 bg-black/40 backdrop-blur-md rounded-[24px] border border-white/5 gap-1.5">
               <button
                 type="button"
                 onClick={() => setUserType('student')}
-                style={{
-                  flex: 1,
-                  padding: '12px 16px',
-                  backgroundColor: userType === 'student' ? '#a855f7' : '#1a1a1a',
-                  border: `2px solid ${userType === 'student' ? '#a855f7' : '#333333'}`,
-                  borderRadius: '8px',
-                  color: '#ffffff',
-                  fontSize: '14px',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease'
-                }}
+                className={cn(
+                  "flex-1 py-4 px-4 rounded-[18px] text-[10px] font-bold uppercase tracking-[0.2em] transition-all duration-300",
+                  userType === 'student'
+                    ? "bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-xl shadow-purple-500/20 scale-[1.02] ring-1 ring-white/10"
+                    : "text-white/40 hover:text-white/70 hover:bg-white/5"
+                )}
               >
                 Student
               </button>
               <button
                 type="button"
                 onClick={() => setUserType('teacher')}
-                style={{
-                  flex: 1,
-                  padding: '12px 16px',
-                  backgroundColor: userType === 'teacher' ? '#a855f7' : '#1a1a1a',
-                  border: `2px solid ${userType === 'teacher' ? '#a855f7' : '#333333'}`,
-                  borderRadius: '8px',
-                  color: '#ffffff',
-                  fontSize: '14px',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease'
-                }}
+                className={cn(
+                  "flex-1 py-4 px-4 rounded-[18px] text-[10px] font-bold uppercase tracking-[0.2em] transition-all duration-300",
+                  userType === 'teacher'
+                    ? "bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-xl shadow-purple-500/20 scale-[1.02] ring-1 ring-white/10"
+                    : "text-white/40 hover:text-white/70 hover:bg-white/5"
+                )}
               >
                 Teacher
               </button>
             </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <label style={{ fontSize: '14px', color: '#a0a0a0', fontWeight: 500 }}>
-              {userType === 'teacher' ? 'Admin Code' : '4-Digit Code'}
+          {/* 4-Digit Code */}
+          <div className="space-y-4">
+            <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/60 ml-2 block">
+              {userType === 'teacher' ? 'Admin Credential' : 'Core Identity Code'}
             </label>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', marginTop: '8px' }}>
+            <div className="flex justify-between gap-3">
               {code.map((digit, index) => (
                 <input
                   key={index}
-                  ref={(el) => (codeInputRefs.current[index] = el)}
+                  ref={(el) => { codeInputRefs.current[index] = el; }}
                   type="text"
                   maxLength={1}
                   pattern="[0-9]"
+                  inputMode="numeric"
                   value={digit}
                   onChange={(e) => handleCodeChange(index, e.target.value)}
                   onKeyDown={(e) => handleCodeKeyDown(index, e)}
-                  style={{
-                    width: '60px',
-                    height: '60px',
-                    backgroundColor: '#1a1a1a',
-                    border: '2px solid #333333',
-                    borderRadius: '8px',
-                    fontSize: '24px',
-                    textAlign: 'center',
-                    color: '#ffffff',
-                    outline: 'none',
-                    transition: 'border-color 0.2s ease'
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = '#a855f7';
-                    e.target.style.boxShadow = '0 0 0 3px rgba(168, 85, 247, 0.1)';
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = '#333333';
-                    e.target.style.boxShadow = 'none';
-                  }}
+                  className="w-full aspect-[4/5] bg-white/[0.04] border border-white/10 rounded-[20px] text-4xl font-black text-center text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all duration-200 placeholder:text-white/10"
                   required
                 />
               ))}
             </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative' }}>
-            <label style={{ fontSize: '14px', color: '#a0a0a0', fontWeight: 500 }}>
-              {userType === 'teacher' ? 'Admin Password' : 'Password'}
+          {/* Password Input */}
+          <div className="space-y-3">
+            <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/60 ml-2 block">
+              Security Key
             </label>
-            <div style={{ position: 'relative' }}>
+            <div className="relative group">
               <input
                 type={showPassword ? 'text' : 'password'}
                 id="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder={userType === 'teacher' ? 'Enter admin password' : 'Enter your password'}
-                style={{
-                  backgroundColor: '#1a1a1a',
-                  border: '1px solid #333333',
-                  borderRadius: '12px',
-                  padding: '12px 40px 12px 16px',
-                  fontSize: '16px',
-                  color: '#ffffff',
-                  outline: 'none',
-                  transition: 'border-color 0.2s ease',
-                  width: '100%',
-                  boxSizing: 'border-box'
-                }}
-                onFocus={(e) => {
-                  e.target.style.borderColor = '#a855f7';
-                  e.target.style.boxShadow = '0 0 0 3px rgba(168, 85, 247, 0.1)';
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = '#333333';
-                  e.target.style.boxShadow = 'none';
-                }}
+                placeholder={userType === 'teacher' ? 'Enter admin secret' : 'Your secure key'}
+                className="w-full bg-white/[0.04] border border-white/10 rounded-[22px] py-5 px-6 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all duration-300 placeholder:text-white/30"
                 required
               />
               <button
                 type="button"
                 onClick={togglePassword}
-                style={{
-                  position: 'absolute',
-                  right: '12px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'none',
-                  border: 'none',
-                  color: '#666666',
-                  cursor: 'pointer',
-                  fontSize: '18px'
-                }}
+                className="absolute right-5 top-1/2 -translate-y-1/2 p-3 min-w-[44px] min-h-[44px] rounded-xl transition-all text-white/40 hover:text-white/60 active:text-white/80 active:scale-95 hover:bg-white/5"
               >
-                {showPassword ? '🙈' : '👁️'}
+                {showPassword ? <EyeSlash className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
             </div>
           </div>
 
-          <div style={{ marginTop: '20px', width: '100%' }}>
+          <div className="pt-2">
             <SlideToUnlock
               key={sliderKey}
               onUnlock={handleSubmit}
-              sliderText={`Swipe to sign in as ${userType === 'teacher' ? 'Teacher' : 'Student'} →`}
-              className="!max-w-full !p-0 !border-0 !bg-transparent !shadow-none !rounded-none"
+              sliderText={`Authorize as ${userType === 'teacher' ? 'Teacher' : 'Student'} →`}
+              className="h-16"
               shimmer={true}
-              unlockedContent={
-                <div style={{ height: '14px' }}></div>
-              }
+              unlockedContent={<div className="h-16 flex items-center justify-center"><div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div></div>}
             >
-              <div style={{ display: 'none' }}></div>
+              <div className="hidden"></div>
             </SlideToUnlock>
           </div>
         </form>
 
-        <div style={{
-          textAlign: 'center',
-          marginTop: '20px',
-          paddingTop: '20px',
-          borderTop: '1px solid #333333'
-        }}>
-          <p style={{ margin: 0, color: '#a0a0a0', fontSize: '14px' }}>
-            Don't have an account?{' '}
+        <div className="mt-8 pt-6 border-t border-white/5 text-center">
+          <p className="text-[10px] font-bold text-white/50 uppercase tracking-[0.2em]">
+            New to Awaaz?{' '}
             <button
               onClick={onCreateAccount}
-              style={{
-                color: '#a855f7',
-                textDecoration: 'none',
-                fontWeight: 600,
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: '14px'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.textDecoration = 'underline';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.textDecoration = 'none';
-              }}
+              className="ml-1 text-purple-400 hover:text-purple-300 active:text-purple-200 active:scale-95 transition-all uppercase"
             >
               Create Account
             </button>
           </p>
         </div>
-      </div>
+      </GlassCard>
     </div>
   );
 };

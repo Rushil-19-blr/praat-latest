@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Plus, Trash2, Save, X, HelpCircle, Target, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Save, X, HelpCircle, Target, MessageSquare, Settings } from 'lucide-react';
 import { BeamsBackground } from './ui/beams-background';
 import GlassCard from './GlassCard';
 import type {
@@ -48,6 +48,7 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
     const [showTypeSelector, setShowTypeSelector] = useState<string | null>(null);
     const [showCategorySelector, setShowCategorySelector] = useState<string | null>(null);
     const [showTemplateSelector, setShowTemplateSelector] = useState(false);
+    const [showSettings, setShowSettings] = useState(false);
 
     // AI Generation State
     const [templateTab, setTemplateTab] = useState<'templates' | 'ai'>('templates');
@@ -253,7 +254,7 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
     }
 
     const validQuestionCount = plan.customQuestions.filter(q => q.text.trim() !== '').length;
-    const remainingAIQuestions = Math.max(0, 5 - validQuestionCount);
+    const remainingAIQuestions = Math.max(0, 4 - validQuestionCount);
 
     return (
         <div className="min-h-screen w-full bg-background-primary text-text-primary flex flex-col relative">
@@ -269,7 +270,7 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
                         <div className="flex items-center gap-4">
                             <button
                                 onClick={onBack}
-                                className="p-2 rounded-lg hover:bg-surface transition-colors text-text-secondary hover:text-text-primary"
+                                className="p-3 min-w-[44px] min-h-[44px] rounded-lg hover:bg-surface active:bg-surface/80 active:scale-95 transition-all text-text-secondary hover:text-text-primary"
                                 aria-label="Go back"
                             >
                                 <ArrowLeft className="w-5 h-5" />
@@ -307,6 +308,62 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
                                     </>
                                 )}
                             </button>
+
+                            {/* Settings Button */}
+                            <div className="relative">
+                                <button
+                                    onClick={() => setShowSettings(!showSettings)}
+                                    className={`p-2 rounded-full transition-all duration-200 border ${showSettings
+                                        ? 'bg-purple-primary/20 text-purple-primary border-purple-primary/30'
+                                        : 'bg-surface/50 text-text-muted hover:text-white border-white/5 hover:bg-surface'}`}
+                                >
+                                    <Settings className="w-4 h-4" />
+                                </button>
+
+                                {/* Settings Dropdown */}
+                                {showSettings && (
+                                    <div className="absolute top-full right-0 mt-2 w-72 bg-black/60 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] z-[100] overflow-hidden ring-1 ring-white/5">
+                                        <div className="p-1">
+                                            <div className="px-4 py-3 border-b border-white/5">
+                                                <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider">Plan Settings</h3>
+                                            </div>
+
+                                            <div className="p-2 space-y-1">
+                                                <label className="flex items-start gap-3 p-3 rounded-xl hover:bg-white/5 cursor-pointer transition-colors group">
+                                                    <div className="relative inline-flex items-center mt-0.5">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={plan.useForNextSessionOnly}
+                                                            onChange={handleTogglePersistence}
+                                                            className="sr-only peer"
+                                                        />
+                                                        <div className="w-9 h-5 bg-surface/50 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-primary transition-colors"></div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-sm text-white font-medium group-hover:text-purple-200 transition-colors">One-time Plan</div>
+                                                        <div className="text-[10px] text-text-muted leading-tight mt-1">
+                                                            Auto-delete this plan after the session completes
+                                                        </div>
+                                                    </div>
+                                                </label>
+                                            </div>
+
+                                            <div className="p-2 border-t border-white/5">
+                                                <button
+                                                    onClick={() => {
+                                                        handleClearPlan();
+                                                        setShowSettings(false);
+                                                    }}
+                                                    className="w-full py-2.5 flex items-center justify-center gap-2 text-xs font-medium text-red-300 hover:text-red-200 hover:bg-red-500/20 rounded-xl transition-all duration-200"
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                    Clear All & Start Fresh
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -328,7 +385,7 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
                             <div>
                                 <h2 className="text-xl font-semibold text-white tracking-tight">Custom Pre-Session Questions</h2>
                                 <p className="text-sm text-text-muted mt-1">
-                                    Define up to 5 specific questions for the student to answer before their session.
+                                    Define up to 4 specific questions for the student to answer before their session.
                                 </p>
                             </div>
                         </div>
@@ -471,16 +528,16 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
                         <div className="mt-4 flex gap-3">
                             <button
                                 onClick={handleAddQuestion}
-                                className="flex-1 py-3 border-2 border-dashed border-purple-primary/30 rounded-xl text-purple-primary hover:bg-purple-primary/10 transition-colors flex items-center justify-center gap-2"
+                                className="flex-1 py-3 min-h-[44px] border-2 border-dashed border-purple-primary/30 rounded-xl text-purple-primary hover:bg-purple-primary/10 active:bg-purple-primary/20 active:scale-[0.98] transition-all flex items-center justify-center gap-3 px-4"
                             >
-                                <Plus className="w-5 h-5" />
-                                Add Custom Question
+                                <Plus className="w-5 h-5 flex-shrink-0" />
+                                <span className="font-medium">Add Custom Question</span>
                             </button>
 
                             <div className="relative">
                                 <button
                                     onClick={() => setShowTemplateSelector(!showTemplateSelector)}
-                                    className="h-full px-6 border-2 border-dashed border-blue-400/30 rounded-xl text-blue-400 hover:bg-blue-400/10 transition-colors flex items-center justify-center gap-2"
+                                    className="h-full min-h-[44px] px-6 border-2 border-dashed border-blue-400/30 rounded-xl text-blue-400 hover:bg-blue-400/10 active:bg-blue-400/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                                 >
                                     <MessageSquare className="w-5 h-5" />
                                     Use Template
@@ -571,9 +628,9 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
                                 <HelpCircle className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
                                 <p className="text-sm text-blue-300">
                                     {validQuestionCount === 0 ? (
-                                        "No questions added yet. AI will generate all 5 personalized questions."
-                                    ) : validQuestionCount >= 5 ? (
-                                        "You've added 5+ questions. Only your custom questions will be used."
+                                        "No questions added yet. AI will generate all 4 personalized questions."
+                                    ) : validQuestionCount >= 4 ? (
+                                        "You've added 4+ questions. Only your custom questions will be used."
                                     ) : (
                                         <>You've added {validQuestionCount} question{validQuestionCount !== 1 ? 's' : ''}. AI will generate {remainingAIQuestions} complementary question{remainingAIQuestions !== 1 ? 's' : ''} on the same topics.</>
                                     )}
@@ -582,38 +639,105 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
                         </div>
                     </GlassCard>
 
-                    {/* Bottom Row: Settings & Focus */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* New Section: Daily Wellness Tasks */}
+                    <GlassCard
+                        className="p-6 bg-black/40 backdrop-blur-xl border-white/10 shadow-xl"
+                        variant="base"
+                    >
+                        <div className="flex items-center gap-4 mb-6 pb-6 border-b border-white/5">
+                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center border border-white/5 shadow-inner">
+                                <Plus className="w-6 h-6 text-emerald-300" />
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-semibold text-white tracking-tight">Daily Wellness Tasks</h2>
+                                <p className="text-sm text-text-muted mt-1">
+                                    Set specific tasks for the student to complete in their daily dashboard.
+                                </p>
+                            </div>
+                        </div>
 
+                        <div className="space-y-3">
+                            <AnimatePresence>
+                                {(plan.assignedTasks || []).map((task, index) => (
+                                    <MotionDiv
+                                        key={index}
+                                        initial={{ opacity: 0, scale: 0.95 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        exit={{ opacity: 0, x: -20 }}
+                                        className="flex items-center gap-3 p-3 bg-white/5 border border-white/10 rounded-xl group"
+                                    >
+                                        <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 text-xs font-bold">
+                                            {index + 1}
+                                        </div>
+                                        <input
+                                            type="text"
+                                            value={task}
+                                            onChange={(e) => {
+                                                const newTasks = [...(plan.assignedTasks || [])];
+                                                newTasks[index] = e.target.value;
+                                                setPlan({ ...plan, assignedTasks: newTasks });
+                                                setHasChanges(true);
+                                            }}
+                                            placeholder="Enter task description..."
+                                            className="flex-1 bg-transparent border-none focus:ring-0 text-white placeholder-text-muted text-sm"
+                                        />
+                                        <button
+                                            onClick={() => {
+                                                const newTasks = (plan.assignedTasks || []).filter((_, i) => i !== index);
+                                                setPlan({ ...plan, assignedTasks: newTasks });
+                                                setHasChanges(true);
+                                            }}
+                                            className="p-2 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/20 rounded-lg"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </MotionDiv>
+                                ))}
+                            </AnimatePresence>
+
+                            <button
+                                onClick={() => {
+                                    const newTasks = [...(plan.assignedTasks || []), ""];
+                                    setPlan({ ...plan, assignedTasks: newTasks });
+                                    setHasChanges(true);
+                                }}
+                                className="w-full py-3 min-h-[44px] border-2 border-dashed border-emerald-500/20 rounded-xl text-emerald-400 hover:bg-emerald-500/10 active:bg-emerald-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-sm"
+                            >
+                                <Plus className="w-4 h-4" />
+                                Add Targeted Task
+                            </button>
+                        </div>
+                    </GlassCard>
+
+                    {/* Bottom Row: Focus (Full Width now) */}
+                    <div className="w-full">
                         {/* Focus Topic Section */}
                         <GlassCard className="p-5 flex flex-col justify-between bg-black/40 backdrop-blur-md border-white/10" variant="base">
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="w-8 h-8 rounded-full bg-orange-primary/20 flex items-center justify-center text-orange-400">
-                                    <Target className="w-4 h-4" />
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="w-10 h-10 rounded-full bg-orange-primary/20 flex items-center justify-center">
+                                    <Target className="w-5 h-5 text-orange-primary" />
                                 </div>
-                                <h3 className="text-sm font-semibold text-white">Session Focus</h3>
+                                <div>
+                                    <h2 className="text-lg font-semibold text-white">Session Focus Topic</h2>
+                                    <p className="text-sm text-text-muted">
+                                        Guide the AI to explore a specific topic during the conversation
+                                    </p>
+                                </div>
                             </div>
 
+                            {/* Focus Topic Input */}
                             <div className="space-y-4">
                                 <div>
+                                    <label className="block text-sm text-text-secondary mb-2">
+                                        What topic should the AI focus on? (optional)
+                                    </label>
                                     <input
                                         type="text"
                                         value={plan.focusTopic}
                                         onChange={(e) => handleFocusTopicChange(e.target.value)}
-                                        placeholder="Specific topic (e.g. social anxiety)"
-                                        className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-text-muted/50 focus:border-orange-primary/50 focus:outline-none transition-colors"
+                                        placeholder="e.g., exam anxiety, peer relationships, sleep issues..."
+                                        className="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-white placeholder-text-muted focus:border-orange-primary/50 focus:outline-none transition-colors"
                                     />
-                                </div>
-                                <div className="flex flex-wrap gap-1.5">
-                                    {['academic', 'social', 'sleep', 'family', 'future'].map((topic) => (
-                                        <button
-                                            key={topic}
-                                            onClick={() => handleFocusTopicChange(topic)}
-                                            className={`px-2 py-1 text-[10px] rounded-md transition-colors border border-transparent ${plan.focusTopic === topic ? 'bg-orange-primary/20 text-orange-300 border-orange-primary/30' : 'bg-surface/30 text-text-secondary hover:bg-surface hover:text-white'}`}
-                                        >
-                                            {topic}
-                                        </button>
-                                    ))}
                                 </div>
 
                                 {/* Focus Intensity */}
@@ -621,66 +745,48 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
                                     <MotionDiv
                                         initial={{ opacity: 0, height: 0 }}
                                         animate={{ opacity: 1, height: 'auto' }}
-                                        className="space-y-2 pt-2 border-t border-white/5"
+                                        className="space-y-3"
                                     >
-                                        <label className="block text-xs text-text-secondary">
-                                            Intensity
+                                        <label className="block text-sm text-text-secondary">
+                                            How strongly should the AI focus on this topic?
                                         </label>
-                                        <div className="grid grid-cols-3 gap-1.5">
+                                        <div className="flex gap-2">
                                             {(['gentle', 'moderate', 'focused'] as FocusIntensity[]).map((intensity) => (
                                                 <button
                                                     key={intensity}
                                                     onClick={() => handleFocusIntensityChange(intensity)}
-                                                    className={`py-1.5 px-1 rounded-lg text-[10px] font-medium transition-all ${plan.focusIntensity === intensity
+                                                    className={`flex-1 py-3 px-4 rounded-xl text-sm font-medium transition-all ${plan.focusIntensity === intensity
                                                         ? 'bg-orange-primary text-white shadow-lg shadow-orange-primary/30'
-                                                        : 'bg-surface/30 text-text-secondary hover:bg-surface hover:text-white border border-white/10'
+                                                        : 'bg-surface/50 text-text-secondary hover:bg-surface hover:text-white border border-white/10'
                                                         }`}
                                                 >
                                                     <div className="capitalize">{intensity}</div>
+                                                    <div className="text-xs mt-1 opacity-70">
+                                                        {intensity === 'gentle' && 'Light suggestion'}
+                                                        {intensity === 'moderate' && 'Regular guidance'}
+                                                        {intensity === 'focused' && 'Primary focus'}
+                                                    </div>
                                                 </button>
                                             ))}
                                         </div>
                                     </MotionDiv>
                                 )}
+
+                                {/* Example Topics */}
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                    <span className="text-xs text-text-muted">Suggestions:</span>
+                                    {['academic pressure', 'friendships', 'sleep problems', 'family dynamics', 'self-esteem'].map((topic) => (
+                                        <button
+                                            key={topic}
+                                            onClick={() => handleFocusTopicChange(topic)}
+                                            className="px-2 py-1 text-xs bg-surface/30 text-text-secondary rounded-md hover:bg-surface hover:text-white transition-colors"
+                                        >
+                                            {topic}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                         </GlassCard>
-
-                        {/* Plan Settings */}
-                        <GlassCard className="p-5 flex flex-col justify-between bg-black/40 backdrop-blur-md border-white/10" variant="base">
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400">
-                                    <div className="w-4 h-4 border-2 border-current rounded-full opacity-70" />
-                                </div>
-                                <h3 className="text-sm font-semibold text-white">Options</h3>
-                            </div>
-
-                            <div className="space-y-4">
-                                <div className="flex items-center justify-between p-3 rounded-lg bg-surface/30 border border-white/5">
-                                    <div className="text-xs">
-                                        <div className="text-white font-medium mb-0.5">One-time Plan</div>
-                                        <div className="text-text-muted">Delete after session</div>
-                                    </div>
-                                    <label className="relative inline-flex items-center cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            checked={plan.useForNextSessionOnly}
-                                            onChange={handleTogglePersistence}
-                                            className="sr-only peer"
-                                        />
-                                        <div className="w-9 h-5 bg-black/40 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"></div>
-                                    </label>
-                                </div>
-
-                                <button
-                                    onClick={handleClearPlan}
-                                    className="w-full py-2 flex items-center justify-center gap-2 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors border border-transparent hover:border-red-500/20"
-                                >
-                                    <Trash2 className="w-3 h-3" />
-                                    Reset Plan
-                                </button>
-                            </div>
-                        </GlassCard>
-
                     </div>
                 </div>
             </div>

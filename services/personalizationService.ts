@@ -16,6 +16,7 @@ import type {
     LearningAnalytics,
     LiveSessionQuestion,
 } from '../types';
+import { StorageService } from './storageService';
 
 const STORAGE_KEY_PREFIX = 'awaaz_student_';
 
@@ -27,16 +28,8 @@ export const generateId = (): string => {
 // Get current student ID from localStorage
 export const getCurrentStudentId = (): string => {
     if (typeof window === 'undefined') return 'default';
-    try {
-        const raw = localStorage.getItem('userData');
-        if (raw) {
-            const parsed = JSON.parse(raw);
-            return parsed?.accountNumber || 'default';
-        }
-    } catch {
-        // ignore
-    }
-    return 'default';
+    const userData = StorageService.getItem<any>('userData');
+    return userData?.accountNumber || 'default';
 };
 
 // Load student history from localStorage
@@ -44,16 +37,7 @@ export const getStudentHistory = (studentId?: string): StudentHistory | null => 
     if (typeof window === 'undefined') return null;
     const id = studentId || getCurrentStudentId();
     const key = `${STORAGE_KEY_PREFIX}${id}`;
-
-    try {
-        const raw = localStorage.getItem(key);
-        if (raw) {
-            return JSON.parse(raw) as StudentHistory;
-        }
-    } catch (e) {
-        console.error('[PersonalizationService] Failed to load student history:', e);
-    }
-    return null;
+    return StorageService.getItem<StudentHistory>(key);
 };
 
 // Save student history to localStorage
@@ -61,12 +45,7 @@ export const saveStudentHistory = (history: StudentHistory, studentId?: string):
     if (typeof window === 'undefined') return;
     const id = studentId || getCurrentStudentId();
     const key = `${STORAGE_KEY_PREFIX}${id}`;
-
-    try {
-        localStorage.setItem(key, JSON.stringify(history));
-    } catch (e) {
-        console.error('[PersonalizationService] Failed to save student history:', e);
-    }
+    StorageService.setItem(key, history, id, 'state');
 };
 
 // Initialize student profile if not exists

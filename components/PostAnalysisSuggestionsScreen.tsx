@@ -3,15 +3,19 @@ import type { AnalysisData, Biomarker } from '../types';
 import GlassCard from './GlassCard';
 import { ChevronLeft } from './Icons';
 import { motion } from 'framer-motion';
+import { useSwipeable } from 'react-swipeable';
 import { LiquidButton } from './ui/liquid-button';
 import { InfinityLoader } from '@/components/ui/infinity-loader';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { StorageService } from '../services/storageService';
 
 interface PostAnalysisSuggestionsScreenProps {
   analysisData: AnalysisData;
   onBack: () => void;
   onClose: () => void;
 }
+
+const MotionDiv = motion.div as any;
 
 const positiveAffirmations = [
   "Thank you for taking this step toward understanding yourself better",
@@ -271,6 +275,14 @@ const PostAnalysisSuggestionsScreen: React.FC<PostAnalysisSuggestionsScreenProps
   const [loading, setLoading] = useState(true);
   const [showLoader, setShowLoader] = useState(true);
   const [loaderComplete, setLoaderComplete] = useState(false);
+
+  const handlers = useSwipeable({
+    onSwipedRight: () => {
+      onBack();
+    },
+    trackMouse: true,
+  });
+
   const stressLevel = analysisData.stressLevel;
   const affirmation = positiveAffirmations[Math.floor(Math.random() * positiveAffirmations.length)];
 
@@ -342,11 +354,10 @@ const PostAnalysisSuggestionsScreen: React.FC<PostAnalysisSuggestionsScreenProps
 
   // Save suggestions to localStorage for the todo list
   useEffect(() => {
-    const userData = localStorage.getItem('userData');
+    const userData = StorageService.getItem<any>('userData');
     if (userData) {
       try {
-        const parsedUserData = JSON.parse(userData);
-        const studentCode = parsedUserData.accountNumber;
+        const studentCode = userData.accountNumber;
 
         // Combine immediate and long-term suggestions
         const allSuggestions = [
@@ -372,7 +383,7 @@ const PostAnalysisSuggestionsScreen: React.FC<PostAnalysisSuggestionsScreenProps
           date: new Date().toISOString(),
           nextSession: suggestions.nextSession
         };
-        localStorage.setItem(suggestionsKey, JSON.stringify(suggestionsData));
+        StorageService.setItem(suggestionsKey, suggestionsData, studentCode, 'state');
 
         // Dispatch custom event to notify todo list to refresh
         window.dispatchEvent(new Event('suggestionsUpdated'));
@@ -386,7 +397,7 @@ const PostAnalysisSuggestionsScreen: React.FC<PostAnalysisSuggestionsScreenProps
     <header className="fixed top-0 left-0 right-0 h-[60px] flex items-center justify-between px-4 z-20 max-w-2xl mx-auto bg-background-primary/95 backdrop-blur-sm">
       <button
         onClick={onBack}
-        className="glass-base w-11 h-11 rounded-full flex items-center justify-center transition-all hover:bg-purple-primary/20"
+        className="glass-base w-11 h-11 rounded-full flex items-center justify-center transition-all hover:bg-purple-primary/20 active:bg-purple-primary/30 active:scale-95"
       >
         <ChevronLeft className="w-5 h-5 text-white" />
       </button>
@@ -422,26 +433,26 @@ const PostAnalysisSuggestionsScreen: React.FC<PostAnalysisSuggestionsScreenProps
   };
 
   return (
-    <div className="min-h-screen w-full p-4 pt-[80px] pb-10 max-w-2xl mx-auto">
+    <div className="min-h-screen w-full p-4 pt-[80px] pb-10 max-w-2xl mx-auto" {...handlers}>
       <Header />
 
-      <motion.div
+      <MotionDiv
         className="space-y-6"
         variants={containerVariants}
         initial="hidden"
         animate="visible"
       >
         {/* Top Banner - Positive Affirmation */}
-        <motion.div variants={itemVariants}>
+        <MotionDiv variants={itemVariants}>
           <div className="bg-purple-dark rounded-2xl p-5">
             <p className="text-base font-medium text-white text-center leading-relaxed">
               {affirmation}
             </p>
           </div>
-        </motion.div>
+        </MotionDiv>
 
         {/* Main Section - Personalized Suggestions */}
-        <motion.div variants={itemVariants}>
+        <MotionDiv variants={itemVariants}>
           <div className="bg-surface rounded-2xl p-6">
             <h2 className="text-2xl font-bold text-white mb-6 text-left">Personalized Suggestions</h2>
 
@@ -480,18 +491,18 @@ const PostAnalysisSuggestionsScreen: React.FC<PostAnalysisSuggestionsScreenProps
               </>
             )}
           </div>
-        </motion.div>
+        </MotionDiv>
 
         {/* Close/Finish Button */}
-        <motion.div variants={itemVariants} className="pt-4">
+        <MotionDiv variants={itemVariants} className="pt-4">
           <LiquidButton
             onClick={onClose}
             className="w-full h-14 rounded-2xl flex items-center justify-center font-medium"
           >
             Return to Dashboard
           </LiquidButton>
-        </motion.div>
-      </motion.div>
+        </MotionDiv>
+      </MotionDiv>
     </div>
   );
 };

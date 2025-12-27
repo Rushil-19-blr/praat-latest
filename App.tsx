@@ -9,8 +9,7 @@ import PostAnalysisSuggestionsScreen from './components/PostAnalysisSuggestionsS
 import ConnectTheDots from './components/ConnectTheDots';
 import ConfirmationPopup from './components/ConfirmationPopup';
 import EnrollmentNumber from './components/EnrollmentNumber';
-import ScratchCard from './components/ScratchCard';
-import PasswordSetup from './components/PasswordSetup';
+import PinCreationScreen from './components/PinCreationScreen';
 import SuccessPopup from './components/SuccessPopup';
 import SignInScreen from './components/SignInScreen';
 import TeacherDashboard from './components/TeacherDashboard';
@@ -24,10 +23,10 @@ import { BeamsBackground } from './components/ui/beams-background';
 import { GlassFilter } from './components/ui/liquid-radio';
 import type { AnalysisData, Student, PreAnalysisSession } from './types';
 import type { QuestionnaireAnswers } from './components/PreRecordingQuestionnaire';
-// Import storage utilities - makes clearAllStorage() available globally
-import './utils/storageUtils';
+import { OnboardingService } from './services/onboardingService';
+import { StorageService } from './services/storageService';
 
-type AppState = 'SIGNIN' | 'SIGNUP' | 'CONFIRMATION' | 'ENROLLMENT' | 'SCRATCH_CARD' | 'PASSWORD_SETUP' | 'SUCCESS' | 'DASHBOARD' | 'QUESTIONNAIRE' | 'RECORDING' | 'CALIBRATION_FLOW' | 'RESULTS' | 'SUGGESTIONS' | 'TEACHER_DASHBOARD' | 'STUDENT_DETAIL' | 'STUDENT_REPORT' | 'SESSION_PLANNING';
+type AppState = 'SIGNIN' | 'SIGNUP' | 'CONFIRMATION' | 'ENROLLMENT' | 'PIN_CREATION' | 'SUCCESS' | 'DASHBOARD' | 'QUESTIONNAIRE' | 'RECORDING' | 'CALIBRATION_FLOW' | 'RESULTS' | 'SUGGESTIONS' | 'TEACHER_DASHBOARD' | 'STUDENT_DETAIL' | 'STUDENT_REPORT' | 'SESSION_PLANNING';
 
 const App: React.FC = () => {
   const [appState, setAppState] = useState<AppState>('SIGNIN');
@@ -41,6 +40,9 @@ const App: React.FC = () => {
   const [preAnalysisSession, setPreAnalysisSession] = useState<PreAnalysisSession | null>(null);
   const [planningStudentId, setPlanningStudentId] = useState<string | null>(null);
 
+  // HACK: Cast motion.div to any to fix type errors
+  const MotionDiv = motion.div as any;
+
   // Signup flow state
   const [selectedClass, setSelectedClass] = useState<number | null>(null);
   const [selectedSection, setSelectedSection] = useState<string | null>(null);
@@ -49,30 +51,33 @@ const App: React.FC = () => {
   const [showConfirmation, setShowConfirmation] = useState(false);
 
   const loadStudentData = useCallback(() => {
-    // Get all student data from localStorage
-    const allStudentsData = localStorage.getItem('allStudentsData');
-    if (allStudentsData) {
-      try {
-        const studentsData = JSON.parse(allStudentsData);
-        setStudents(studentsData);
-      } catch (error) {
-        console.error('Error parsing student data:', error);
-        // Fallback to empty array if data is corrupted
-        setStudents([]);
-      }
+    // Get all student data using Hybrid Storage
+    const studentsData = StorageService.getItem<Student[]>('allStudentsData');
+    if (studentsData) {
+      setStudents(studentsData);
     } else {
-      // Initialize with empty array if no data exists
       setStudents([]);
     }
   }, []);
 
   useEffect(() => {
-    const storedBaseline = localStorage.getItem('voiceBaseline');
-    if (storedBaseline) {
-      setBaselineData(storedBaseline);
+    const userData = StorageService.getItem<any>('userData');
+    if (userData) {
+      const studentId = userData.accountNumber;
+      if (studentId) {
+        setAccountNumber(studentId);
+        const baselineKey = `voiceBaseline_${studentId}`;
+        const storedBaseline = StorageService.getItem<string>(baselineKey) || StorageService.getItem<string>('voiceBaseline');
+        if (storedBaseline) {
+          setBaselineData(storedBaseline);
+        }
+
+        // Pull latest data from Firebase if signed in
+        StorageService.pullFromFirebase(studentId);
+      }
     }
 
-    // Load real student data from localStorage on initial mount
+    // Load real student data on initial mount
     loadStudentData();
   }, [loadStudentData]);
 
@@ -93,8 +98,8 @@ const App: React.FC = () => {
       const adminPassword = 'admin123';
 
       if (code === adminCode && password === adminPassword) {
-        localStorage.setItem('isTeacherSignedIn', 'true');
-        // Reload student data to get latest students including newly created ones
+        StorageService.setItem('isTeacherSignedIn', true, 'admin');
+        // Reload student data
         loadStudentData();
         setAppState('TEACHER_DASHBOARD');
       } else {
@@ -114,45 +119,26 @@ const App: React.FC = () => {
           section: 'A'
         };
 
-        localStorage.setItem('userData', JSON.stringify(defaultStudent));
-        localStorage.setItem('isSignedIn', 'true');
+        StorageService.setItem('userData', defaultStudent, '9999');
+        StorageService.setItem('isSignedIn', true, '9999');
         setAppState('DASHBOARD');
         return;
       }
 
-      let studentAccountsData = localStorage.getItem('studentAccounts');
-      let studentAccounts: any[] = [];
+      let studentAccounts = StorageService.getItem<any[]>('studentAccounts') || [];
 
       // Backward compatibility: Migrate old userData to studentAccounts if it exists
-      if (!studentAccountsData) {
+      if (studentAccounts.length === 0) {
         const oldUserData = localStorage.getItem('userData');
         if (oldUserData) {
           try {
             const parsedOldData = JSON.parse(oldUserData);
             // Migrate old account to new format
             studentAccounts = [parsedOldData];
-            localStorage.setItem('studentAccounts', JSON.stringify(studentAccounts));
+            StorageService.setItem('studentAccounts', studentAccounts, 'migration_user', 'state');
           } catch (error) {
             console.error('Error migrating old user data:', error);
           }
-        }
-      } else {
-        try {
-          const parsed = JSON.parse(studentAccountsData);
-          // Ensure it's an array - if it's an object, convert it to an array
-          if (Array.isArray(parsed)) {
-            studentAccounts = parsed;
-          } else if (parsed && typeof parsed === 'object') {
-            // If it's a single object, convert to array
-            studentAccounts = [parsed];
-          } else {
-            // If it's not an array or object, start fresh
-            studentAccounts = [];
-          }
-        } catch (error) {
-          console.error('Error parsing studentAccounts from localStorage:', error);
-          // If parsing fails, start with empty array
-          studentAccounts = [];
         }
       }
 
@@ -167,8 +153,19 @@ const App: React.FC = () => {
 
       if (matchingAccount) {
         // Store the current user's data for the session
-        localStorage.setItem('userData', JSON.stringify(matchingAccount));
-        localStorage.setItem('isSignedIn', 'true');
+        StorageService.setItem('userData', matchingAccount, matchingAccount.accountNumber);
+        StorageService.setItem('isSignedIn', true, matchingAccount.accountNumber);
+        setAccountNumber(matchingAccount.accountNumber);
+
+        // Load user-specific baseline
+        const baselineKey = `voiceBaseline_${matchingAccount.accountNumber}`;
+        const userBaseline = StorageService.getItem<string>(baselineKey);
+        if (userBaseline) {
+          setBaselineData(userBaseline);
+        } else {
+          setBaselineData(null);
+        }
+
         setAppState('DASHBOARD');
       } else {
         throw new Error('Invalid credentials');
@@ -220,74 +217,48 @@ const App: React.FC = () => {
 
   const handleEnrollmentSubmit = useCallback((enrollment: string) => {
     setEnrollmentNumber(enrollment);
-    // Generate a 4-digit account number based on enrollment
-    const accountNum = Math.floor(1000 + Math.random() * 9000).toString();
-    setAccountNumber(accountNum);
-    setAppState('SCRATCH_CARD');
+    // Move directly to custom PIN creation
+    setAppState('PIN_CREATION');
   }, []);
 
-  const handleScratchCardComplete = useCallback(() => {
-    setAppState('PASSWORD_SETUP');
-  }, []);
+  const handlePinCreationComplete = useCallback((pin: string, password: string) => {
+    setAccountNumber(pin); // Store the custom PIN as account number
 
-  const handlePasswordSetupComplete = useCallback((password: string) => {
     // Store signup data in the accounts array to support multiple accounts
     const newAccountData = {
       class: selectedClass,
       section: selectedSection,
       enrollment: enrollmentNumber,
-      accountNumber: accountNumber,
+      accountNumber: pin,
       password: password
     };
 
     // Get existing student accounts or create new array
-    const studentAccountsData = localStorage.getItem('studentAccounts');
-    let studentAccounts: any[] = [];
-
-    if (studentAccountsData) {
-      try {
-        const parsed = JSON.parse(studentAccountsData);
-        // Ensure it's an array - if it's an object, convert it to an array
-        if (Array.isArray(parsed)) {
-          studentAccounts = parsed;
-        } else if (parsed && typeof parsed === 'object') {
-          // If it's a single object, convert to array
-          studentAccounts = [parsed];
-        } else {
-          // If it's not an array or object, start fresh
-          studentAccounts = [];
-        }
-      } catch (error) {
-        console.error('Error parsing studentAccounts from localStorage:', error);
-        // If parsing fails, start with empty array
-        studentAccounts = [];
-      }
-    }
+    let studentAccounts = StorageService.getItem<any[]>('studentAccounts') || [];
 
     // Check if account already exists (shouldn't happen, but just in case)
-    const accountIndex = studentAccounts.findIndex(acc => acc.accountNumber === accountNumber);
+    const accountIndex = studentAccounts.findIndex((acc: any) => acc.accountNumber === pin);
 
     if (accountIndex === -1) {
       // Add new account to the array
       studentAccounts.push(newAccountData);
-      localStorage.setItem('studentAccounts', JSON.stringify(studentAccounts));
+      StorageService.setItem('studentAccounts', studentAccounts, pin, 'state');
     } else {
       // Update existing account (shouldn't normally happen)
       studentAccounts[accountIndex] = newAccountData;
-      localStorage.setItem('studentAccounts', JSON.stringify(studentAccounts));
+      StorageService.setItem('studentAccounts', studentAccounts, pin, 'state');
     }
 
     // Store current user data for the session (auto-sign in after successful signup)
-    localStorage.setItem('isSignedUp', 'true');
-    localStorage.setItem('isSignedIn', 'true');
-    localStorage.setItem('userData', JSON.stringify(newAccountData));
+    StorageService.setItem('isSignedUp', true, pin, 'state');
+    StorageService.setItem('isSignedIn', true, pin, 'state');
+    StorageService.setItem('userData', newAccountData, pin, 'state');
 
     // Add student to allStudentsData immediately so teacher can see them
-    const allStudentsData = localStorage.getItem('allStudentsData');
-    let studentsData: Student[] = allStudentsData ? JSON.parse(allStudentsData) : [];
+    let studentsData: Student[] = StorageService.getItem<Student[]>('allStudentsData') || [];
 
     // Check if student already exists (shouldn't happen, but just in case)
-    const studentIndex = studentsData.findIndex(s => s.code === accountNumber);
+    const studentIndex = studentsData.findIndex(s => s.code === pin);
 
     if (studentIndex === -1) {
       // Create new student entry with empty analysisHistory
@@ -302,11 +273,14 @@ const App: React.FC = () => {
       studentsData.push(newStudent);
 
       // Save updated students data
-      localStorage.setItem('allStudentsData', JSON.stringify(studentsData));
+      StorageService.setItem('allStudentsData', studentsData, pin, 'global');
 
       // Update local state
       setStudents(studentsData);
     }
+
+    // Initialize Onboarding for this new student
+    OnboardingService.initializeForNewUser(pin);
 
     setAppState('SUCCESS');
   }, [selectedClass, selectedSection, enrollmentNumber, accountNumber]);
@@ -330,9 +304,9 @@ const App: React.FC = () => {
     };
     setPreAnalysisSession(session);
 
-    // Optionally store in localStorage for future reference
-    localStorage.setItem('questionnaireAnswers', JSON.stringify(answers));
-    localStorage.setItem('currentPreAnalysisSession', JSON.stringify(session));
+    // Optionally store in Hybrid Storage
+    StorageService.setItem('questionnaireAnswers', answers, accountNumber, 'state');
+    StorageService.setItem('currentPreAnalysisSession', session, accountNumber, 'state');
     setAppState('RECORDING');
   }, []);
 
@@ -345,9 +319,8 @@ const App: React.FC = () => {
 
   const handleAnalysisComplete = useCallback((data: AnalysisData) => {
     const { aiSummary, ...rest } = data;
-    // Get questionnaire answers from localStorage if available
-    const storedAnswers = localStorage.getItem('questionnaireAnswers');
-    const questionnaireAnswers = storedAnswers ? JSON.parse(storedAnswers) : null;
+    // Get questionnaire answers from Hybrid Storage if available
+    const questionnaireAnswers = StorageService.getItem<QuestionnaireAnswers>('questionnaireAnswers');
 
     const analysisDataWithDate = {
       ...rest,
@@ -358,18 +331,16 @@ const App: React.FC = () => {
     setAnalysisData(analysisDataWithDate);
 
     // Save analysis data to student's history
-    const userData = localStorage.getItem('userData');
+    const userData = StorageService.getItem<any>('userData');
     if (userData) {
       try {
-        const parsedUserData = JSON.parse(userData);
-        const studentCode = parsedUserData.accountNumber;
-        const studentName = parsedUserData.enrollment || 'Unknown Student';
-        const studentClass = parsedUserData.class || 10;
-        const studentSection = parsedUserData.section || 'A';
+        const studentCode = userData.accountNumber;
+        const studentName = userData.enrollment || 'Unknown Student';
+        const studentClass = userData.class || 10;
+        const studentSection = userData.section || 'A';
 
         // Get existing students data
-        const allStudentsData = localStorage.getItem('allStudentsData');
-        let studentsData: Student[] = allStudentsData ? JSON.parse(allStudentsData) : [];
+        let studentsData = StorageService.getItem<Student[]>('allStudentsData') || [];
 
         // Find existing student or create new one
         let studentIndex = studentsData.findIndex(s => s.code === studentCode);
@@ -394,7 +365,7 @@ const App: React.FC = () => {
         }
 
         // Save updated students data
-        localStorage.setItem('allStudentsData', JSON.stringify(studentsData));
+        StorageService.setItem('allStudentsData', studentsData, studentCode, 'global');
 
         // Update local state
         setStudents(studentsData);
@@ -409,16 +380,14 @@ const App: React.FC = () => {
   const handleSelfReportSubmit = useCallback((score: number) => {
     setAnalysisData(prev => prev ? { ...prev, selfReportScore: score } : prev);
     try {
-      const userData = localStorage.getItem('userData');
+      const userData = StorageService.getItem<any>('userData');
       if (!userData) {
         return;
       }
-      const { accountNumber } = JSON.parse(userData);
+      const { accountNumber } = userData;
       if (!accountNumber) return;
 
-      const allStudentsData = localStorage.getItem('allStudentsData');
-      if (!allStudentsData) return;
-      const students: Student[] = JSON.parse(allStudentsData);
+      const students = StorageService.getItem<Student[]>('allStudentsData') || [];
       const studentIndex = students.findIndex(s => s.code === accountNumber);
       if (studentIndex === -1 || students[studentIndex].analysisHistory.length === 0) return;
 
@@ -427,7 +396,7 @@ const App: React.FC = () => {
         ...students[studentIndex].analysisHistory[latestIndex],
         selfReportScore: score,
       };
-      localStorage.setItem('allStudentsData', JSON.stringify(students));
+      StorageService.setItem('allStudentsData', students, accountNumber, 'global');
       setStudents(students);
     } catch (error) {
       console.error('Failed to store self-report score', error);
@@ -435,16 +404,48 @@ const App: React.FC = () => {
   }, []);
 
   const handleCalibrationComplete = useCallback((baselineJson: string) => {
-    localStorage.setItem('voiceBaseline', baselineJson);
+    StorageService.setItem('voiceBaseline', baselineJson, 'global_baseline', 'state');
     setBaselineData(baselineJson);
     setAppState('DASHBOARD');
   }, []);
 
   const handleVoiceCalibrationComplete = useCallback((baselineJson: string) => {
-    localStorage.setItem('voiceBaseline', baselineJson);
+    const baselineKey = accountNumber ? `voiceBaseline_${accountNumber}` : 'voiceBaseline';
+    StorageService.setItem(baselineKey, baselineJson, accountNumber || 'default', 'state');
     setBaselineData(baselineJson);
+
+    // Save baseline to account data for persistence
+    const accounts = StorageService.getItem<any[]>('studentAccounts');
+    if (accounts && accountNumber) {
+      try {
+        const updatedAccounts = accounts.map((acc: any) =>
+          acc.accountNumber === accountNumber ? { ...acc, voiceBaseline: baselineJson } : acc
+        );
+        StorageService.setItem('studentAccounts', updatedAccounts, accountNumber, 'state');
+
+        // Also update current userData in session
+        const userData = StorageService.getItem<any>('userData');
+        if (userData) {
+          if (userData.accountNumber === accountNumber) {
+            StorageService.setItem('userData', { ...userData, voiceBaseline: baselineJson }, accountNumber, 'state');
+          }
+        }
+
+        // Advance onboarding state if needed
+        OnboardingService.completeStep(accountNumber, 'calibration');
+        const state = OnboardingService.getState(accountNumber);
+        if (!state.hasSeenWelcome) {
+          OnboardingService.completeStep(accountNumber, 'welcome');
+        }
+        // If they did calibration, they are fully setup
+        OnboardingService.skipOnboarding(accountNumber);
+      } catch (e) {
+        console.error('Error updating account baseline:', e);
+      }
+    }
+
     setAppState('DASHBOARD');
-  }, []);
+  }, [accountNumber]);
 
   const handleResultsClose = useCallback(() => {
     setAnalysisData(null);
@@ -518,7 +519,7 @@ const App: React.FC = () => {
         <AnimatePresence initial={false}>
           {/* Sign-in Screen */}
           {appState === 'SIGNIN' && (
-            <motion.div
+            <MotionDiv
               key="signin"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -530,12 +531,12 @@ const App: React.FC = () => {
                 onSignIn={handleSignIn}
                 onCreateAccount={handleCreateAccount}
               />
-            </motion.div>
+            </MotionDiv>
           )}
 
           {/* Signup Flow Components */}
           {appState === 'SIGNUP' && (
-            <motion.div
+            <MotionDiv
               key="signup"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -546,12 +547,13 @@ const App: React.FC = () => {
               <ConnectTheDots
                 onConnect={handleClassSectionConnect}
                 isEnabled={true}
+                selectedClass={selectedClass}
               />
-            </motion.div>
+            </MotionDiv>
           )}
 
           {appState === 'ENROLLMENT' && (
-            <motion.div
+            <MotionDiv
               key="enrollment"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -560,43 +562,26 @@ const App: React.FC = () => {
               className="w-full h-full flex items-center justify-center pt-16"
             >
               <EnrollmentNumber onSubmit={handleEnrollmentSubmit} />
-            </motion.div>
+            </MotionDiv>
           )}
 
-          {appState === 'SCRATCH_CARD' && (
-            <motion.div
-              key="scratch-card"
+          {appState === 'PIN_CREATION' && (
+            <MotionDiv
+              key="pin-creation"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.3 }}
-              className="w-full h-full flex items-center justify-center pt-16"
+              className="w-full h-full flex items-center justify-center pt-4"
             >
-              <ScratchCard
-                accountNumber={accountNumber}
-                onComplete={handleScratchCardComplete}
+              <PinCreationScreen
+                onSubmit={handlePinCreationComplete}
               />
-            </motion.div>
-          )}
-
-          {appState === 'PASSWORD_SETUP' && (
-            <motion.div
-              key="password-setup"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="w-full h-full flex items-center justify-center pt-16"
-            >
-              <PasswordSetup
-                accountNumber={accountNumber}
-                onSubmit={handlePasswordSetupComplete}
-              />
-            </motion.div>
+            </MotionDiv>
           )}
 
           {appState === 'DASHBOARD' && (
-            <motion.div
+            <MotionDiv
               key="dashboard"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -609,11 +594,11 @@ const App: React.FC = () => {
                 onStartCalibration={handleStartCalibration}
                 onSignOut={handleSignOut}
               />
-            </motion.div>
+            </MotionDiv>
           )}
 
           {appState === 'QUESTIONNAIRE' && (
-            <motion.div
+            <MotionDiv
               key="questionnaire"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -626,11 +611,11 @@ const App: React.FC = () => {
                 onBack={handleQuestionnaireBack}
                 studentId={userType === 'student' ? accountNumber : (selectedStudent?.code || planningStudentId || undefined)}
               />
-            </motion.div>
+            </MotionDiv>
           )}
 
           {appState === 'TEACHER_DASHBOARD' && (
-            <motion.div
+            <MotionDiv
               key="teacher-dashboard"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -645,11 +630,11 @@ const App: React.FC = () => {
                 onRefresh={loadStudentData}
                 onPlanSession={handlePlanSession}
               />
-            </motion.div>
+            </MotionDiv>
           )}
 
           {appState === 'STUDENT_DETAIL' && selectedStudent && (
-            <motion.div
+            <MotionDiv
               key="student-detail"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -663,11 +648,11 @@ const App: React.FC = () => {
                 isTeacherView={true}
                 onReportClick={handleReportClick}
               />
-            </motion.div>
+            </MotionDiv>
           )}
 
           {appState === 'STUDENT_REPORT' && selectedStudent && analysisData && (
-            <motion.div
+            <MotionDiv
               key="student-report"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -680,11 +665,11 @@ const App: React.FC = () => {
                 analysisData={analysisData}
                 onBack={handleReportBack}
               />
-            </motion.div>
+            </MotionDiv>
           )}
 
           {appState === 'SESSION_PLANNING' && planningStudentId && (
-            <motion.div
+            <MotionDiv
               key="session-planning"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -698,7 +683,7 @@ const App: React.FC = () => {
                 onBack={handlePlanningBack}
                 onSave={handlePlanningSave}
               />
-            </motion.div>
+            </MotionDiv>
           )}
         </AnimatePresence>
 
@@ -738,7 +723,7 @@ const App: React.FC = () => {
 
         <AnimatePresence>
           {appState === 'CALIBRATION_FLOW' && (
-            <motion.div
+            <MotionDiv
               key="calibration-screen"
               className="fixed inset-0 z-50 bg-background-primary overflow-y-auto"
               initial={{ opacity: 0 }}
@@ -749,14 +734,15 @@ const App: React.FC = () => {
               <VoiceCalibrationScreen
                 onClose={handleCloseModal}
                 onCalibrationComplete={handleVoiceCalibrationComplete}
+                studentId={userType === 'student' ? accountNumber : undefined}
               />
-            </motion.div>
+            </MotionDiv>
           )}
         </AnimatePresence>
 
         <AnimatePresence>
           {appState === 'RESULTS' && analysisData && (
-            <motion.div
+            <MotionDiv
               key="results-page"
               className="fixed inset-0 z-50 bg-background-primary overflow-y-auto"
               initial="initial"
@@ -771,13 +757,13 @@ const App: React.FC = () => {
                 onNext={handleNextToSuggestions}
                 onSelfReportSubmit={handleSelfReportSubmit}
               />
-            </motion.div>
+            </MotionDiv>
           )}
         </AnimatePresence>
 
         <AnimatePresence>
           {appState === 'SUGGESTIONS' && analysisData && (
-            <motion.div
+            <MotionDiv
               key="suggestions-page"
               className="fixed inset-0 z-50 bg-background-primary overflow-y-auto"
               initial="initial"
@@ -790,7 +776,7 @@ const App: React.FC = () => {
                 onBack={handleSuggestionsBack}
                 onClose={handleSuggestionsClose}
               />
-            </motion.div>
+            </MotionDiv>
           )}
         </AnimatePresence>
       </div>

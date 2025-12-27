@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { webmBlobToWavMono16k } from '../utils/audio';
 import { extractFeaturesWithPraat } from '../services/praat';
 import { BACKEND_URL } from '../config';
+import { StorageService } from '../services/storageService';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface VoiceCalibrationProps {
@@ -26,7 +27,7 @@ const VoiceCalibration: React.FC<VoiceCalibrationProps> = ({ onComplete, onError
 
   // Check if baseline exists on mount
   useEffect(() => {
-    const storedBaseline = localStorage.getItem('voiceBaseline');
+    const storedBaseline = StorageService.getItem<string>('voiceBaseline');
     setHasBaseline(!!storedBaseline);
   }, []);
 
@@ -158,7 +159,7 @@ const VoiceCalibration: React.FC<VoiceCalibrationProps> = ({ onComplete, onError
       };
 
       const baselineJson = JSON.stringify(baselineData);
-      localStorage.setItem('voiceBaseline', baselineJson);
+      StorageService.setItem('voiceBaseline', baselineJson, 'default', 'state');
       setHasBaseline(true);
       setStatus('SUCCESS');
 

@@ -1,4 +1,7 @@
 import React from 'react';
+import GlassCard from './GlassCard';
+import { cn } from '../lib/utils';
+import { CheckCircleIcon } from './icons/index';
 
 interface SuccessPopupProps {
   accountNumber: string;
@@ -7,42 +10,41 @@ interface SuccessPopupProps {
 
 const SuccessPopup: React.FC<SuccessPopupProps> = ({ accountNumber, onProceed }) => {
   return (
-    <div className="fixed inset-0 bg-slate-900 bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="relative bg-slate-800 rounded-2xl p-8 border border-green-500/30 shadow-2xl text-center max-w-md mx-auto animate-fade-in-up overflow-hidden">
-        <div 
-          className="absolute inset-0 bg-repeat bg-center opacity-5"
-          style={{backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23a78bfa' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`}}>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[100] p-4 animate-in fade-in zoom-in-95 duration-500">
+      <GlassCard className="w-full max-w-[420px] p-10 !rounded-[40px] border-white/10 shadow-3xl text-center relative overflow-hidden group">
+        {/* Animated Background Element */}
+        <div className="absolute -top-24 -right-24 w-48 h-48 bg-purple-500/10 blur-[80px] rounded-full group-hover:bg-purple-500/20 transition-colors duration-700" />
+        <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-indigo-500/10 blur-[80px] rounded-full group-hover:bg-indigo-500/20 transition-colors duration-700" />
+
+        <div className="relative z-10 flex flex-col items-center">
+          <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-green-400/20 to-green-500/10 border border-green-500/30 flex items-center justify-center mb-8 shadow-lg shadow-green-500/10 animate-pulse">
+            <CheckCircleIcon className="w-10 h-10 text-green-400" />
+          </div>
+
+          <h2 className="text-4xl font-bold tracking-tight text-white uppercase italic mb-3">MISSION SUCCESS</h2>
+          <p className="text-[10px] font-bold text-white/40 mb-10 uppercase tracking-[0.2em] leading-relaxed">
+            Your secure account has been <span className="text-green-400">Initialized</span>.
+          </p>
+
+          <div className="w-full p-6 bg-white/[0.03] border border-white/10 rounded-[24px] mb-10 group/code hover:border-purple-500/30 transition-colors duration-500">
+            <p className="text-[9px] font-bold text-white/20 uppercase tracking-widest mb-3">Core Identity Code</p>
+            <span className="text-4xl font-bold tracking-[0.25em] text-purple-400 drop-shadow-[0_0_15px_rgba(168,85,247,0.3)]">
+              {accountNumber}
+            </span>
+          </div>
+
+          <p className="text-[10px] font-medium text-white/30 mb-10 max-w-[240px]">
+            Please memorize this code. It is mandatory for all future system access.
+          </p>
+
+          <button
+            onClick={onProceed}
+            className="w-full py-5 rounded-2xl text-xs font-black uppercase tracking-widest bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-2xl shadow-purple-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300"
+          >
+            Enter Dashboard
+          </button>
         </div>
-        <div className="relative">
-            <div className="w-20 h-20 bg-green-500/20 text-green-400 rounded-full flex items-center justify-center mx-auto mb-6 ring-4 ring-green-500/10">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-            </div>
-            <h2 className="text-3xl font-bold text-white mb-3">Account Created!</h2>
-            <p className="text-slate-300 text-md mb-6">
-              Your account number is <span className="font-bold text-lg text-purple-400 tracking-widest bg-slate-700 px-3 py-1.5 rounded-md inline-block">{accountNumber}</span>.
-            </p>
-            <p className="text-slate-400 text-sm mb-8">
-                You can now use this number to log in.
-            </p>
-            <button
-              onClick={onProceed}
-              className="w-full py-3 px-6 rounded-xl text-white font-semibold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 transition-all duration-200 shadow-lg shadow-purple-500/20"
-            >
-              Get Started
-            </button>
-        </div>
-      </div>
-      <style>{`
-        @keyframes fade-in-up {
-          0% { opacity: 0; transform: scale(0.9) translateY(20px); }
-          100% { opacity: 1; transform: scale(1) translateY(0); }
-        }
-        .animate-fade-in-up {
-          animation: fade-in-up 0.4s ease-out forwards;
-        }
-      `}</style>
+      </GlassCard>
     </div>
   );
 };

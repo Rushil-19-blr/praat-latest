@@ -121,6 +121,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
   const animationFrameRef = useRef<number | null>(null);
   const recordingStateRef = useRef<RecordingState>(recordingState);
   const allClipsRef = useRef<Blob[]>([]); // Keep ref to always have latest clips
+  const streamRef = useRef<MediaStream | null>(null);
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -131,9 +132,16 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
     if (stream) return;
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        audio: { sampleRate: 44100, channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: false }
+        audio: {
+          sampleRate: 44100,
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true // Enable AGC to fix low volume issues
+        }
       });
       setStream(mediaStream);
+      streamRef.current = mediaStream;
       setPermissionError(null);
     } catch (err) {
       if (err instanceof Error) {
@@ -149,14 +157,17 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
   useEffect(() => {
     getMicrophonePermission();
     return () => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
       }
       if (timerRef.current) clearTimeout(timerRef.current as any);
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
       stopSpeech(); // Clean up TTS on unmount
     };
-  }, [getMicrophonePermission, stream]);
+  }, [getMicrophonePermission]);
+
+
 
   // Clean up TTS and disconnect Gemini when switching modes
   useEffect(() => {
@@ -324,7 +335,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
     // Only if mic is NOT muted
     if (!isMicMutedRef.current) {
       const averageVolume = barHeights.reduce((a, b) => a + b, 0) / barHeights.length;
-      if (averageVolume > 0.02) { // Lowered threshold for better sensitivity
+      if (averageVolume > 0.005) { // Lowered threshold for better sensitivity
         lastVoiceActivityTimeRef.current = Date.now();
 
         // If user starts speaking, clear options immediately
@@ -418,12 +429,12 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
 
       // Strict check: Must be silence > 2s and options must exist
       if (timeSinceVoice > 2000 && generatedSmartOptionsRef.current.length > 0) {
-        console.log('[SmartOptions] 7s silence - showing options:', generatedSmartOptionsRef.current);
+        console.log('[SmartOptions] 10s silence - showing options:', generatedSmartOptionsRef.current);
         setSmartOptions(generatedSmartOptionsRef.current);
       } else {
         console.log('[SmartOptions] Not showing - user recently spoke or no options');
       }
-    }, 7000); // 7 seconds delay
+    }, 10000); // 10 seconds delay
 
     return () => {
       if (optionsTimeoutRef.current) {
@@ -432,6 +443,17 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
       }
     };
   }, [lastAgentResponse, shouldUseGemini]);
+
+  // Ensure options are cleared when recording stops
+  useEffect(() => {
+    if (recordingState !== 'RECORDING') {
+      setSmartOptions([]);
+      if (optionsTimeoutRef.current) {
+        clearTimeout(optionsTimeoutRef.current);
+        optionsTimeoutRef.current = null;
+      }
+    }
+  }, [recordingState]);
 
   const handleOptionSelect = (option: string) => {
     setSmartOptions([]);
@@ -462,7 +484,32 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
     }
 
     // Create new MediaRecorder for this clip
-    mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+    const getSupportedMimeType = () => {
+      const types = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/ogg;codecs=opus',
+        'audio/mp4'
+      ];
+      for (const type of types) {
+        if (MediaRecorder.isTypeSupported(type)) {
+          return type;
+        }
+      }
+      return '';
+    };
+
+    const mimeType = getSupportedMimeType();
+    console.log('[Recorder] Selected mimeType:', mimeType);
+
+    try {
+      mediaRecorderRef.current = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    } catch (e) {
+      console.error('[Recorder] Failed to create MediaRecorder:', e);
+      setRecordingState('ERROR');
+      setPermissionError("Your browser doesn't support the required audio recording format.");
+      return;
+    }
 
     mediaRecorderRef.current.ondataavailable = (event) => {
       if (event.data && event.data.size > 0) {
@@ -474,18 +521,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
     // Start with a timeslice to ensure data is captured regularly
     mediaRecorderRef.current.start(100); // Collect data every 100ms
 
-    // Create audio context for visualization (only if not exists or closed)
-    if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
-      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-    }
-
-    const source = audioContextRef.current.createMediaStreamSource(stream);
-    analyserRef.current = audioContextRef.current.createAnalyser();
-    analyserRef.current.fftSize = 512;
-    analyserRef.current.smoothingTimeConstant = 0.8;
-    source.connect(analyserRef.current);
-
-    animationFrameRef.current = requestAnimationFrame(drawWaveform);
+    // Audio context/analyser is initialized in useEffect now
 
     // Start duration counter
     timerRef.current = setInterval(() => {
@@ -494,6 +530,22 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
   };
 
   const analyzeAudioWithPraatAndGemini = async (audioBlob: Blob) => {
+    const debugStart = performance.now();
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed6884cd-40e9-42e4-b8a6-4c3db4d29793', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: 'debug-session',
+        runId: 'initial',
+        hypothesisId: 'H1',
+        location: 'RecordingScreen.tsx:analyzeAudioWithPraatAndGemini:start',
+        message: 'Analyze audio start',
+        data: { audioSize: audioBlob.size },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => { });
+    // #endregion
     try {
       const wavBlob = await webmBlobToWavMono16k(audioBlob);
       const featuresForAnalysis = await extractFeaturesWithPraat(wavBlob, BACKEND_URL);
@@ -692,6 +744,23 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
         date: new Date().toISOString(),
       };
 
+      const debugDuration = performance.now() - debugStart;
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed6884cd-40e9-42e4-b8a6-4c3db4d29793', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: 'debug-session',
+          runId: 'initial',
+          hypothesisId: 'H1',
+          location: 'RecordingScreen.tsx:analyzeAudioWithPraatAndGemini:success',
+          message: 'Analyze audio complete',
+          data: { durationMs: debugDuration, stressLevel: analysisResult.stressLevel },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => { });
+      // #endregion
+
       // Save session data and generate counselor report
       const saveSessionAndReport = async (): Promise<string | undefined> => {
         try {
@@ -742,6 +811,22 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
       setRecordingState('COMPLETE');
       onAnalysisComplete(analysisResult);
     } catch (error) {
+      const debugDuration = performance.now() - debugStart;
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed6884cd-40e9-42e4-b8a6-4c3db4d29793', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: 'debug-session',
+          runId: 'initial',
+          hypothesisId: 'H1',
+          location: 'RecordingScreen.tsx:analyzeAudioWithPraatAndGemini:error',
+          message: 'Analyze audio error',
+          data: { durationMs: debugDuration, error: error instanceof Error ? error.message : String(error) },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => { });
+      // #endregion
       setRecordingState('ERROR');
       if (error instanceof Error) {
         if (error.message.includes('Not enough clear speech') || error.message.includes('did not extract')) {
@@ -880,11 +965,29 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
   };
 
   const endSession = async () => {
+    const debugStart = performance.now();
     // Disconnect Gemini Live immediately when ending the session
     try { disconnectGemini(); } catch { }
     // Use ref to get the most up-to-date clips
     const clipsToAnalyze = allClipsRef.current;
     if (clipsToAnalyze.length === 0) return;
+
+    const totalClipSize = clipsToAnalyze.reduce((sum, clip) => sum + clip.size, 0);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed6884cd-40e9-42e4-b8a6-4c3db4d29793', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: 'debug-session',
+        runId: 'initial',
+        hypothesisId: 'H2',
+        location: 'RecordingScreen.tsx:endSession:start',
+        message: 'End session start',
+        data: { clipCount: clipsToAnalyze.length, totalClipSize },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => { });
+    // #endregion
 
     setRecordingState('ANALYZING');
 
@@ -1095,6 +1198,23 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
         })),
       };
 
+      const debugDuration = performance.now() - debugStart;
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed6884cd-40e9-42e4-b8a6-4c3db4d29793', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: 'debug-session',
+          runId: 'initial',
+          hypothesisId: 'H2',
+          location: 'RecordingScreen.tsx:endSession:success',
+          message: 'End session complete',
+          data: { durationMs: debugDuration, stressLevel: analysisResult.stressLevel },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => { });
+      // #endregion
+
       // Reset session state
       setIsSessionActive(false);
       allClipsRef.current = [];
@@ -1103,6 +1223,22 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
       setRecordingState('COMPLETE');
       onAnalysisComplete(analysisResult);
     } catch (error) {
+      const debugDuration = performance.now() - debugStart;
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed6884cd-40e9-42e4-b8a6-4c3db4d29793', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: 'debug-session',
+          runId: 'initial',
+          hypothesisId: 'H2',
+          location: 'RecordingScreen.tsx:endSession:error',
+          message: 'End session error',
+          data: { durationMs: debugDuration, error: error instanceof Error ? error.message : String(error) },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => { });
+      // #endregion
       setRecordingState('ERROR');
       if (error instanceof Error) {
         if (error.message.includes('Not enough clear speech')) {
@@ -1395,17 +1531,52 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
       <AnimatePresence>
         {showHelp && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowHelp(false)} className="fixed inset-0 bg-black/60 backdrop-blur-md z-40 flex items-center justify-center p-4" >
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} onClick={(e) => e.stopPropagation()} className="w-full" >
-              <GlassCard className="p-5 max-w-md mx-auto">
-                <div className="text-center">
-                  <MicrophoneWithWaves className="w-7 h-7 text-purple-primary mx-auto mb-2" />
-                  <h3 className="text-base font-bold text-white mb-2">How it Works</h3>
-                  <ol className="text-sm text-text-muted space-y-1">
-                    <li>1. Find a quiet, relaxed environment</li>
-                    <li>2. Tap the button to start recording</li>
-                    <li>3. Speak calmly and naturally for 10s</li>
-                    <li>4. Your results will be compared to your baseline</li>
-                  </ol>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-sm"
+            >
+              <GlassCard className="p-6 relative overflow-hidden" variant="purple">
+                {/* Decorative background glow */}
+                <div className="absolute -top-10 -right-10 w-32 h-32 bg-purple-500/20 rounded-full blur-3xl pointer-events-none" />
+
+                <div className="text-center relative z-10">
+                  <div className="w-16 h-16 rounded-full bg-purple-500/10 flex items-center justify-center mx-auto mb-4 border border-purple-500/20">
+                    <MicrophoneWithWaves className="w-8 h-8 text-purple-primary" />
+                  </div>
+
+                  <h3 className="text-xl font-bold text-white mb-2">How it Works</h3>
+                  <p className="text-sm text-text-muted mb-6 leading-relaxed">
+                    We analyze your voice patterns to help you track your stress levels over time.
+                  </p>
+
+                  <div className="space-y-4 mb-8 text-left">
+                    <div className="flex items-start gap-3">
+                      <div className="w-6 h-6 rounded-full bg-surface/50 flex items-center justify-center text-xs font-mono text-purple-300 border border-white/5 mt-0.5">1</div>
+                      <p className="text-sm text-gray-300 flex-1">Find a quiet, relaxed environment.</p>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="w-6 h-6 rounded-full bg-surface/50 flex items-center justify-center text-xs font-mono text-purple-300 border border-white/5 mt-0.5">2</div>
+                      <p className="text-sm text-gray-300 flex-1">Tap the button to start recording.</p>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="w-6 h-6 rounded-full bg-surface/50 flex items-center justify-center text-xs font-mono text-purple-300 border border-white/5 mt-0.5">3</div>
+                      <p className="text-sm text-gray-300 flex-1">Speak calmly and naturally for 10s.</p>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="w-6 h-6 rounded-full bg-surface/50 flex items-center justify-center text-xs font-mono text-purple-300 border border-white/5 mt-0.5">4</div>
+                      <p className="text-sm text-gray-300 flex-1">Your results will be compared to your baseline.</p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => setShowHelp(false)}
+                    className="w-full py-3 bg-purple-primary hover:bg-purple-600 text-white font-medium rounded-xl transition-all shadow-lg shadow-purple-500/25"
+                  >
+                    Got it
+                  </button>
                 </div>
               </GlassCard>
             </motion.div>

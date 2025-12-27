@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Student, RiskLevel } from '../types';
-import { UserCircle, ChevronLeft, MessageCircle, Pencil, Calendar } from './Icons';
+import { StorageService } from '../services/storageService';
+import { UserCircle, ChevronLeft, MessageCircle, ChatBubble, Pencil, Calendar } from './Icons';
 import GlassCard from './GlassCard';
 import TeacherChatModal from './TeacherChatModal';
 import { Gauge } from './ui/gauge-1';
@@ -9,6 +10,7 @@ import { LiquidButton } from './ui/liquid-button';
 
 // HACK: Cast motion components to 'any' to bypass type errors.
 const MotionDiv = motion.div as any;
+const MotionButton = motion.button as any;
 
 // --- Stress Chart Component (Sparkline) ---
 const StressChart: React.FC<{ data: number[]; id?: string }> = ({ data, id = 'default' }) => {
@@ -80,7 +82,7 @@ const StudentWidget: React.FC<{
     onEditNickname: (studentId: string) => void;
     onPlanSession?: (studentId: string) => void;
     isHighAlert?: boolean;
-}> = ({ student, onClick, onChatClick, onEditNickname, onPlanSession, isHighAlert = false }) => {
+}> = React.memo(({ student, onClick, onChatClick, onEditNickname, onPlanSession, isHighAlert = false }) => {
     const hasAnalysis = student.analysisHistory.length > 1; // Only show if more than 1 analysis
     const hasPendingAnalysis = student.analysisHistory.length === 1; // Check for pending first analysis
     const latestAnalysis = hasAnalysis ? student.analysisHistory[student.analysisHistory.length - 1] : null;
@@ -89,8 +91,8 @@ const StudentWidget: React.FC<{
 
     // Nickname management functions
     const getNicknames = useCallback((): Record<string, string> => {
-        const stored = localStorage.getItem('studentNicknames');
-        return stored ? JSON.parse(stored) : {};
+        const stored = StorageService.getItem<Record<string, string>>('studentNicknames');
+        return stored || {};
     }, []);
 
     const getNickname = useCallback((studentId: string): string | null => {
@@ -133,38 +135,39 @@ const StudentWidget: React.FC<{
     const alertBgGradient = isHighAlert ? 'bg-gradient-to-br from-red-900/20 to-red-800/10' : '';
 
     return (
-        <motion.div
+        <MotionDiv
             onClick={onClick}
             className="cursor-pointer relative"
             whileHover={{ scale: 1.02, y: -2 }}
+            whileTap={{ scale: 0.98 }}
             transition={{ type: 'spring', stiffness: 300 }}
         >
-            <GlassCard className={`p-6 min-h-[200px] flex flex-col items-center justify-center gap-4 border-2 ${isHighAlert ? alertBorderColor : (hasAnalysis ? getBorderColor(stressLevel) : 'border-white/20')} ${isHighAlert ? alertBgGradient : ''}`} variant={isHighAlert ? "base" : "base"}>
+            <GlassCard className={`p-6 min-h-[220px] flex flex-col items-center justify-center gap-4 border-2 ${isHighAlert ? alertBorderColor : (hasAnalysis ? getBorderColor(stressLevel) : 'border-white/20')} ${isHighAlert ? alertBgGradient : ''} active:bg-white/5 transition-colors`} variant={isHighAlert ? "base" : "base"}>
                 {/* Chat button in top right corner */}
                 <button
                     onClick={handleChatClick}
-                    className={`absolute top-3 right-3 w-8 h-8 ${isHighAlert ? 'bg-red-500/20 hover:bg-red-500/40' : 'bg-purple-primary/20 hover:bg-purple-primary/40'} rounded-full flex items-center justify-center transition-colors z-10`}
+                    className={`absolute top-3 right-3 w-11 h-11 ${isHighAlert ? 'bg-red-500/20 hover:bg-red-500/40' : 'bg-purple-primary/20 hover:bg-purple-primary/40'} rounded-full flex items-center justify-center transition-all z-10 active:scale-90`}
                     title="Chat with student"
                 >
-                    <MessageCircle className={`w-4 h-4 ${isHighAlert ? 'text-red-400' : 'text-purple-primary'}`} />
+                    <ChatBubble className={`w-5 h-5 ${isHighAlert ? 'text-red-400' : 'text-purple-primary'}`} />
                 </button>
 
                 {/* Edit button in top left corner */}
                 <button
                     onClick={handleEditClick}
-                    className={`absolute top-3 left-3 w-9 h-9 ${isHighAlert ? 'bg-red-500/20 hover:bg-red-500/40' : 'bg-purple-primary/20 hover:bg-purple-primary/40'} rounded-full flex items-center justify-center transition-colors z-10`}
+                    className={`absolute top-3 left-3 w-11 h-11 ${isHighAlert ? 'bg-red-500/20 hover:bg-red-500/40' : 'bg-purple-primary/20 hover:bg-purple-primary/40'} rounded-full flex items-center justify-center transition-all z-10 active:scale-90`}
                     title="Edit nickname"
                 >
-                    <Pencil className={`w-4 h-4 ${isHighAlert ? 'text-red-400' : 'text-purple-primary'}`} />
+                    <Pencil className={`w-5 h-5 ${isHighAlert ? 'text-red-400' : 'text-purple-primary'}`} />
                 </button>
 
                 {/* Plan button next to edit button */}
                 <button
                     onClick={handlePlanClick}
-                    className={`absolute top-3 left-14 w-9 h-9 ${isHighAlert ? 'bg-red-500/20 hover:bg-red-500/40' : 'bg-purple-primary/20 hover:bg-purple-primary/40'} rounded-full flex items-center justify-center transition-colors z-10`}
+                    className={`absolute top-3 left-16 w-11 h-11 ${isHighAlert ? 'bg-red-500/20 hover:bg-red-500/40' : 'bg-purple-primary/20 hover:bg-purple-primary/40'} rounded-full flex items-center justify-center transition-all z-10 active:scale-90`}
                     title="Plan Session"
                 >
-                    <Calendar className={`w-4 h-4 ${isHighAlert ? 'text-red-400' : 'text-purple-primary'}`} />
+                    <Calendar className={`w-5 h-5 ${isHighAlert ? 'text-red-400' : 'text-purple-primary'}`} />
                 </button>
 
                 <p className="text-3xl font-bold text-text-primary text-center px-8 break-words">{getDisplayName(student.code)}</p>
@@ -204,9 +207,9 @@ const StudentWidget: React.FC<{
                     </div>
                 )}
             </GlassCard>
-        </motion.div>
+        </MotionDiv>
     );
-};
+});
 
 
 // --- High Alerts Section Component (Stress > 80%) ---
@@ -242,6 +245,7 @@ const HighAlertsSection: React.FC<{
                                 onClick={() => onSelectStudent(student.code)}
                                 onChatClick={() => onChatClick(student.code)}
                                 onEditNickname={onEditNickname}
+                                onPlanSession={onPlanSession}
                                 isHighAlert={true}
                             />
                         </div>
@@ -334,10 +338,26 @@ interface TeacherDashboardProps {
 
 const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectStudent, onSignOut, onRefresh, onPlanSession }) => {
     const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
+    const [isMobile, setIsMobile] = useState(false);
+
+    React.useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 640);
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [selectedStudentForChat, setSelectedStudentForChat] = useState<string | null>(null);
     const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
     const [nicknameInput, setNicknameInput] = useState<string>('');
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    const handleRefresh = useCallback(() => {
+        setIsRefreshing(true);
+        onRefresh();
+        // Simulate loading state for animation
+        setTimeout(() => setIsRefreshing(false), 1500);
+    }, [onRefresh]);
 
     // Teacher ID (hardcoded - same as admin code)
     const teacherId = '9999';
@@ -355,8 +375,8 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
         } else {
             delete nicknames[studentId];
         }
-        localStorage.setItem('studentNicknames', JSON.stringify(nicknames));
-    }, [getNicknames]);
+        StorageService.setItem('studentNicknames', nicknames, teacherId, 'state');
+    }, [getNicknames, teacherId]);
 
     const handleEditNickname = useCallback((studentId: string) => {
         const nicknames = getNicknames();
@@ -431,14 +451,14 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
             <header className="flex items-center justify-between pt-4 pb-6">
                 <div className="flex items-center gap-2">
                     {selectedClassId && (
-                        <motion.button
+                        <MotionButton
                             onClick={() => setSelectedClassId(null)}
-                            className="w-10 h-10 bg-surface rounded-full flex items-center justify-center hover:bg-surface/80 transition-colors"
+                            className="w-11 h-11 bg-surface rounded-full flex items-center justify-center hover:bg-surface/80 transition-all active:scale-90"
                             initial={{ scale: 0 }}
                             animate={{ scale: 1 }}
                         >
-                            <ChevronLeft className="w-5 h-5 text-text-secondary" />
-                        </motion.button>
+                            <ChevronLeft className="w-6 h-6 text-text-secondary" />
+                        </MotionButton>
                     )}
                     <div>
                         <h1 className="text-4xl font-bold text-text-primary">
@@ -451,69 +471,34 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
                 </div>
                 <div className="flex items-center gap-2">
                     <button
-                        className="w-10 h-10 bg-surface rounded-full flex items-center justify-center hover:bg-purple-primary/20 transition-colors cursor-pointer relative"
+                        className="w-11 h-11 bg-surface rounded-full flex items-center justify-center hover:bg-purple-primary/20 transition-all cursor-pointer relative active:scale-90"
                         onClick={() => setIsChatOpen(true)}
                         title="Messages"
                     >
-                        <MessageCircle className="w-5 h-5 text-text-secondary" />
-                        <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-black"></span>
+                        <MessageCircle className="w-6 h-6 text-text-secondary" />
+                        <span className="absolute top-0.5 right-0.5 w-3 h-3 bg-red-500 rounded-full border-2 border-background-primary z-20"></span>
                     </button>
                     <motion.div
-                        animate={{
-                            scale: [1, 1.05, 1],
-                            rotate: [0, 3, -3, 0],
-                        }}
-                        whileHover={{
-                            scale: 1.15,
-                        }}
-                        whileTap={{
-                            scale: 0.9,
-                            rotate: 360,
-                        }}
-                        transition={{
-                            scale: {
-                                duration: 2.5,
-                                repeat: Infinity,
-                                ease: "easeInOut",
-                            },
-                            rotate: {
-                                duration: 4,
-                                repeat: Infinity,
-                                ease: "easeInOut",
-                            },
-                            whileHover: {
-                                duration: 0.3,
-                            },
-                            whileTap: {
-                                rotate: {
-                                    duration: 0.5,
-                                    ease: "easeOut",
-                                },
-                                scale: {
-                                    duration: 0.1,
-                                }
-                            }
-                        }}
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
                     >
                         <LiquidButton
-                            onClick={onRefresh}
+                            onClick={handleRefresh}
                             title="Refresh Data"
-                            className="w-10 h-10 rounded-full flex items-center justify-center p-0 relative"
+                            className={`w-11 h-11 rounded-full flex items-center justify-center p-0 relative transition-all duration-300 active:scale-90 ${isRefreshing ? 'shadow-[0_0_20px_rgba(168,85,247,0.6)] border-purple-500/50' : ''}`}
                         >
                             <motion.svg
-                                className="w-5 h-5"
+                                className={`w-5 h-5 ${isRefreshing ? 'text-purple-200' : 'text-white'}`}
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
                                 animate={{
-                                    rotate: [0, 360],
+                                    rotate: isRefreshing ? 360 : 0
                                 }}
                                 transition={{
-                                    rotate: {
-                                        duration: 4,
-                                        repeat: Infinity,
-                                        ease: "linear",
-                                    }
+                                    duration: 1,
+                                    repeat: isRefreshing ? Infinity : 0,
+                                    ease: "linear"
                                 }}
                             >
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -527,9 +512,9 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
                             }
                         }}
                         title="Sign Out"
-                        className="w-12 h-12 rounded-full flex items-center justify-center p-0"
+                        className="w-12 h-12 rounded-full flex items-center justify-center p-0 active:scale-90"
                     >
-                        <UserCircle className="w-6 h-6" />
+                        <UserCircle className="w-7 h-7" />
                     </LiquidButton>
                 </div>
             </header>
@@ -550,6 +535,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
                                     setIsChatOpen(true);
                                 }}
                                 onEditNickname={handleEditNickname}
+                                onPlanSession={onPlanSession}
                             />
 
                             <h2 className="text-xl font-bold uppercase text-text-muted tracking-wider mb-4 px-2">All Classes</h2>
@@ -568,23 +554,24 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
                                     </button>
                                 </div>
                             ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     {classSummaries.map(summary => (
-                                        <motion.div
+                                        <MotionDiv
                                             key={summary.id}
                                             onClick={() => setSelectedClassId(summary.id)}
                                             className="cursor-pointer"
                                             whileHover={{ scale: 1.03, y: -5 }}
+                                            whileTap={{ scale: 0.98 }}
                                             transition={{ type: 'spring', stiffness: 300 }}
                                         >
-                                            <GlassCard className="p-5 flex flex-col justify-between h-32" variant="purple">
+                                            <GlassCard className="p-5 flex flex-col justify-between h-36 active:bg-white/5 transition-colors" variant="purple">
                                                 <h3 className="text-2xl font-bold text-purple-light">{summary.name}</h3>
                                                 <div className="text-right">
                                                     <p className="text-xl font-medium text-text-secondary">{summary.studentCount} Students</p>
                                                     <p className="text-xl font-normal text-text-muted">Avg {summary.averageStress}% Stress</p>
                                                 </div>
                                             </GlassCard>
-                                        </motion.div>
+                                        </MotionDiv>
                                     ))}
                                 </div>
                             )}
@@ -615,7 +602,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
                                     variants={containerVariants}
                                     initial="hidden"
                                     animate="visible"
-                                    className="grid grid-cols-2 gap-4"
+                                    className="grid grid-cols-1 sm:grid-cols-2 gap-4"
                                 >
                                     {selectedClass.students.map(student => (
                                         <StudentWidget
@@ -651,7 +638,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
 
             {/* Nickname Edit Modal */}
             {editingStudentId && (
-                <motion.div
+                <MotionDiv
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
@@ -659,12 +646,12 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
                     className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
                     onClick={handleCancelEdit}
                 >
-                    <motion.div
+                    <MotionDiv
                         initial={{ scale: 0.9, opacity: 0, y: 20 }}
                         animate={{ scale: 1, opacity: 1, y: 0 }}
                         exit={{ scale: 0.9, opacity: 0, y: 20 }}
                         transition={{ duration: 0.2 }}
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e: any) => e.stopPropagation()}
                         className="bg-background-primary rounded-xl p-6 w-full max-w-md border border-white/10 shadow-2xl"
                     >
                         <h3 className="text-lg font-semibold text-white mb-2">Edit Nickname</h3>
@@ -700,8 +687,8 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
                                 Save
                             </button>
                         </div>
-                    </motion.div>
-                </motion.div>
+                    </MotionDiv>
+                </MotionDiv>
             )}
         </div>
     );
