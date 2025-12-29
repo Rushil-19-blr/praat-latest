@@ -129,7 +129,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
 
 
   const getMicrophonePermission = useCallback(async () => {
-    if (stream) return;
+    if (streamRef.current) return;
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -137,7 +137,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
           channelCount: 1,
           echoCancellation: true,
           noiseSuppression: true,
-          autoGainControl: true // Enable AGC to fix low volume issues
+          autoGainControl: false // Match VoiceCalibrationScreen behavior
         }
       });
       setStream(mediaStream);
@@ -152,7 +152,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
         }
       }
     }
-  }, [stream]);
+  }, []);
 
   useEffect(() => {
     getMicrophonePermission();
@@ -484,26 +484,12 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
     }
 
     // Create new MediaRecorder for this clip
-    const getSupportedMimeType = () => {
-      const types = [
-        'audio/webm;codecs=opus',
-        'audio/webm',
-        'audio/ogg;codecs=opus',
-        'audio/mp4'
-      ];
-      for (const type of types) {
-        if (MediaRecorder.isTypeSupported(type)) {
-          return type;
-        }
-      }
-      return '';
-    };
-
-    const mimeType = getSupportedMimeType();
+    // Create new MediaRecorder for this clip - matching VoiceCalibrationScreen implementation
+    const mimeType = 'audio/webm';
     console.log('[Recorder] Selected mimeType:', mimeType);
 
     try {
-      mediaRecorderRef.current = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType });
     } catch (e) {
       console.error('[Recorder] Failed to create MediaRecorder:', e);
       setRecordingState('ERROR');
@@ -1214,6 +1200,45 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
         }),
       }).catch(() => { });
       // #endregion
+
+      // Save session data and generate counselor report (Fix for missing data persistence)
+      try {
+        const studentId = getCurrentStudentId();
+        const history = getStudentHistory(studentId);
+
+        // Create session data with voice analysis
+        const sessionData: SessionData = {
+          sessionId: generateId(),
+          date: new Date().toISOString(),
+          preAnalysisSession: preAnalysisSession || undefined,
+          liveSessionQuestions: liveSessionQA,
+          voiceAnalysis: {
+            stressLevel: analysisResult.stressLevel,
+            biomarkers: analysisResult.biomarkers,
+            aiSummary: analysisResult.aiSummary
+          }
+        };
+
+        // Generate counselor report
+        console.log('[Session] Generating counselor report...');
+        const report = await generateCounselorReport(sessionData, history);
+        sessionData.counselorReport = report;
+
+        // Add report to result so it can be shown in UI immediately
+        // Note: Casting report to any if needed to match AnalysisData type, assuming compatibility
+        (analysisResult as any).counselorReport = report;
+
+        // Save complete session data
+        saveSessionData(sessionData, studentId);
+        console.log('[Session] Session data saved with report:', sessionData.sessionId);
+
+        // Clear live session Q&A for next session
+        if (clearLiveSessionQA) {
+          clearLiveSessionQA();
+        }
+      } catch (err) {
+        console.error('[Session] Failed to save session data:', err);
+      }
 
       // Reset session state
       setIsSessionActive(false);

@@ -50,7 +50,12 @@ const App: React.FC = () => {
   const [accountNumber, setAccountNumber] = useState<string>('');
   const [showConfirmation, setShowConfirmation] = useState(false);
 
-  const loadStudentData = useCallback(() => {
+  const loadStudentData = useCallback(async () => {
+    // If online and teacher, pull latest from Firebase first
+    if (navigator.onLine && (appState === 'TEACHER_DASHBOARD' || localStorage.getItem('isTeacherSignedIn'))) {
+      await StorageService.pullGlobalData(['global']);
+    }
+
     // Get all student data using Hybrid Storage
     const studentsData = StorageService.getItem<Student[]>('allStudentsData');
     if (studentsData) {
@@ -58,7 +63,7 @@ const App: React.FC = () => {
     } else {
       setStudents([]);
     }
-  }, []);
+  }, [appState]);
 
   useEffect(() => {
     const userData = StorageService.getItem<any>('userData');
@@ -318,8 +323,8 @@ const App: React.FC = () => {
       };
       studentsData.push(newStudent);
 
-      // Save updated students data
-      StorageService.setItem('allStudentsData', studentsData, pin, 'global');
+      // Save updated students data to SHARED admin path for teacher access
+      StorageService.setItem('allStudentsData', studentsData, 'admin', 'global');
 
       // Update local state
       setStudents(studentsData);
@@ -410,8 +415,8 @@ const App: React.FC = () => {
           studentsData[studentIndex].riskLevel = latestStress > 70 ? 'high' : latestStress > 40 ? 'moderate' : 'low';
         }
 
-        // Save updated students data
-        StorageService.setItem('allStudentsData', studentsData, studentCode, 'global');
+        // Save updated students data to SHARED admin path for teacher access
+        StorageService.setItem('allStudentsData', studentsData, 'admin', 'global');
 
         // Update local state
         setStudents(studentsData);
@@ -442,7 +447,7 @@ const App: React.FC = () => {
         ...students[studentIndex].analysisHistory[latestIndex],
         selfReportScore: score,
       };
-      StorageService.setItem('allStudentsData', students, accountNumber, 'global');
+      StorageService.setItem('allStudentsData', students, 'admin', 'global');
       setStudents(students);
     } catch (error) {
       console.error('Failed to store self-report score', error);

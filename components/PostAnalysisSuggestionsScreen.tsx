@@ -35,7 +35,7 @@ const generateSuggestionsWithGemini = async (
   stressLevel: number,
   biomarkers: Biomarker[],
   aiSummary?: string,
-  questionnaireAnswers?: { [questionIndex: number]: string },
+  questionnaireAnswers?: { [questionId: string]: string | number },
   liveSessionAnswers?: { questionText: string; studentAnswer: string }[]
 ): Promise<{ immediate: string[]; longTerm: string[]; nextSession: number }> => {
   try {
@@ -359,16 +359,19 @@ const PostAnalysisSuggestionsScreen: React.FC<PostAnalysisSuggestionsScreenProps
       try {
         const studentCode = userData.accountNumber;
 
+        // Generate unique IDs for this session's suggestions
+        const timestamp = Date.now();
+
         // Combine immediate and long-term suggestions
         const allSuggestions = [
           ...suggestions.immediate.map((s, idx) => ({
-            id: `immediate-${idx}`,
+            id: `immediate-${timestamp}-${idx}`,
             label: s,
             type: 'immediate' as const,
             completed: false
           })),
           ...suggestions.longTerm.map((s, idx) => ({
-            id: `longterm-${idx}`,
+            id: `longterm-${timestamp}-${idx}`,
             label: s,
             type: 'longterm' as const,
             completed: false

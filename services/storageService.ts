@@ -137,6 +137,46 @@ export const StorageService = {
     },
 
     /**
+     * Pull global shared data (for Teacher Dashboard)
+     */
+    async pullGlobalData(collections: string[] = ['global']) {
+        if (!navigator.onLine) {
+            console.log('[StorageService] pullGlobalData: Offline, skipping');
+            return;
+        }
+
+        // Use a generic teacher/admin ID for global data or a specific root path
+        const globalId = 'admin';
+        console.log(`[StorageService] pullGlobalData: Fetching from users/${globalId}/...`);
+
+        for (const coll of collections) {
+            try {
+                // If it's the global collection, we might store it under a specific user or a root.
+                // Based on App.tsx, allStudentsData is saved with studentCode or 'admin'
+                const q = query(collection(db, "users", globalId, coll));
+                const querySnapshot = await getDocs(q);
+
+                console.log(`[StorageService] pullGlobalData: Found ${querySnapshot.size} documents in ${coll}`);
+
+                querySnapshot.forEach((docSnap) => {
+                    const remoteData = docSnap.data() as any;
+                    const localKey = docSnap.id;
+                    const localData = this.getItem(localKey) as any;
+
+                    console.log(`[StorageService] Document: ${localKey}, Remote updatedAt: ${remoteData._updatedAt}`);
+
+                    if (!localData || (remoteData._updatedAt > (localData._updatedAt || 0))) {
+                        localStorage.setItem(localKey, JSON.stringify(remoteData));
+                        console.log(`[StorageService] Updated local storage for ${localKey} from Firebase`);
+                    }
+                });
+            } catch (e) {
+                console.error(`[StorageService] Error pulling global collection ${coll}:`, e);
+            }
+        }
+    },
+
+    /**
      * Sync from Firebase (Overwrite local if newer)
      */
     async pullFromFirebase(userId: string, collections: string[] = ['state', 'analysis']) {
