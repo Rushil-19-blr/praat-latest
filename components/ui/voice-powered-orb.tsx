@@ -219,19 +219,22 @@ export const VoicePoweredOrb: FC<VoicePoweredOrbProps> = ({
   // Stop microphone and cleanup
   const stopMicrophone = () => {
     try {
-      let didCleanup = false;
-
       // Stop all tracks in the media stream (only if we created it)
       if (mediaStreamRef.current && !externalAudioStream) {
+        // SAFETY: Commented out track stopping to prevent interfering with main recording stream
+        // The parent component should handle stream lifecycle
+        /*
+       mediaStreamRef.current.getTracks().forEach(track => {
+         track.stop();
+       });
+       */
         mediaStreamRef.current = null;
-        didCleanup = true;
       }
 
       // Disconnect and cleanup audio nodes
       if (microphoneRef.current) {
         microphoneRef.current.disconnect();
         microphoneRef.current = null;
-        didCleanup = true;
       }
 
       if (analyserRef.current) {
@@ -243,15 +246,11 @@ export const VoicePoweredOrb: FC<VoicePoweredOrbProps> = ({
       if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
         audioContextRef.current.close();
         audioContextRef.current = null;
-        didCleanup = true;
       }
 
       dataArrayRef.current = null;
       microphoneInitializedRef.current = false;
-
-      if (didCleanup) {
-        console.log('[Orb] Audio cleaned up');
-      }
+      console.log('Microphone stopped and cleaned up');
     } catch (error) {
       console.warn('Error stopping microphone:', error);
     }
@@ -260,13 +259,13 @@ export const VoicePoweredOrb: FC<VoicePoweredOrbProps> = ({
   // Initialize microphone access (use external stream if provided)
   const initMicrophone = async (stream?: MediaStream | null) => {
     try {
+      // Clean up any existing microphone first
+      stopMicrophone();
+
       let audioStream = stream;
 
       // If no external stream provided, request microphone access
       if (!audioStream) {
-        // Clean up existing only when we need to get a new internal stream
-        stopMicrophone();
-
         audioStream = await navigator.mediaDevices.getUserMedia({
           audio: {
             echoCancellation: false,  // Better for voice analysis
@@ -277,25 +276,9 @@ export const VoicePoweredOrb: FC<VoicePoweredOrbProps> = ({
         });
         // Store the stream reference for cleanup (only if we created it)
         mediaStreamRef.current = audioStream;
-      } else {
-        // With external stream: DON'T call stopMicrophone() as that closes AudioContext
-        // which can affect the shared stream. Just disconnect existing nodes if any.
-        if (microphoneRef.current) {
-          try { microphoneRef.current.disconnect(); } catch { }
-          microphoneRef.current = null;
-        }
-        if (analyserRef.current) {
-          try { analyserRef.current.disconnect(); } catch { }
-          analyserRef.current = null;
-        }
-        // Keep the AudioContext if it exists and is still open
-        // This prevents closing it which could affect the shared stream
       }
 
-      // Create AudioContext only if we don't have one or if it's closed
-      if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
-        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-      }
+      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
 
       // Resume audio context if needed
       if (audioContextRef.current.state === 'suspended') {
@@ -521,31 +504,16 @@ export const VoicePoweredOrb: FC<VoicePoweredOrbProps> = ({
   ]);
 
   // Handle microphone state changes separately
-  // IMPORTANT: Avoid reinitializing if we already have a working connection
-  // Reinitializing closes AudioContext which can affect shared stream tracks
-  const prevStreamRef = useRef<MediaStream | null>(null);
-
   useEffect(() => {
     let isMounted = true;
 
     const handleMicrophoneState = async () => {
       if (enableVoiceControl) {
-        // Only reinitialize if the stream actually changed or we don't have a working connection
-        const streamChanged = externalAudioStream !== prevStreamRef.current;
-        const needsInit = !microphoneInitializedRef.current || streamChanged;
-
-        if (needsInit) {
-          prevStreamRef.current = externalAudioStream || null;
-          const success = await initMicrophone(externalAudioStream || null);
-          if (!isMounted) return;
-        }
+        const success = await initMicrophone(externalAudioStream || null);
+        if (!isMounted) return;
+        // Update the microphone state in the WebGL context if needed
       } else {
-        // When disabling voice control, cleanup BUT don't close AudioContext
-        // if using external stream (to preserve the stream for other consumers)
-        if (!externalAudioStream) {
-          stopMicrophone();
-          prevStreamRef.current = null;
-        }
+        stopMicrophone();
       }
     };
 

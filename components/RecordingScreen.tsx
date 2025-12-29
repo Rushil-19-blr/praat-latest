@@ -127,63 +127,45 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
   const analyserRef = useRef<AnalyserNode | null>(null);
   const waveformCanvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Initialize microphone - only runs once on mount
-  useEffect(() => {
-    let isMounted = true;
 
-    const initMicrophone = async () => {
-      // Already have a stream? Skip
-      if (streamRef.current) return;
-
-      try {
-        const mediaStream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            sampleRate: 44100,
-            channelCount: 1,
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true
-          }
-        });
-
-        if (!isMounted) {
-          // Component unmounted while getting permission
-          mediaStream.getTracks().forEach(track => track.stop());
-          return;
+  const getMicrophonePermission = useCallback(async () => {
+    if (stream) return;
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          sampleRate: 44100,
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true // Enable AGC to fix low volume issues
         }
-
-        streamRef.current = mediaStream;
-        setStream(mediaStream);
-        setPermissionError(null);
-        console.log('[RecordingScreen] Microphone initialized successfully');
-      } catch (err) {
-        if (!isMounted) return;
-
-        if (err instanceof Error) {
-          if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-            setPermissionError("Microphone access denied. Please enable it in your browser settings.");
-          } else {
-            setPermissionError("Could not access microphone. Please check your device.");
-          }
+      });
+      setStream(mediaStream);
+      streamRef.current = mediaStream;
+      setPermissionError(null);
+    } catch (err) {
+      if (err instanceof Error) {
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          setPermissionError("Microphone access denied. Please enable it in your browser settings.");
+        } else {
+          setPermissionError("Could not access microphone. Please check your device.");
         }
       }
-    };
+    }
+  }, [stream]);
 
-    initMicrophone();
-
-    // Cleanup ONLY on unmount (empty dependency array)
+  useEffect(() => {
+    getMicrophonePermission();
     return () => {
-      isMounted = false;
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
         streamRef.current = null;
-        console.log('[RecordingScreen] Stream cleaned up on unmount');
       }
       if (timerRef.current) clearTimeout(timerRef.current as any);
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-      stopSpeech();
+      stopSpeech(); // Clean up TTS on unmount
     };
-  }, []); // Empty dependency array - only run once on mount
+  }, [getMicrophonePermission]);
 
 
 
@@ -480,7 +462,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
     }
   };
 
-  const startRecording = async () => {
+  const startRecording = () => {
     if (!stream || recordingState !== 'IDLE') return;
 
     setPermissionError(null);
@@ -500,10 +482,6 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
         setCurrentStatementIndex(0);
       }
     }
-
-    // Use the existing stream directly
-    // MediaRecorder captures from the raw stream, not from AudioContext output
-    console.log('[Recorder] Using original stream for recording');
 
     // Create new MediaRecorder for this clip
     const getSupportedMimeType = () => {
@@ -532,11 +510,6 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
       setPermissionError("Your browser doesn't support the required audio recording format.");
       return;
     }
-
-    // Handle errors
-    mediaRecorderRef.current.onerror = (event: Event) => {
-      console.error('[Recorder] MediaRecorder error:', event);
-    };
 
     mediaRecorderRef.current.ondataavailable = (event) => {
       if (event.data && event.data.size > 0) {

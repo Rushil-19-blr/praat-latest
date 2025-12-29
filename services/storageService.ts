@@ -82,12 +82,6 @@ export const StorageService = {
         }
 
         // 2. Try to sync to Firebase
-        // Skip Firebase sync if userId is empty/undefined (would cause invalid document path)
-        if (!userId || userId.trim() === '') {
-            console.warn(`[StorageService] Skipping Firebase sync for ${key} - userId is empty`);
-            return;
-        }
-
         try {
             if (navigator.onLine) {
                 const docRef = doc(db, "users", userId, collectionName, key);
