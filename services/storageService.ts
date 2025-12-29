@@ -14,39 +14,6 @@ interface SyncItem {
 
 export const StorageService = {
     /**
-     * Check if a user exists in Firebase (for PIN availability)
-     */
-    async checkUserExists(userId: string): Promise<boolean> {
-        if (!navigator.onLine) return false;
-        try {
-            const docRef = doc(db, "users", userId, "state", "userData");
-            const docSnap = await getDoc(docRef);
-            return docSnap.exists();
-        } catch (e) {
-            console.error("Error checking user existence:", e);
-            return false;
-        }
-    },
-
-    /**
-     * Get User Data from Firebase directly (Auth fallback)
-     */
-    async getUserDataFromFirebase(userId: string): Promise<any | null> {
-        if (!navigator.onLine) return null;
-        try {
-            const docRef = doc(db, "users", userId, "state", "userData");
-            const docSnap = await getDoc(docRef);
-            if (docSnap.exists()) {
-                return docSnap.data();
-            }
-            return null;
-        } catch (e) {
-            console.error("Error fetching user data from Firebase:", e);
-            return null;
-        }
-    },
-
-    /**
      * Set item in Hybrid Storage (Local First, Firebase Async)
      */
     async setItem(key: string, data: any, userId: string, collectionName: string = 'state') {

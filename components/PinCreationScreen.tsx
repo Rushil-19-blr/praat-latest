@@ -28,7 +28,7 @@ const PinCreationScreen: React.FC<PinCreationScreenProps> = ({ onSubmit }) => {
 
     // --- PIN LOGIC ---
 
-    const checkPinAvailability = async (code: string) => {
+    const checkPinAvailability = (code: string) => {
         if (code.length !== 4) {
             setPinAvailability('idle');
             return;
@@ -36,16 +36,9 @@ const PinCreationScreen: React.FC<PinCreationScreenProps> = ({ onSubmit }) => {
 
         setPinAvailability('checking');
 
-        try {
-            // 1. Check Firebase (authoritative)
-            const existsInFirebase = await StorageService.checkUserExists(code);
-
-            if (existsInFirebase) {
-                setPinAvailability('taken');
-                return;
-            }
-
-            // 2. Check local storage (for offline or unsynced data)
+        // Simulate network delay for better UX (and to show loading state)
+        setTimeout(() => {
+            // Check storage for existing accounts
             const accounts = StorageService.getItem<any[]>('studentAccounts');
             let isTaken = false;
 
@@ -57,16 +50,11 @@ const PinCreationScreen: React.FC<PinCreationScreenProps> = ({ onSubmit }) => {
                 }
             }
 
-            // Check reserved codes
+            // Also check implied "9999" admin/test code if it exists or other reserved codes
             if (code === '9999') isTaken = true;
 
             setPinAvailability(isTaken ? 'taken' : 'available');
-        } catch (error) {
-            console.error("Error checking PIN availability:", error);
-            // Fallback to allowing it if check fails to avoid blocking users (or could block, depending on security stance)
-            // Safer to block if offline check is strict, but let's assume we proceed with local check
-            setPinAvailability('available');
-        }
+        }, 600);
     };
 
     useEffect(() => {

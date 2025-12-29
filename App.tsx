@@ -108,69 +108,23 @@ const App: React.FC = () => {
     } else {
       // Student authentication - check all student accounts
 
-      // FIREBASE LOGIC
-      try {
-        // 1. Check Firebase first (Source of Truth)
-        const firebaseData = await StorageService.getUserDataFromFirebase(code);
+      // HARDCODED LOGIN CHECK
+      if (code === '9999' && password === 'asdfgh') {
+        // Create a default student session
+        const defaultStudent = {
+          accountNumber: '9999',
+          password: 'asdfgh',
+          enrollment: 'Student', // Default name
+          class: 10,
+          section: 'A'
+        };
 
-        if (firebaseData) {
-          // Verify password
-          let isPasswordValid = false;
-          // Handlewrapped values (legacy or simple)
-          const storedPassword = firebaseData.password || (firebaseData.value && firebaseData.value.password);
-
-          if (storedPassword === password) {
-            isPasswordValid = true;
-          }
-
-          if (isPasswordValid) {
-            // Login successful from Firebase data
-            const userData = firebaseData.value ? firebaseData.value : firebaseData; // Unwrap if needed
-
-            // SYNC BACK TO LOCAL (Persistence)
-            StorageService.setItem('userData', userData, code, 'state');
-            StorageService.setItem('isSignedIn', true, code, 'state');
-
-            // Also ensure it's in the accounts list for local history
-            let accounts = StorageService.getItem<any[]>('studentAccounts') || [];
-            if (!accounts.find((acc: any) => acc.accountNumber === code)) {
-              accounts.push(userData);
-              StorageService.setItem('studentAccounts', accounts, code, 'state');
-            }
-
-            setAccountNumber(code);
-
-            // Sync Onboarding State if missing locally
-            try {
-              // If it's a new device, initialize local onboarding state based on some heuristic or just default
-              // In a real app we'd sync onboarding state from Firebase too.
-              // For now, let's ensure the service knows about this user
-              OnboardingService.initializeForNewUser(code);
-
-              // If they have a baseline, assume they finished onboarding
-              if (userData.voiceBaseline) {
-                OnboardingService.skipOnboarding(code);
-              }
-            } catch (e) { console.warn("Onboarding sync warning", e); }
-
-            // Check for baseline
-            if (userData.voiceBaseline) {
-              const baselineData = typeof userData.voiceBaseline === 'string' ? userData.voiceBaseline : JSON.stringify(userData.voiceBaseline);
-              StorageService.setItem(`voiceBaseline_${code}`, baselineData, code, 'state');
-              setBaselineData(baselineData);
-            }
-
-            setAppState('DASHBOARD');
-            return;
-          } else {
-            throw new Error('Invalid credentials');
-          }
-        }
-      } catch (e) {
-        console.log("Firebase login check failed or user not in firebase, checking local...", e);
+        StorageService.setItem('userData', defaultStudent, '9999');
+        StorageService.setItem('isSignedIn', true, '9999');
+        setAppState('DASHBOARD');
+        return;
       }
 
-      // 2. Fallback to Local Storage (Offline or Legacy)
       let studentAccounts = StorageService.getItem<any[]>('studentAccounts') || [];
 
       // Backward compatibility: Migrate old userData to studentAccounts if it exists

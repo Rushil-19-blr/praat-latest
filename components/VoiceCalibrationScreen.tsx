@@ -505,8 +505,7 @@ const VoiceCalibrationScreen: React.FC<VoiceCalibrationScreenProps> = ({
         isOpen={showSuccessPopup}
         onContinue={() => {
           setShowSuccessPopup(false);
-          const baselineKey = studentId ? `voiceBaseline_${studentId}` : 'voiceBaseline';
-          const baselineJson = StorageService.getItem<string>(baselineKey) || StorageService.getItem<string>('voiceBaseline');
+          const baselineJson = StorageService.getItem<string>('voiceBaseline');
           if (baselineJson) {
             onCalibrationComplete(baselineJson);
           }
