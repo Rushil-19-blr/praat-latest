@@ -230,10 +230,13 @@ def generate_stream_token():
 		userId = data["userId"]
 		userName = data.get("userName", f"User {userId}")
 		
-		# Create or update user in Stream Chat
+		# Create or update user in Stream Chat with proper role
+		# Give teachers (ID 9999) admin role so they can create channels
+		role = "admin" if userId == "9999" else "user"
 		stream_client.update_user({
 			"id": userId,
 			"name": userName,
+			"role": role,
 		})
 		
 		# Generate JWT token
@@ -245,6 +248,48 @@ def generate_stream_token():
 			"userName": userName
 		})
 	except Exception as e:
+		return jsonify({"error": str(e)}), 500
+
+
+@app.route("/stream-chat-channel", methods=["POST"])
+def create_stream_channel():
+	"""Create a Stream Chat channel server-side (with admin permissions)."""
+	try:
+		data = request.get_json()
+		if not data:
+			return jsonify({"error": "Request body required"}), 400
+		
+		teacher_id = data.get("teacherId")
+		student_id = data.get("studentId")
+		
+		if not teacher_id or not student_id:
+			return jsonify({"error": "teacherId and studentId are required"}), 400
+		
+		channel_id = f"teacher-{teacher_id}-student-{student_id}"
+		
+		# Ensure both users exist
+		stream_client.update_user({"id": teacher_id, "name": f"Teacher {teacher_id}", "role": "admin"})
+		stream_client.update_user({"id": student_id, "name": f"Student {student_id}"})
+		
+		# Create channel server-side with admin permissions
+		channel = stream_client.channel("messaging", channel_id, {
+			"members": [teacher_id, student_id],
+			"created_by_id": teacher_id,
+		})
+		channel.create(teacher_id)
+		
+		return jsonify({
+			"channelId": channel_id,
+			"success": True
+		})
+	except Exception as e:
+		# Channel may already exist, which is fine
+		if "already exists" in str(e).lower():
+			return jsonify({
+				"channelId": f"teacher-{data.get('teacherId')}-student-{data.get('studentId')}",
+				"success": True,
+				"existed": True
+			})
 		return jsonify({"error": str(e)}), 500
 
 

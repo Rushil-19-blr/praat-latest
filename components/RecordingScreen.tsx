@@ -396,13 +396,28 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
 
       try {
         const ai = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.API_KEY || '');
-        const model = ai.getGenerativeModel({ model: 'gemini-2.0-flash' });
+
+        // Helper to generate content with fallback
+        const generateWithFallback = async (promptText: string) => {
+          const request = { contents: [{ role: 'user', parts: [{ text: promptText }] }] };
+          try {
+            // Try Gemini 2.5 Flash first (Verified available)
+            const modelFlash = ai.getGenerativeModel({ model: 'gemini-2.5-flash' }, { apiVersion: 'v1beta' });
+            return await modelFlash.generateContent(request);
+          } catch (flashError) {
+            console.warn('[SmartOptions] Gemini 2.5 Flash failed, falling back to 2.0 Flash:', flashError);
+            // Fallback to Gemini 2.0 Flash (Verified available)
+            const modelFallback = ai.getGenerativeModel({ model: 'gemini-2.0-flash' }, { apiVersion: 'v1beta' });
+            return await modelFallback.generateContent(request);
+          }
+        };
+
         const prompt = `Based on this question/statement from a supportive companion for students: "${lastAgentResponse}"
         
         Generate 3 simple, short, natural 1-sentence options (maximum 5 words each) that a student (10-18 years old) might say to reply.
         Return ONLY a JSON array of strings. Do not include markdown code blocks.`;
 
-        const result = await model.generateContent(prompt);
+        const result = await generateWithFallback(prompt);
         const text = result.response.text();
         // console.log('[SmartOptions] Raw API response:', text);
         const cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
@@ -517,21 +532,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
 
   const analyzeAudioWithPraatAndGemini = async (audioBlob: Blob) => {
     const debugStart = performance.now();
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed6884cd-40e9-42e4-b8a6-4c3db4d29793', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sessionId: 'debug-session',
-        runId: 'initial',
-        hypothesisId: 'H1',
-        location: 'RecordingScreen.tsx:analyzeAudioWithPraatAndGemini:start',
-        message: 'Analyze audio start',
-        data: { audioSize: audioBlob.size },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => { });
-    // #endregion
+
     try {
       const wavBlob = await webmBlobToWavMono16k(audioBlob);
       const featuresForAnalysis = await extractFeaturesWithPraat(wavBlob, BACKEND_URL);
@@ -646,7 +647,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
 
       // Get AI summary from Gemini (just for explanation, not for feature extraction)
       const ai = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.API_KEY);
-      const model = ai.getGenerativeModel({ model: 'gemini-2.5-pro' }, { apiVersion: 'v1beta' });
+      const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' }, { apiVersion: 'v1beta' });
 
       const baselineString = baselineData ?
         `The user's personal CALM BASELINE voice biomarkers are: ${JSON.stringify(baselineDataObj, null, 2)}` :
@@ -731,21 +732,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
       };
 
       const debugDuration = performance.now() - debugStart;
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed6884cd-40e9-42e4-b8a6-4c3db4d29793', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId: 'debug-session',
-          runId: 'initial',
-          hypothesisId: 'H1',
-          location: 'RecordingScreen.tsx:analyzeAudioWithPraatAndGemini:success',
-          message: 'Analyze audio complete',
-          data: { durationMs: debugDuration, stressLevel: analysisResult.stressLevel },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => { });
-      // #endregion
+
 
       // Save session data and generate counselor report
       const saveSessionAndReport = async (): Promise<string | undefined> => {
@@ -797,22 +784,9 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
       setRecordingState('COMPLETE');
       onAnalysisComplete(analysisResult);
     } catch (error) {
+      console.error('[RecordingScreen] Analysis Error:', error);
       const debugDuration = performance.now() - debugStart;
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed6884cd-40e9-42e4-b8a6-4c3db4d29793', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId: 'debug-session',
-          runId: 'initial',
-          hypothesisId: 'H1',
-          location: 'RecordingScreen.tsx:analyzeAudioWithPraatAndGemini:error',
-          message: 'Analyze audio error',
-          data: { durationMs: debugDuration, error: error instanceof Error ? error.message : String(error) },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => { });
-      // #endregion
+
       setRecordingState('ERROR');
       if (error instanceof Error) {
         if (error.message.includes('Not enough clear speech') || error.message.includes('did not extract')) {
@@ -959,21 +933,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
     if (clipsToAnalyze.length === 0) return;
 
     const totalClipSize = clipsToAnalyze.reduce((sum, clip) => sum + clip.size, 0);
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed6884cd-40e9-42e4-b8a6-4c3db4d29793', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sessionId: 'debug-session',
-        runId: 'initial',
-        hypothesisId: 'H2',
-        location: 'RecordingScreen.tsx:endSession:start',
-        message: 'End session start',
-        data: { clipCount: clipsToAnalyze.length, totalClipSize },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => { });
-    // #endregion
+
 
     setRecordingState('ANALYZING');
 
@@ -1036,7 +996,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
 
       // Calculate stress level using the stress analysis algorithm
       const { calculateStressLevel } = await import('../utils/stressAnalysis');
-      const baselineDataObj = baselineData ? JSON.parse(baselineData) : null;
+      const baselineDataObj = typeof baselineData === 'string' ? JSON.parse(baselineData) : baselineData;
 
       // Convert to MeasureValues format
       const measureValues = {
@@ -1094,9 +1054,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
 
       biomarkers.stress_level = adjustedScore;
 
-      // Get AI summary from Gemini (just for explanation, not for feature extraction)
       const ai = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.API_KEY);
-      const model = ai.getGenerativeModel({ model: 'gemini-2.5-pro' }, { apiVersion: 'v1beta' });
 
       const baselineString = baselineData ?
         `The user's personal CALM BASELINE voice biomarkers are: ${JSON.stringify(baselineDataObj, null, 2)}` :
@@ -1132,7 +1090,22 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
         "ai_summary": "<2-3 sentence explanation>"
       }`;
 
-      const response = await model.generateContent(prompt);
+      // Helper to generate content with fallback
+      const generateWithFallback = async (promptText: string) => {
+        const request = { contents: [{ role: 'user', parts: [{ text: promptText }] }] };
+        try {
+          // Try Gemini 2.5 Flash first (Verified available)
+          const modelFlash = ai.getGenerativeModel({ model: 'gemini-2.5-flash' }, { apiVersion: 'v1beta' });
+          return await modelFlash.generateContent(request);
+        } catch (flashError) {
+          console.warn('[RecordingScreen] Gemini 2.5 Flash failed, falling back to 2.0 Flash:', flashError);
+          // Fallback to Gemini 2.0 Flash (Verified available)
+          const modelFallback = ai.getGenerativeModel({ model: 'gemini-2.0-flash' }, { apiVersion: 'v1beta' });
+          return await modelFallback.generateContent(request);
+        }
+      };
+
+      const response = await generateWithFallback(prompt);
       const responseText = response.response.text();
 
       // Clean to valid JSON
@@ -1185,21 +1158,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
       };
 
       const debugDuration = performance.now() - debugStart;
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed6884cd-40e9-42e4-b8a6-4c3db4d29793', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId: 'debug-session',
-          runId: 'initial',
-          hypothesisId: 'H2',
-          location: 'RecordingScreen.tsx:endSession:success',
-          message: 'End session complete',
-          data: { durationMs: debugDuration, stressLevel: analysisResult.stressLevel },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => { });
-      // #endregion
+
 
       // Save session data and generate counselor report (Fix for missing data persistence)
       try {
@@ -1248,22 +1207,9 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
       setRecordingState('COMPLETE');
       onAnalysisComplete(analysisResult);
     } catch (error) {
+      console.error('[RecordingScreen] Analysis Error:', error);
       const debugDuration = performance.now() - debugStart;
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed6884cd-40e9-42e4-b8a6-4c3db4d29793', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId: 'debug-session',
-          runId: 'initial',
-          hypothesisId: 'H2',
-          location: 'RecordingScreen.tsx:endSession:error',
-          message: 'End session error',
-          data: { durationMs: debugDuration, error: error instanceof Error ? error.message : String(error) },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => { });
-      // #endregion
+
       setRecordingState('ERROR');
       if (error instanceof Error) {
         if (error.message.includes('Not enough clear speech')) {

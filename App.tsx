@@ -51,8 +51,8 @@ const App: React.FC = () => {
   const [showConfirmation, setShowConfirmation] = useState(false);
 
   const loadStudentData = useCallback(async () => {
-    // If online and teacher, pull latest from Firebase first
-    if (navigator.onLine && (appState === 'TEACHER_DASHBOARD' || localStorage.getItem('isTeacherSignedIn'))) {
+    // Always pull global data when online (contains teacher-assigned tasks for students)
+    if (navigator.onLine) {
       await StorageService.pullGlobalData(['global']);
     }
 

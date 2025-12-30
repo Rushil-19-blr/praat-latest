@@ -38,53 +38,53 @@ const StudentChatModal: React.FC<StudentChatModalProps> = ({
   const initializeStudentChat = async () => {
     try {
       setIsLoading(true);
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+      const teacherId = '9999';
 
       // Connect student user if not already connected
       if (!isConnected) {
         await connectUser(studentId, studentName);
       }
 
-      let channelQueryResponse: any[] = [];
-
-      // First, try to query channels where the student is a member
+      // Step 1: Ensure channel exists server-side with admin permissions
+      // This is critical - students can't create/query channels on their own
       try {
-        const channelFilters = {
-          type: 'messaging',
-          members: { $in: [studentId] }
-        };
-
-        const channelSort = [{ last_message_at: -1 }];
-
-        channelQueryResponse = await client.queryChannels(channelFilters, channelSort, {
-          watch: true,
-          state: true,
+        await fetch(`${backendUrl}/stream-chat-channel`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ teacherId, studentId }),
         });
-      } catch (queryError: any) {
-        console.warn('Channel query failed, trying direct channel access:', queryError);
+        console.log('[StudentChat] Ensured channel exists server-side');
+      } catch (serverError) {
+        console.warn('[StudentChat] Server-side channel creation error:', serverError);
       }
 
-      if (channelQueryResponse.length === 0) {
-        const channelId = `teacher-${teacherId}-student-${studentId}`;
+      // Step 2: Now try to watch the channel (should work since it was created server-side)
+      let channelQueryResponse: any[] = [];
+      const channelId = `teacher-${teacherId}-student-${studentId}`;
+
+      try {
+        const existingChannel = client.channel('messaging', channelId);
+        await existingChannel.watch();
+
+        if (existingChannel.state) {
+          channelQueryResponse = [existingChannel];
+          console.log('[StudentChat] Successfully connected to channel:', channelId);
+        }
+      } catch (watchError: any) {
+        console.warn('[StudentChat] Failed to watch channel:', watchError);
+        // Try querying all channels as fallback
         try {
-          const existingChannel = client.channel('messaging', channelId);
-          await existingChannel.watch();
-          const currentMembers = existingChannel.state?.members || {};
-          const memberIds = Object.keys(currentMembers);
-
-          if (!memberIds.includes(studentId)) {
-            try {
-              await existingChannel.addMembers([studentId]);
-              await existingChannel.watch();
-            } catch (addError) {
-              console.warn('Could not add student to channel:', addError);
-            }
-          }
-
-          if (existingChannel.state) {
-            channelQueryResponse = [existingChannel];
-          }
-        } catch (directError: any) {
-          console.log('Direct channel access failed (channel may not exist yet):', directError);
+          const channelFilters = {
+            type: 'messaging',
+            members: { $in: [studentId] }
+          };
+          channelQueryResponse = await client.queryChannels(channelFilters, [{ last_message_at: -1 }], {
+            watch: true,
+            state: true,
+          });
+        } catch (queryError) {
+          console.warn('[StudentChat] Channel query also failed:', queryError);
         }
       }
 

@@ -145,8 +145,8 @@ export const StorageService = {
             return;
         }
 
-        // Use a generic teacher/admin ID for global data or a specific root path
-        const globalId = 'admin';
+        // Use the teacher ID for global data (must match where plans are saved)
+        const globalId = '9999';
         console.log(`[StorageService] pullGlobalData: Fetching from users/${globalId}/...`);
 
         for (const coll of collections) {

@@ -226,6 +226,9 @@ const StudentReportScreen: React.FC<StudentReportScreenProps> = ({ student, anal
   }, [student, analysisData]);
 
   const formatReportText = (text: string) => {
+    // Safety check to prevent crashes if report text is missing or invalid
+    if (!text || typeof text !== 'string') return [];
+
     // Convert markdown-like formatting to JSX
     const lines = text.split('\n');
     const elements: JSX.Element[] = [];
