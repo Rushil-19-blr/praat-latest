@@ -246,6 +246,40 @@ export const FloatingWellbeingBar: React.FC<FloatingWellbeingBarProps> = ({ clas
         }
     }, [checked, allItems, onTasksCompleted]);
 
+    // Listen for external storage updates (Sync from Firebase)
+    React.useEffect(() => {
+        const handleStorageUpdate = (e: CustomEvent<{ key: string, data: any }>) => {
+            const userData = StorageService.getItem<any>('userData');
+            if (userData) {
+                const code = userData.accountNumber;
+                const completionKey = `suggestions_completed_${code}`;
+                const plansKey = 'awaaz_session_plans';
+
+                // Case: Session Plan updated (new tasks assigned)
+                if (e.detail.key === plansKey) {
+                    console.log('[FloatingWellbeingBar] Received session plan update, reloading tasks...');
+                    loadAllItems();
+                }
+
+                if (e.detail.key === completionKey) {
+                    console.log('[FloatingWellbeingBar] Received storage update for completions, refreshing UI');
+                    const map = e.detail.data as Record<string, boolean>;
+
+                    // Update checked state based on new data
+                    setChecked(prevChecked => {
+                        return allItems.map(item => {
+                            const id = 'suggestionId' in item ? (item.suggestionId as string) : item.id.toString();
+                            return map[id] === true;
+                        });
+                    });
+                }
+            }
+        };
+
+        window.addEventListener('storage_key_updated', handleStorageUpdate as EventListener);
+        return () => window.removeEventListener('storage_key_updated', handleStorageUpdate as EventListener);
+    }, [allItems, loadAllItems]);
+
     const handleToggle = React.useCallback((globalIdx: number) => {
         setChecked(prev => {
             const next = [...prev];

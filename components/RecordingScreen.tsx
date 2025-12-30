@@ -77,9 +77,26 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
   const [isPlayingStatement, setIsPlayingStatement] = useState(false);
 
   // Retrieve active session plan (if any)
-  const activeSessionPlan = React.useMemo(() => {
-    const studentId = getCurrentStudentId();
-    return getSessionPlan(studentId);
+  const [activeSessionPlan, setActiveSessionPlan] = useState<SessionPlan | null>(null);
+
+  useEffect(() => {
+    const loadPlan = () => {
+      const studentId = getCurrentStudentId();
+      const plan = getSessionPlan(studentId);
+      setActiveSessionPlan(plan);
+    };
+
+    loadPlan();
+
+    const handleStorageUpdate = (e: CustomEvent<{ key: string, data: any }>) => {
+      if (e.detail.key === 'awaaz_session_plans') {
+        console.log('[RecordingScreen] Received session plan update, refreshing active plan...');
+        loadPlan();
+      }
+    };
+
+    window.addEventListener('storage_key_updated', handleStorageUpdate as EventListener);
+    return () => window.removeEventListener('storage_key_updated', handleStorageUpdate as EventListener);
   }, []);
 
   // Gemini Live integration - only active in 'ai' mode

@@ -168,6 +168,11 @@ export const StorageService = {
                     if (!localData || (remoteData._updatedAt > (localData._updatedAt || 0))) {
                         localStorage.setItem(localKey, JSON.stringify(remoteData));
                         console.log(`[StorageService] Updated local storage for ${localKey} from Firebase`);
+
+                        // Notify listeners that this key has been updated
+                        window.dispatchEvent(new CustomEvent('storage_key_updated', {
+                            detail: { key: localKey, data: remoteData }
+                        }));
                     }
                 });
             } catch (e) {
@@ -196,6 +201,11 @@ export const StorageService = {
                     if (!localData || (remoteData._updatedAt > (localData._updatedAt || 0))) {
                         localStorage.setItem(localKey, JSON.stringify(remoteData));
                         console.log(`Updated local storage for ${localKey} from Firebase`);
+
+                        // Notify listeners that this key has been updated
+                        window.dispatchEvent(new CustomEvent('storage_key_updated', {
+                            detail: { key: localKey, data: remoteData }
+                        }));
                     }
                 });
             } catch (e) {

@@ -109,12 +109,23 @@ export const GamifiedSolutionLibrary: React.FC<GamifiedSolutionLibraryProps> = (
                 const allCompletedTaskIds = Object.keys(completedMap).filter(id => completedMap[id] === true);
                 const newTaskCount = allCompletedTaskIds.length;
 
+                // Save to gamification data
+                const gamData = getGamificationData(studentCode);
+                const lastShown = gamData.lastTierShown || 0;
+
                 // Check for tier up
                 const tierUp = checkTierUp(previousTasksRef.current, newTaskCount);
                 if (tierUp && newTaskCount > previousTasksRef.current) {
-                    const previousTier = calculateTier(previousTasksRef.current);
-                    setNewTierData({ newTier: tierUp, previousTier });
-                    setShowLevelUp(true);
+                    // Only show if the new tier is higher than what we've already shown
+                    // This prevents re-showing popups on page reload/sync
+                    if (tierUp.level > lastShown) {
+                        const previousTier = calculateTier(previousTasksRef.current);
+                        setNewTierData({ newTier: tierUp, previousTier });
+                        setShowLevelUp(true);
+
+                        // Update persisted last shown tier immediately
+                        gamData.lastTierShown = tierUp.level;
+                    }
                 }
 
                 // Update state
@@ -122,10 +133,15 @@ export const GamifiedSolutionLibrary: React.FC<GamifiedSolutionLibraryProps> = (
                 setCurrentTier(calculateTier(newTaskCount));
                 previousTasksRef.current = newTaskCount;
 
-                // Save to gamification data
-                const gamData = getGamificationData(studentCode);
+                // Update and save gamification data
                 gamData.completedTasks = newTaskCount;
                 gamData.currentTier = calculateTier(newTaskCount).level;
+
+                // Ensure lastTierShown is preserved/updated
+                if (gamData.lastTierShown === null || (tierUp && tierUp.level > (gamData.lastTierShown || 0))) {
+                    if (tierUp) gamData.lastTierShown = tierUp.level;
+                }
+
                 saveGamificationData(studentCode, gamData);
 
                 // Update streak

@@ -187,24 +187,38 @@ const PreRecordingQuestionnaire: React.FC<PreRecordingQuestionnaireProps> = ({
   const userStoppedRef = useRef<boolean>(false);
 
   // Load personalized questions on mount
+  const loadQuestions = React.useCallback(async () => {
+    setIsLoadingQuestions(true);
+    try {
+      const studentId = propStudentId || getCurrentStudentId();
+      const history = getStudentHistory(studentId);
+      const questions = await getQuestionsForSession(studentId, history);
+      setQuestions(questions);
+    } catch (e) {
+      console.error('[Questionnaire] Failed to load questions:', e);
+      setQuestions(getDefaultQuestions());
+    } finally {
+      setLoaderComplete(true);
+      setTimeout(() => { setIsLoadingQuestions(false); setShowLoader(false); }, 1000);
+    }
+  }, [propStudentId]);
+
   useEffect(() => {
-    const loadQuestions = async () => {
-      setIsLoadingQuestions(true);
-      try {
-        const studentId = propStudentId || getCurrentStudentId();
-        const history = getStudentHistory(studentId);
-        const questions = await getQuestionsForSession(studentId, history);
-        setQuestions(questions);
-      } catch (e) {
-        console.error('[Questionnaire] Failed to load questions:', e);
-        setQuestions(getDefaultQuestions());
-      } finally {
-        setLoaderComplete(true);
-        setTimeout(() => { setIsLoadingQuestions(false); setShowLoader(false); }, 1000);
+    loadQuestions();
+  }, [loadQuestions]);
+
+  // Listen for external storage updates (Sync from Firebase)
+  useEffect(() => {
+    const handleStorageUpdate = (e: CustomEvent<{ key: string, data: any }>) => {
+      if (e.detail.key === 'awaaz_session_plans') {
+        console.log('[Questionnaire] Received session plan update, reloading questions...');
+        loadQuestions();
       }
     };
-    loadQuestions();
-  }, [propStudentId]);
+
+    window.addEventListener('storage_key_updated', handleStorageUpdate as EventListener);
+    return () => window.removeEventListener('storage_key_updated', handleStorageUpdate as EventListener);
+  }, [loadQuestions]);
 
   // Keep question index ref in sync
   useEffect(() => {
