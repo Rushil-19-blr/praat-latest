@@ -314,7 +314,7 @@ const App: React.FC = () => {
     if (studentIndex === -1) {
       // Create new student entry with empty analysisHistory
       const newStudent: Student = {
-        code: accountNumber,
+        code: pin,  // Use 'pin' directly, not 'accountNumber' state (which is async)
         name: enrollmentNumber || 'Unknown Student',
         class: selectedClass || 10,
         section: selectedSection || 'A',
@@ -323,8 +323,8 @@ const App: React.FC = () => {
       };
       studentsData.push(newStudent);
 
-      // Save updated students data to SHARED admin path for teacher access
-      StorageService.setItem('allStudentsData', studentsData, 'admin', 'global');
+      // Save updated students data to SHARED teacher path for teacher access
+      StorageService.setItem('allStudentsData', studentsData, '9999', 'global');
 
       // Update local state
       setStudents(studentsData);
@@ -415,8 +415,8 @@ const App: React.FC = () => {
           studentsData[studentIndex].riskLevel = latestStress > 70 ? 'high' : latestStress > 40 ? 'moderate' : 'low';
         }
 
-        // Save updated students data to SHARED admin path for teacher access
-        StorageService.setItem('allStudentsData', studentsData, 'admin', 'global');
+        // Save updated students data to SHARED teacher path for teacher access
+        StorageService.setItem('allStudentsData', studentsData, '9999', 'global');
 
         // Update local state
         setStudents(studentsData);
@@ -447,7 +447,7 @@ const App: React.FC = () => {
         ...students[studentIndex].analysisHistory[latestIndex],
         selfReportScore: score,
       };
-      StorageService.setItem('allStudentsData', students, 'admin', 'global');
+      StorageService.setItem('allStudentsData', students, '9999', 'global');
       setStudents(students);
     } catch (error) {
       console.error('Failed to store self-report score', error);

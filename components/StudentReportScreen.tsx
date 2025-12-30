@@ -76,7 +76,7 @@ const generateAIReportWithGemini = async (student: Student, analysisData: Analys
     if (!apiKey) throw new Error('Gemini API key not found');
 
     const ai = new GoogleGenerativeAI(apiKey);
-    const model = ai.getGenerativeModel({ model: 'gemini-2.5-pro' }, { apiVersion: 'v1beta' });
+    const model = ai.getGenerativeModel({ model: 'gemini-2.5-flash' }, { apiVersion: 'v1beta' });
 
     const questionnaireAnswers = analysisData.questionnaireAnswers || {};
     const stressLevel = analysisData.stressLevel;
