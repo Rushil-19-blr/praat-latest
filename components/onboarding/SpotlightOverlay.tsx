@@ -6,7 +6,8 @@ import { X, ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from 'lucide-react';
 import { OnboardingService } from '../../services/onboardingService';
 
 interface SpotlightOverlayProps {
-    targetId: string; // ID of the element to highlight
+    targetId: string; // ID of the element to highlight and attach tooltip to
+    additionalTargetIds?: string[]; // IDs of other elements to reveal (create holes for)
     title: string;
     message: string;
     onComplete: () => void;
@@ -21,6 +22,7 @@ const MotionDiv = motion.div as any;
 
 export const SpotlightOverlay: React.FC<SpotlightOverlayProps> = ({
     targetId,
+    additionalTargetIds = [],
     title,
     message,
     onComplete,
@@ -31,6 +33,7 @@ export const SpotlightOverlay: React.FC<SpotlightOverlayProps> = ({
     totalSteps = 3
 }) => {
     const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
+    const [additionalRects, setAdditionalRects] = useState<DOMRect[]>([]);
     const [tooltipPosition, setTooltipPosition] = useState<{ top: number, left: number }>({ top: 0, left: 0 });
 
     useEffect(() => {
@@ -47,6 +50,16 @@ export const SpotlightOverlay: React.FC<SpotlightOverlayProps> = ({
                     left: rect.left + (rect.width / 2) - 160 // Center align
                 });
             }
+
+            // Calculate rects for additional targets
+            const extraRects: DOMRect[] = [];
+            additionalTargetIds.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    extraRects.push(el.getBoundingClientRect());
+                }
+            });
+            setAdditionalRects(extraRects);
         };
 
         updatePosition();
@@ -61,7 +74,7 @@ export const SpotlightOverlay: React.FC<SpotlightOverlayProps> = ({
             window.removeEventListener('scroll', updatePosition);
             clearInterval(interval);
         };
-    }, [targetId]);
+    }, [targetId, JSON.stringify(additionalTargetIds)]);
 
     useEffect(() => {
         // Prevent background scrolling when spotlight is active
@@ -90,7 +103,7 @@ export const SpotlightOverlay: React.FC<SpotlightOverlayProps> = ({
     const arrowLeft = Math.max(20, Math.min(300, targetCenter - tooltipLeft));
 
     return (
-        <div className="fixed inset-0 z-[100] overflow-hidden pointer-events-none">
+        <div className="fixed inset-0 z-[9999] overflow-hidden pointer-events-none">
             {/* SVG Backdrop that blocks background interaction except for the hole */}
             <svg
                 className="absolute inset-0 w-full h-full pointer-events-none"
@@ -99,6 +112,7 @@ export const SpotlightOverlay: React.FC<SpotlightOverlayProps> = ({
                 <defs>
                     <mask id="spotlight-mask">
                         <rect x="0" y="0" width="100%" height="100%" fill="white" />
+                        {/* Primary Target Hole */}
                         <rect
                             x={targetRect.left - 8}
                             y={targetRect.top - 8}
@@ -107,6 +121,18 @@ export const SpotlightOverlay: React.FC<SpotlightOverlayProps> = ({
                             rx={isCircular ? (targetRect.width + 16) / 2 : 16}
                             fill="black"
                         />
+                        {/* Additional Target Holes */}
+                        {additionalRects.map((rect, i) => (
+                            <rect
+                                key={i}
+                                x={rect.left - 8}
+                                y={rect.top - 8}
+                                width={rect.width + 16}
+                                height={rect.height + 16}
+                                rx={16}
+                                fill="black"
+                            />
+                        ))}
                     </mask>
                 </defs>
                 {/* This rect is what blocks background clicks.
@@ -122,7 +148,7 @@ export const SpotlightOverlay: React.FC<SpotlightOverlayProps> = ({
                 />
             </svg>
 
-            {/* Target Interaction Hole - This invisible div sits right over the target to allow underlying clicks */}
+            {/* Target Interaction Hole - Primary */}
             <div
                 className="absolute pointer-events-none hover:cursor-pointer"
                 style={{
@@ -132,6 +158,19 @@ export const SpotlightOverlay: React.FC<SpotlightOverlayProps> = ({
                     height: targetRect.height + 16,
                 }}
             />
+            {/* Target Interaction Holes - Additional */}
+            {additionalRects.map((rect, i) => (
+                <div
+                    key={i}
+                    className="absolute pointer-events-none hover:cursor-pointer"
+                    style={{
+                        top: rect.top - 8,
+                        left: rect.left - 8,
+                        width: rect.width + 16,
+                        height: rect.height + 16,
+                    }}
+                />
+            ))}
 
             {/* Soft Radial Glow around Target */}
             <MotionDiv

@@ -93,6 +93,71 @@ const App: React.FC = () => {
     }
   }, [appState, loadStudentData]);
 
+  // --- Browser Back Button Handling ---
+  const isBackNavigation = React.useRef(false);
+  const isSessionPlanDirtyRef = React.useRef(false);
+
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      // Check for unsaved changes in Session Planning
+      // We can't synchronously stop the popstate, but we can detect it and push state back if needed
+      if (appState === 'SESSION_PLANNING' && isSessionPlanDirtyRef.current) {
+        const confirmLeave = window.confirm("You have unsaved changes in your session plan. Are you sure you want to leave?");
+        if (!confirmLeave) {
+          // User wants to stay.
+          // Since popstate already happened (URL changed), we must push the current state back
+          // to "undo" the navigation and stay on the page.
+          window.history.pushState({ appState: 'SESSION_PLANNING' }, '', '#session-planning');
+          return;
+        }
+        // User confirmed leave, proceed with navigation logic below...
+      }
+
+      if (event.state && event.state.appState) {
+        isBackNavigation.current = true;
+        setAppState(event.state.appState);
+      } else {
+        // Fallback: If hitting back takes us to a state without our app state (e.g. empty history entry)
+        // Default to Dashboard if we are logged in, or Signin otherwise.
+        // For simplicity, handle null state as a "reset" to Dashboard if user seems logged in.
+        // But this depends on implementation. Safe fallback:
+        // isBackNavigation.current = true; // prevent loop
+        // setAppState('DASHBOARD'); 
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [appState]); // Depend on appState so the closure sees the current value
+
+  useEffect(() => {
+    // Sync React State -> Browser History
+    if (isBackNavigation.current) {
+      isBackNavigation.current = false;
+      return;
+    }
+
+    // Define "Root" states that should REPLACE history, not PUSH
+    // This prevents "Back" from looping between Dashboard states or going back to Signin when on Dashboard
+    const performReplace = ['SIGNIN', 'DASHBOARD', 'TEACHER_DASHBOARD'].includes(appState);
+
+    // If we are just starting up (and history is empty-ish), replace
+    // But generally:
+    // Dashboard -> Questionnaire (PUSH)
+    // Questionnaire -> Back (POP) -> Dashboard
+
+    // Construct a friendly URL hash or path if desired, or just use state object
+    const urlHash = `#${appState.toLowerCase().replace('_', '-')}`;
+
+    if (performReplace) {
+      window.history.replaceState({ appState }, '', urlHash);
+    } else {
+      window.history.pushState({ appState }, '', urlHash);
+    }
+
+  }, [appState]);
+  // ------------------------------------
+
   // Sign-in handlers
   const handleSignIn = useCallback(async (code: string, password: string, userType: 'student' | 'teacher') => {
     setUserType(userType);
@@ -546,6 +611,11 @@ const App: React.FC = () => {
   }, []);
 
   const handlePlanningBack = useCallback(() => {
+    if (isSessionPlanDirtyRef.current) {
+      if (!window.confirm("You have unsaved changes. Are you sure you want to discard them?")) {
+        return;
+      }
+    }
     setPlanningStudentId(null);
     setAppState('TEACHER_DASHBOARD');
   }, []);
@@ -554,6 +624,12 @@ const App: React.FC = () => {
     setPlanningStudentId(null);
     setAppState('TEACHER_DASHBOARD');
   }, []);
+
+  // Handler for SessionPlanningPage to update dirty state
+  const handleSessionPlanDirtyChange = useCallback((isDirty: boolean) => {
+    isSessionPlanDirtyRef.current = isDirty;
+  }, []);
+
 
   const pageVariants = {
     initial: { opacity: 0, scale: 0.98 },
@@ -728,12 +804,15 @@ const App: React.FC = () => {
               transition={{ duration: 0.3 }}
               className="w-full h-full"
             >
-              <SessionPlanningPage
-                studentId={planningStudentId}
-                studentName={students.find(s => s.code === planningStudentId)?.name}
-                onBack={handlePlanningBack}
-                onSave={handlePlanningSave}
-              />
+              <React.Suspense fallback={<div className="text-white text-center mt-20">Loading...</div>}>
+                <SessionPlanningPage
+                  studentId={planningStudentId}
+                  studentName={students.find(s => s.code === planningStudentId)?.name}
+                  onBack={handlePlanningBack}
+                  onSave={handlePlanningSave}
+                  onDirtyChange={handleSessionPlanDirtyChange}
+                />
+              </React.Suspense>
             </MotionDiv>
           )}
         </AnimatePresence>

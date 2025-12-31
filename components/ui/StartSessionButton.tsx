@@ -135,21 +135,10 @@ export const StartSessionButton: React.FC<StartSessionButtonProps> = ({ onStart,
 
             {/* Functional & Instructional Text */}
             <div className="flex flex-col items-center gap-2 min-h-[60px] select-none">
-                <h2 className="text-xl font-bold text-white tracking-tight drop-shadow-md">
-                    Start Session
+                <h2 className="text-xl font-bold text-white tracking-tight drop-shadow-lg text-center leading-tight">
+                    Voice Recording
+                    <span className="block text-sm font-medium text-purple-200 mt-2 tracking-wide">for Personalised Analysis</span>
                 </h2>
-                <MotionDiv
-                    initial={{ opacity: 0.5 }}
-                    animate={{
-                        opacity: isHolding ? 1 : 0.5,
-                        scale: isHolding ? 1.05 : 1,
-                        color: isHolding ? "#e9d5ff" : "#a3a3a3"
-                    }}
-                    className="flex items-center gap-2 text-sm font-medium uppercase tracking-widest"
-                >
-                    {isHolding && <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />}
-                    {isHolding ? 'HOLDING...' : 'HOLD TO START'}
-                </MotionDiv>
             </div>
         </div>
     );

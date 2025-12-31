@@ -36,6 +36,7 @@ interface SessionPlanningPageProps {
     studentName?: string;
     onBack: () => void;
     onSave: () => void;
+    onDirtyChange?: (isDirty: boolean) => void;
 }
 
 const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
@@ -43,6 +44,7 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
     studentName,
     onBack,
     onSave,
+    onDirtyChange,
 }) => {
     const [plan, setPlan] = useState<SessionPlan | null>(null);
     const [showTypeSelector, setShowTypeSelector] = useState<string | null>(null);
@@ -57,6 +59,11 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
 
     const [hasChanges, setHasChanges] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+
+    // Notify parent whenever hasChanges updates
+    useEffect(() => {
+        onDirtyChange?.(hasChanges);
+    }, [hasChanges, onDirtyChange]);
 
     // Load existing plan or create new one
     useEffect(() => {
