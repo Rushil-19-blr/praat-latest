@@ -294,15 +294,17 @@ export const useGeminiLive = (
                                 }
 
                                 // If we have a pending question and user has responded, store the Q&A
-                                if (lastAIQuestionRef.current && userResponseAccumulatorRef.current.trim()) {
+                                if (userResponseAccumulatorRef.current.trim()) {
                                     const qa: LiveSessionQuestion = {
                                         questionId: generateId(),
-                                        questionText: lastAIQuestionRef.current,
+                                        questionText: lastAIQuestionRef.current || "User Statement", // Capture even if no question was asked
                                         timestamp: new Date().toISOString(),
                                         studentAnswer: userResponseAccumulatorRef.current.trim()
                                     };
                                     setLiveSessionQA(prev => [...prev, qa]);
-                                    console.log('[LiveQA] Captured Q&A:', qa);
+                                    console.log('[LiveQA] Captured Interaction:', qa);
+
+                                    // Reset after capturing
                                     lastAIQuestionRef.current = null;
                                     userResponseAccumulatorRef.current = '';
                                 }
@@ -441,10 +443,29 @@ export const useGeminiLive = (
 
     const disconnect = useCallback(() => {
         console.log('Disconnecting Gemini Live session manually');
+
+        // Clone current state to avoid mutation
+        const finalQA = [...liveSessionQA];
+
+        // Capture any pending user input that hasn't been saved yet (e.g. at end of session)
+        if (userResponseAccumulatorRef.current && userResponseAccumulatorRef.current.trim()) {
+            const qa: LiveSessionQuestion = {
+                questionId: generateId(),
+                questionText: lastAIQuestionRef.current || "Final User Statement",
+                timestamp: new Date().toISOString(),
+                studentAnswer: userResponseAccumulatorRef.current.trim()
+            };
+            setLiveSessionQA(prev => [...prev, qa]);
+            finalQA.push(qa);
+            console.log('[LiveQA] Captured Final Interaction on Disconnect:', qa);
+        }
+
         // Prevent auto-reconnect and tear down resources
         shouldReconnectRef.current = false;
         cleanup();
-    }, [cleanup]);
+
+        return finalQA;
+    }, [cleanup, liveSessionQA]);
 
     const sendText = useCallback((text: string) => {
         if (sessionRef.current && isConnected) {

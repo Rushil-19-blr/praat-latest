@@ -604,6 +604,43 @@ const App: React.FC = () => {
     }
   }, [selectedStudent]);
 
+  const handleSaveReport = useCallback((reportContent: string) => {
+    if (selectedStudent && analysisData) {
+      // 1. Update local analysisData state
+      const updatedAnalysisData = { ...analysisData, counselorReport: reportContent };
+      setAnalysisData(updatedAnalysisData);
+
+      // 2. Update student in global students array
+      try {
+        const studentCode = selectedStudent.code;
+        const studentsData = StorageService.getItem<Student[]>('allStudentsData') || [];
+        const studentIndex = studentsData.findIndex(s => s.code === studentCode);
+
+        if (studentIndex > -1) {
+          // Find the specific analysis to update (matching date)
+          const analysisIndex = studentsData[studentIndex].analysisHistory.findIndex(
+            a => a.date === analysisData.date
+          );
+
+          if (analysisIndex > -1) {
+            studentsData[studentIndex].analysisHistory[analysisIndex].counselorReport = reportContent;
+
+            // 3. Persist to StorageService (triggers Firebase sync)
+            StorageService.setItem('allStudentsData', studentsData, '9999', 'global'); // Admin/Teacher Global ID
+            setStudents(studentsData);
+
+            // 4. Update selectedStudent to reflect the change immediately
+            setSelectedStudent(studentsData[studentIndex]);
+
+            console.log("Report saved and syncing to Firebase...");
+          }
+        }
+      } catch (error) {
+        console.error("Failed to save report:", error);
+      }
+    }
+  }, [selectedStudent, analysisData]);
+
   const handleReportBack = useCallback(() => {
     setAppState('STUDENT_DETAIL');
   }, []);
@@ -795,6 +832,7 @@ const App: React.FC = () => {
                 student={selectedStudent}
                 analysisData={analysisData}
                 onBack={handleReportBack}
+                onSaveReport={handleSaveReport}
               />
             </MotionDiv>
           )}

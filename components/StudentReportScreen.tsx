@@ -10,6 +10,7 @@ interface StudentReportScreenProps {
   student: Student;
   analysisData: AnalysisData;
   onBack: () => void;
+  onSaveReport?: (report: string) => void;
 }
 
 const QUESTIONS = [
@@ -61,8 +62,8 @@ const generateFallbackReport = (student: Student, analysisData: AnalysisData): s
   }
 
   report += `### Recommendations\n\n`;
-  report += `- Continue regular stress assessments\n`;
-  report += `- Practice stress management techniques\n`;
+  report += `- Regular stress check-ins\n`;
+  report += `- Brief breathing exercises\n`;
 
   report += `\n---\n`;
   report += `*This report is generated based on voice stress analysis and questionnaire responses.*`;
@@ -71,17 +72,27 @@ const generateFallbackReport = (student: Student, analysisData: AnalysisData): s
 };
 
 const generateAIReportWithGemini = async (student: Student, analysisData: AnalysisData): Promise<string> => {
+  console.log('generateAIReportWithGemini called for', student.name);
   try {
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.API_KEY;
-    if (!apiKey) throw new Error('Gemini API key not found');
+    if (!apiKey) {
+      console.error('Gemini API key is missing! Checked VITE_GEMINI_API_KEY and API_KEY.');
+      throw new Error('Gemini API key not found');
+    }
 
     const ai = new GoogleGenerativeAI(apiKey);
     const model = ai.getGenerativeModel({ model: 'gemini-2.5-flash' }, { apiVersion: 'v1beta' });
 
+    // ... (rest of the prompt construction) ...
+    // To minimize diff, I wont paste the whole prompt logic unless necessary, 
+    // but I must ensure the rest of the function is preserved if I use replace_file_content with range.
+    // Wait, replace_file_content requires exact match. I should probably just insert logging at the top and catch block.
+    // I will rewrite the whole function wrapper to be safe.
+
     const questionnaireAnswers = analysisData.questionnaireAnswers || {};
     const stressLevel = analysisData.stressLevel;
 
-    // Format Q&A for the prompt (Context only)
+    // Format pre-analysis Q&A
     let qaText = "";
     Object.entries(questionnaireAnswers).forEach(([index, answer]) => {
       const qIdx = parseInt(index);
@@ -90,8 +101,16 @@ const generateAIReportWithGemini = async (student: Student, analysisData: Analys
       }
     });
 
+    // Format Live Session Q&A
+    let liveSessionText = "";
+    if (analysisData.liveSessionAnswers && analysisData.liveSessionAnswers.length > 0) {
+      liveSessionText = analysisData.liveSessionAnswers.map(qa =>
+        `Student said: "${qa.studentAnswer}" (in response to: "${qa.questionText}")`
+      ).join('\n');
+    }
+
     const prompt = `
-      You are an expert school counselor and psychologist writing a formal report for a TEACHER regarding a student named ${student.name}.
+      You are an expert school counselor writing a CONCISE report for a TEACHER regarding student ${student.name}.
       
       STUDENT DETAILS:
       Name: ${student.name}
@@ -100,93 +119,112 @@ const generateAIReportWithGemini = async (student: Student, analysisData: Analys
       ASSESSMENT DATA:
       Voice Stress Level: ${stressLevel.toFixed(1)}% (Scale: 0-100, <34 Low, 34-66 Moderate, >=67 High)
       
-      QUESTIONNAIRE RESPONSES (For your analysis only - do not list them):
+      LIVE SESSION CONVERSATION (What the student actually said):
+      ${liveSessionText || "No live conversation recorded."}
+
+      QUESTIONNAIRE RESPONSES (Context only):
       ${qaText || "No questionnaire responses provided."}
       
-      INSTRUCTIONS:
-      Generate 3 distinct sections of the report. Separate each section with the delimiter "|||".
-      Write in the THIRD PERSON (e.g., "The student reports...", "He/She appears...").
-      The tone should be professional, objective, and supportive, suitable for a teacher or counselor to read.
+      CRITICAL INSTRUCTIONS:
+      1. BE BRIEF. The teacher is busy. 
+      2. Use SHORT bullet points (max 10-15 words per bullet).
+      3. NO flowery language or long paragraphs.
+      4. Focus ONLY on actionable insights.
       
-      SECTION 1: Overall Stress Assessment
-      - Analyze the stress level and what it indicates about the student's current state.
-      - Mention if the voice analysis aligns with their questionnaire responses (if any).
+      Generate 4 short sections separated by "|||":
       
-      SECTION 2: Key Observations & Insights
-      - Synthesize the questionnaire answers into professional insights.
-      - Highlight specific areas of concern (e.g., sleep, anxiety, illness) based on their answers.
-      - Highlight positive indicators or resilience factors.
-      - DO NOT list the questions and answers here. Just analyze them.
+      SECTION 1: Stress Snapshot
+      - 1-2 sentences summarizing their current state.
       
-      SECTION 3: Recommendations for the Teacher
-      - Provide 3-4 specific, actionable strategies the TEACHER can use to support this student in class.
-      - Tailor these to the specific issues identified (e.g., if they can't relax, suggest quiet time; if they are ill, suggest leniency).
+      SECTION 2: Reported Concerns (CRITICAL)
+      - List SPECIFIC problems the student mentioned (e.g., "Failing math", "Fighting with friends").
+      - If no specific problems were mentioned, state "No specific concerns reported."
+      - Use bullet points.
+      
+      SECTION 3: Key Observations
+      - 3 concise bullet points.
+      - Combine voice data + their words.
+      
+      SECTION 4: Teacher Recommendations
+      - 3 specific, actionable steps.
+      - Keep them short and direct.
       
       OUTPUT FORMAT:
-      [Content for Section 1]
+      [Section 1 Content]
       |||
-      [Content for Section 2]
+      [Section 2 Content]
       |||
-      [Content for Section 3]
+      [Section 3 Content]
+      |||
+      [Section 4 Content]
     `;
 
+    console.log('Sending prompt to Gemini...');
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const fullText = response.text();
+    console.log('Gemini response received, length:', fullText.length);
+
     const parts = fullText.split('|||').map(p => p.trim());
 
     // Fallback if split fails
     const assessment = parts[0] || "Assessment not available.";
-    const observations = parts[1] || "Observations not available.";
-    const recommendations = parts[2] || "Recommendations not available.";
+    const reportedConcerns = parts[1] || "No specific concerns reported.";
+    const observations = parts[2] || "Observations not available.";
+    const recommendations = parts[3] || "Recommendations not available.";
 
     // --- MANUAL CONSTRUCTION OF REPORT ---
 
-    let report = `## Student Report: ${student.name}\n\n`;
-    report += `**Account ID:** ${student.code}\n`;
-    report += `**Class:** ${student.class}-${student.section}\n`;
-    report += `**Assessment Date:** ${new Date(analysisData.date).toLocaleDateString('en-US', {
+    let report = `## Student Report: ${student.name} \n\n`;
+    report += `** Account ID:** ${student.code} \n`;
+    report += `** Class:** ${student.class} -${student.section} \n`;
+    report += `** Assessment Date:** ${new Date(analysisData.date).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric'
-    })}\n\n`;
+    })
+      } \n\n`;
 
-    report += `### Overall Stress Assessment\n\n`;
-    report += `${assessment}\n\n`;
+    report += `### Stress Snapshot\n\n`;
+    report += `${assessment} \n\n`;
+
+    report += `### Reported Concerns\n\n`;
+    report += `${reportedConcerns} \n\n`;
 
     // Inject Old Format Q&A List
     if (Object.keys(questionnaireAnswers).length > 0) {
-      report += `### Questionnaire Responses Summary\n\n`;
+      report += `### Questionnaire Summary\n\n`;
       const responses: string[] = [];
       Object.entries(questionnaireAnswers).forEach(([index, answer]) => {
         const questionIndex = parseInt(index);
         if (questionIndex < QUESTIONS.length) {
           const question = QUESTIONS[questionIndex];
-          // EXACT OLD FORMAT: **Qx:** Question\n**Response:** Answer
-          responses.push(`**Q${questionIndex + 1}:** ${question}\n**Response:** ${answer}\n`);
+          // Shorten format: Q: ... A: ...
+          responses.push(`** Q${questionIndex + 1}:** ${question} \n > ${answer} \n`);
         }
       });
       report += responses.join('\n') + '\n\n';
     }
 
     report += `### Key Observations\n\n`;
-    report += `${observations}\n\n`;
+    report += `${observations} \n\n`;
 
-    report += `### Recommendations\n\n`;
-    report += `${recommendations}\n\n`;
+    report += `### Teacher Recommendations\n\n`;
+    report += `${recommendations} \n\n`;
 
-    report += `\n---\n`;
-    report += `*This report is generated based on voice stress analysis and questionnaire responses. It is intended to support educational decision-making and should not replace professional medical or psychological evaluation.*`;
+    report += `\n-- -\n`;
+    report += `* This report is generated based on voice stress analysis and questionnaire responses.It is intended to support educational decision - making and should not replace professional medical or psychological evaluation.* `;
 
     return report;
 
   } catch (error) {
     console.error("Error generating AI report:", error);
-    return generateFallbackReport(student, analysisData);
+    // Rethrow or return null to trigger fallback in the caller
+    throw error;
   }
 };
 
-const StudentReportScreen: React.FC<StudentReportScreenProps> = ({ student, analysisData, onBack }) => {
+const StudentReportScreen: React.FC<StudentReportScreenProps> = ({ student, analysisData, onBack, onSaveReport }) => {
   const [report, setReport] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [showLoader, setShowLoader] = useState(true);
@@ -201,20 +239,27 @@ const StudentReportScreen: React.FC<StudentReportScreenProps> = ({ student, anal
     lastAnalysisDateRef.current = analysisData.date;
 
     const loadReport = async () => {
-      // Use persisted report if available
-      if (analysisData.counselorReport) {
+      console.log('loadReport started', { student: student.name, date: analysisData.date });
+
+      // 1. Trust the persisted report from RecordingScreen if available
+      if (analysisData.counselorReport && typeof analysisData.counselorReport === 'string') {
+        console.log('Using persisted counselorReport');
         setReport(analysisData.counselorReport);
         setLoaderComplete(true);
         setTimeout(() => { setLoading(false); setShowLoader(false); }, 1000);
         return;
       }
 
+      // 2. Only generate IF missing (fallback)
+      console.log('No persisted report found. Generating fallback...');
       setLoading(true);
-      // Show fallback immediately while loading? Or just loader. Let's show loader.
+
       try {
         const aiReport = await generateAIReportWithGemini(student, analysisData);
         setReport(aiReport);
+        // Note: We don't save strictly here anymore to avoid overwriting the "official" report service one.
       } catch (e) {
+        console.error('Fallback generation failed:', e);
         setReport(generateFallbackReport(student, analysisData));
       } finally {
         setLoaderComplete(true);
@@ -223,7 +268,7 @@ const StudentReportScreen: React.FC<StudentReportScreenProps> = ({ student, anal
     };
 
     loadReport();
-  }, [student, analysisData]);
+  }, [student, analysisData, onSaveReport]);
 
   const formatReportText = (text: string) => {
     // Safety check to prevent crashes if report text is missing or invalid
@@ -231,7 +276,7 @@ const StudentReportScreen: React.FC<StudentReportScreenProps> = ({ student, anal
 
     // Convert markdown-like formatting to JSX
     const lines = text.split('\n');
-    const elements: JSX.Element[] = [];
+    const elements: React.ReactNode[] = [];
     let currentParagraph: string[] = [];
     let currentListItems: string[] = [];
     let key = 0;
@@ -310,8 +355,8 @@ const StudentReportScreen: React.FC<StudentReportScreenProps> = ({ student, anal
     return elements;
   };
 
-  const formatInlineText = (text: string): (string | JSX.Element)[] => {
-    const parts: (string | JSX.Element)[] = [];
+  const formatInlineText = (text: string): (string | React.ReactNode)[] => {
+    const parts: (string | React.ReactNode)[] = [];
     let currentIndex = 0;
     let key = 0;
 
@@ -371,9 +416,25 @@ const StudentReportScreen: React.FC<StudentReportScreenProps> = ({ student, anal
                   isComplete={loaderComplete}
                 />
               </div>
-            ) : (
+            ) : report ? (
               <div className="prose prose-invert max-w-none">
                 {formatReportText(report)}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mb-4">
+                  <FileText className="w-8 h-8 text-red-500" />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">Report Unavailable</h3>
+                <p className="text-text-muted mb-6 max-w-xs mx-auto">
+                  Unable to generate the report at this time. Please try again later.
+                </p>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="px-6 py-2 bg-purple-primary rounded-lg text-white font-medium hover:bg-purple-primary/90 transition-colors"
+                >
+                  Retry
+                </button>
               </div>
             )}
           </GlassCard>

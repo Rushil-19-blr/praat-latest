@@ -76,45 +76,26 @@ const generateSuggestionsWithGemini = async (
       studentContext += `\n\n⚠️ CRITICAL INSTRUCTION: The student mentioned SPECIFIC problems above. You MUST include at least 2 suggestions that DIRECTLY address their specific concerns with practical, actionable advice. Do NOT give generic wellness tips if specific issues were mentioned.`;
     }
 
-    const prompt = `You are a wellness expert AND personal mentor providing hyper-personalized stress management suggestions.
-
-STRESS LEVEL: ${stressLevel}/100 (${stressCategory} stress)
-AI ANALYSIS SUMMARY: ${aiSummary || 'No additional summary available'}
-PROBLEMATIC BIOMARKERS: ${biomarkerDetails || 'None detected'}${studentContext}
-
-CRITICAL REQUIREMENTS - YOU MUST FOLLOW THESE EXACTLY:
-1. Generate EXACTLY 6 suggestions TOTAL - NO MORE, NO LESS
-2. Maximum 3 "Immediate Actions" (things they can do right now)
-3. Maximum 3 "Long-term Wellness" (ongoing practices for better stress management)
-4. The sum of immediate + longTerm MUST equal exactly 6
-5. If you provide 3 immediate actions, provide exactly 3 long-term suggestions
-6. If you provide 2 immediate actions, provide exactly 4 long-term suggestions (but this is not preferred - aim for 3+3)
-7. If you provide 1 immediate action, provide exactly 5 long-term suggestions (but this is not preferred - aim for 3+3)
-
-LENGTH REQUIREMENTS - CRITICAL:
-- Each suggestion MUST be SHORT and CONCISE (maximum 8-10 words)
-- Be direct and straight to the point
-- No lengthy explanations or detailed instructions
-- Focus on the core action only
-
-PERSONALIZATION GUIDELINES:
-- High stress (67+): Focus on immediate relief techniques and professional support
-- Moderate stress (34-66): Focus on breathing exercises, physical activity, and routine building
-- Low stress (<34): Focus on maintenance and prevention strategies
-- Personalize based on problematic biomarkers mentioned above
-- Make suggestions actionable, specific, and relevant to the stress level
-
-OUTPUT FORMAT:
-Return ONLY valid JSON with no markdown, no explanations, no additional text. Format:
-{"immediate": ["suggestion1", "suggestion2", "suggestion3"], "longTerm": ["suggestion1", "suggestion2", "suggestion3"]}
-
-Example (for high stress):
-{
-  "immediate": ["Practice box breathing for 2 minutes", "Drink warm herbal tea", "Stretch neck and shoulders"],
-  "longTerm": ["Get 7-9 hours of sleep nightly", "Exercise 3-4 times per week", "Consider therapy or counseling"]
-}
-
-Generate personalized suggestions now - REMEMBER: EXACTLY 6 TOTAL (max 3 immediate, max 3 long-term), KEEP EACH SUGGESTION SHORT (8-10 words max):`;
+    const prompt = `You are a strict personal mentor. Your goal is to solve the user's SPECIFIC problems.
+    
+    CONTEXT ANALYSIS:
+    - Stress Level: ${stressLevel}/100 (${stressCategory})
+    - Biomarkers: ${biomarkerDetails || 'None'}
+    
+    USER'S EXACT WORDS (LIVE CONVERSATION):
+    ${studentContext || "No specific conversation recorded."}
+    
+    CRITICAL INSTRUCTION - READ CAREFULLY:
+    1. **IGNORE GENERIC ADVICE**: If the user mentioned "math", "exams", "parents", "sleep", or "friends", your suggestions MUST be about that.
+    2. **BAN LIST**: Do NOT suggest "drink water", "eat healthy", "take a walk", or "meditate" UNLESS the user explicitly asked about health/fitness.
+    3. **SPECIFICITY**: If they said "I failed math", suggest "Review math errors with teacher". If they said "I can't sleep", suggest "No screens 1hr before bed".
+    4. **STRICT COUNT**: EXACTLY 6 suggestions (3 immediate, 3 long-term).
+    5. **LENGTH**: Keep it brief and actionable. No specific word limit, but avoid long paragraphs. No explanations needed.
+    
+    OUTPUT FORMAT (JSON ONLY):
+    {"immediate": ["action1", "action2", "action3"], "longTerm": ["habit1", "habit2", "habit3"]}
+    
+    Generate personalized (NOT generic) suggestions now:`;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
@@ -237,9 +218,9 @@ const getFallbackSuggestions = (
       "Appreciate your positive state"
     ];
     longTerm = [
-      "Maintain 7-9 hour sleep schedule",
-      "Engage in regular physical activity",
-      "Practice daily gratitude journaling"
+      "Keep a consistent wake-up time", // More specific than "sleep schedule"
+      "Engage in 20 mins of daily cardio",
+      "Start a specific gratitude journal"
     ];
   }
 

@@ -944,7 +944,18 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
   const endSession = async () => {
     const debugStart = performance.now();
     // Disconnect Gemini Live immediately when ending the session
-    try { disconnectGemini(); } catch { }
+    // Capture final Q&A including any pending user input
+    let finalLiveSessionQA = liveSessionQA; // Default to current state
+    try {
+      const disconnectedQA = disconnectGemini();
+      if (disconnectedQA && Array.isArray(disconnectedQA)) {
+        console.log('[RecordingScreen] Received updated Q&A from disconnect:', disconnectedQA.length);
+        finalLiveSessionQA = disconnectedQA;
+      }
+    } catch (e) {
+      console.warn('Error disconnecting gemini:', e);
+    }
+
     // Use ref to get the most up-to-date clips
     const clipsToAnalyze = allClipsRef.current;
     if (clipsToAnalyze.length === 0) return;
@@ -1168,7 +1179,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
         audioUrl: URL.createObjectURL(combinedWavBlob),
         aiSummary: biomarkers.ai_summary,
         date: new Date().toISOString(),
-        liveSessionAnswers: liveSessionQA.map(qa => ({
+        liveSessionAnswers: finalLiveSessionQA.map(qa => ({
           questionText: qa.questionText,
           studentAnswer: qa.studentAnswer
         })),
@@ -1187,7 +1198,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
           sessionId: generateId(),
           date: new Date().toISOString(),
           preAnalysisSession: preAnalysisSession || undefined,
-          liveSessionQuestions: liveSessionQA,
+          liveSessionQuestions: finalLiveSessionQA,
           voiceAnalysis: {
             stressLevel: analysisResult.stressLevel,
             biomarkers: analysisResult.biomarkers,
