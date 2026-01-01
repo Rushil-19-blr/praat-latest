@@ -64,6 +64,8 @@ export const OnboardingService = {
         } else if (step === 'firstSession') {
             state.stage = 'chat_prompt';
         } else if (step === 'firstChat') {
+            state.stage = 'wellness_prompt';
+        } else if (step === 'firstWellness') {
             state.stage = 'calibration_prompt';
         } else if (step === 'calibration') {
             state.stage = 'completed';

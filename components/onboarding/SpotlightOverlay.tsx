@@ -148,27 +148,29 @@ export const SpotlightOverlay: React.FC<SpotlightOverlayProps> = ({
                 />
             </svg>
 
-            {/* Target Interaction Hole - Primary */}
+            {/* Target Interaction Hole - Primary (now clickable to advance) */}
             <div
-                className="absolute pointer-events-none hover:cursor-pointer"
+                className="absolute pointer-events-auto cursor-pointer"
                 style={{
                     top: targetRect.top - 8,
                     left: targetRect.left - 8,
                     width: targetRect.width + 16,
                     height: targetRect.height + 16,
                 }}
+                onClick={onComplete}
             />
             {/* Target Interaction Holes - Additional */}
             {additionalRects.map((rect, i) => (
                 <div
                     key={i}
-                    className="absolute pointer-events-none hover:cursor-pointer"
+                    className="absolute pointer-events-auto cursor-pointer"
                     style={{
                         top: rect.top - 8,
                         left: rect.left - 8,
                         width: rect.width + 16,
                         height: rect.height + 16,
                     }}
+                    onClick={onComplete}
                 />
             ))}
 
@@ -248,7 +250,7 @@ export const SpotlightOverlay: React.FC<SpotlightOverlayProps> = ({
                         <p className="text-slate-400 text-sm leading-relaxed mb-4 font-medium text-center">
                             {message}
                         </p>
-                        <div className="text-[9px] text-slate-600 font-black uppercase tracking-[0.2em] text-center border-t border-white/5 pt-3">
+                        <div className="text-xs text-slate-400 font-semibold uppercase tracking-widest text-center border-t border-white/10 pt-3">
                             Tap anywhere to continue
                         </div>
                     </MotionDiv>

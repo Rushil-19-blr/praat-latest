@@ -295,7 +295,7 @@ const VoiceCalibrationScreen: React.FC<VoiceCalibrationScreenProps> = ({
   };
 
   const statusColor = {
-    IDLE: "text-text-muted",
+    IDLE: "text-white/70",
     RECORDING: "text-purple-light",
     ANALYZING: "text-orange-light",
     COMPLETE: "text-success-green",
@@ -361,7 +361,7 @@ const VoiceCalibrationScreen: React.FC<VoiceCalibrationScreenProps> = ({
               </p>
             </div>
           )}
-          <p className={`text-sm mt-1 transition-colors duration-300 ${statusColor[recordingState]}`}>
+          <p className={`text-sm mt-1 font-medium transition-colors duration-300 ${statusColor[recordingState]}`}>
             {statusText[recordingState]}
           </p>
           {recordingState === 'RECORDING' && (

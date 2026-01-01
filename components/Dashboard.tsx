@@ -708,7 +708,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                         onSkip={() => { }}
                         studentCode={userData?.accountNumber || ''}
                         step={1}
-                        totalSteps={3}
+                        totalSteps={4}
                     />
                 )}
 
@@ -727,11 +727,30 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                         onSkip={() => { }}
                         studentCode={userData?.accountNumber || ''}
                         step={2}
-                        totalSteps={3}
+                        totalSteps={4}
                     />
                 )}
 
-                {/* Stage 4: Calibration Prompt */}
+                {/* Stage 4: Daily Wellness Tasks Prompt */}
+                {onboardingState.stage === 'wellness_prompt' && (
+                    <SpotlightOverlay
+                        key="spotlight-wellness"
+                        targetId="daily-wellness-section"
+                        title="Daily Wellness Tasks"
+                        message="Complete simple daily tasks suggested by your teacher or AI to maintain your wellbeing."
+                        onComplete={() => {
+                            if (userData?.accountNumber) {
+                                OnboardingService.completeStep(userData.accountNumber, 'firstWellness');
+                            }
+                        }}
+                        onSkip={() => { }}
+                        studentCode={userData?.accountNumber || ''}
+                        step={3}
+                        totalSteps={4}
+                    />
+                )}
+
+                {/* Stage 5: Calibration Prompt */}
                 {onboardingState.stage === 'calibration_prompt' && (
                     <SpotlightOverlay
                         key="spotlight-calibration"
@@ -749,8 +768,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                         }}
                         onSkip={() => { }}
                         studentCode={userData?.accountNumber || ''}
-                        step={3}
-                        totalSteps={3}
+                        step={4}
+                        totalSteps={4}
                     />
                 )}
             </AnimatePresence>

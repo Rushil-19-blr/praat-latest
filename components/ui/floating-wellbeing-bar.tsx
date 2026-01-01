@@ -293,7 +293,7 @@ export const FloatingWellbeingBar: React.FC<FloatingWellbeingBarProps> = ({ clas
     const totalCount = allItems.length;
 
     return (
-        <div className={`w-full max-w-md mx-auto relative ${className}`}>
+        <div id="daily-wellness-section" className={`w-full max-w-md mx-auto relative ${className}`}>
             <RippleFilter />
 
             {/* Header Section */}

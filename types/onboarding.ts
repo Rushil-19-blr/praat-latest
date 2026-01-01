@@ -1,4 +1,4 @@
-export type OnboardingStage = 'welcome' | 'calibration_prompt' | 'session_prompt' | 'chat_prompt' | 'completed';
+export type OnboardingStage = 'welcome' | 'calibration_prompt' | 'session_prompt' | 'chat_prompt' | 'wellness_prompt' | 'completed';
 
 export interface OnboardingState {
     stage: OnboardingStage;
@@ -7,6 +7,7 @@ export interface OnboardingState {
         calibration: boolean;
         firstSession: boolean;
         firstChat: boolean;
+        firstWellness: boolean;
     };
     hasSeenWelcome: boolean;
     isSkipped: boolean;
@@ -19,7 +20,8 @@ export const INITIAL_ONBOARDING_STATE: OnboardingState = {
         welcome: false,
         calibration: false,
         firstSession: false,
-        firstChat: false
+        firstChat: false,
+        firstWellness: false
     },
     hasSeenWelcome: false,
     isSkipped: false,
