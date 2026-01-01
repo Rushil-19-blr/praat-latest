@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { FloatingWellbeingBar } from './ui/floating-wellbeing-bar';
+import { StorageService } from '../services/storageService';
 import { GamifiedSolutionLibrary } from './ui/gamified-solution-library';
 import AnimatedLogo from './ui/AnimatedLogo';
 import StudentChatModal from './StudentChatModal';
 import { MessageCircle, X } from './Icons';
-import { SyncStatusIndicator } from './ui/SyncStatusIndicator';
+
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { StartSessionButton } from './ui/StartSessionButton';
@@ -144,7 +145,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
         };
 
         window.addEventListener('suggestionsUpdated', handleSuggestionsUpdate);
-        return () => window.removeEventListener('suggestionsUpdated', handleSuggestionsUpdate);
+
+        // Subscribe to real-time session plan updates
+        StorageService.subscribeToSessionPlans();
+
+        return () => {
+            window.removeEventListener('suggestionsUpdated', handleSuggestionsUpdate);
+            StorageService.unsubscribeFromSessionPlans();
+        };
     }, []);
 
     const startSession = useCallback(() => {
@@ -553,7 +561,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                     <AnimatedLogo size={isMobile ? 60 : 100} />
                 </div>
                 <div className="flex gap-4 items-center">
-                    <SyncStatusIndicator />
+                    {/* SyncStatusIndicator removed as per user request */}
                     {onboardingState.stage !== 'session_prompt' && onboardingState.stage !== 'calibration_prompt' && (
                         <>
                             <button
@@ -688,6 +696,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                 {/* Stage 2: Session Prompt */}
                 {onboardingState.stage === 'session_prompt' && (
                     <SpotlightOverlay
+                        key="spotlight-session"
                         targetId="start-session-btn"
                         title="Start Your Journey"
                         message="Click here to begin your first wellness session with our AI."
@@ -706,6 +715,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                 {/* Stage 3: Chat Prompt */}
                 {onboardingState.stage === 'chat_prompt' && (
                     <SpotlightOverlay
+                        key="spotlight-chat"
                         targetId="chat-btn"
                         title="Connect with Counselors"
                         message="Need to talk to someone? Connect with our dedicated school counselors for support anytime."
@@ -724,6 +734,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                 {/* Stage 4: Calibration Prompt */}
                 {onboardingState.stage === 'calibration_prompt' && (
                     <SpotlightOverlay
+                        key="spotlight-calibration"
                         targetId="calibration-btn"
                         additionalTargetIds={['account-modal-content', 'accounts-trigger-btn']}
                         title="Calibrate Your Voice"

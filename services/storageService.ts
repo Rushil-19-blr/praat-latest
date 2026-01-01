@@ -1,4 +1,4 @@
-import { doc, setDoc, getDoc, updateDoc, collection, query, where, getDocs, Timestamp } from "firebase/firestore";
+import { doc, setDoc, getDoc, updateDoc, collection, query, where, getDocs, Timestamp, onSnapshot, Unsubscribe } from "firebase/firestore";
 import { db } from "../lib/firebase";
 
 const SYNC_QUEUE_KEY = 'awaaz_sync_queue';
@@ -286,6 +286,48 @@ export const StorageService = {
         localStorage.removeItem(key);
         // Optionally: sync deletion to Firebase if needed. 
         // For now, we mainly use this for local session cleanup.
+    },
+
+    /**
+     * Subscribe to real-time updates for Session Plans
+     */
+    _sessionPlanUnsubscribe: null as Unsubscribe | null,
+
+    subscribeToSessionPlans() {
+        if (!navigator.onLine) return;
+
+        // Prevent multiple subscriptions
+        if (this._sessionPlanUnsubscribe) return;
+
+        console.log('[StorageService] Subscribing to session plans...');
+        const plansRef = doc(db, "users", "9999", "global", "awaaz_session_plans");
+
+        this._sessionPlanUnsubscribe = onSnapshot(plansRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const remoteData = docSnap.data();
+                const key = 'awaaz_session_plans';
+
+                console.log('[StorageService] Received real-time update for session plans');
+
+                // Update local storage
+                localStorage.setItem(key, JSON.stringify(remoteData));
+
+                // Notify listeners
+                window.dispatchEvent(new CustomEvent('storage_key_updated', {
+                    detail: { key, data: remoteData }
+                }));
+            }
+        }, (error) => {
+            console.error('[StorageService] Session plan subscription error:', error);
+        });
+    },
+
+    unsubscribeFromSessionPlans() {
+        if (this._sessionPlanUnsubscribe) {
+            console.log('[StorageService] Unsubscribing from session plans');
+            this._sessionPlanUnsubscribe();
+            this._sessionPlanUnsubscribe = null;
+        }
     }
 };
 

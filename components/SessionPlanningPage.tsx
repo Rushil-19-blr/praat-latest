@@ -50,10 +50,10 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
     const [showTypeSelector, setShowTypeSelector] = useState<string | null>(null);
     const [showCategorySelector, setShowCategorySelector] = useState<string | null>(null);
     const [showTemplateSelector, setShowTemplateSelector] = useState(false);
+    const [showAIGenerator, setShowAIGenerator] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
 
     // AI Generation State
-    const [templateTab, setTemplateTab] = useState<'templates' | 'ai'>('templates');
     const [aiTopic, setAiTopic] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
 
@@ -271,10 +271,10 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
             </div>
 
             {/* Header */}
-            <div className="sticky top-0 z-20 backdrop-blur-md bg-transparent border-b border-white/5">
+            <div className="sticky top-0 z-[40] backdrop-blur-xl bg-black/60 border-b border-white/10">
                 <div className="max-w-3xl mx-auto px-4 py-4">
-                    <div className="flex items-center justify-between gap-4">
-                        <div className="flex items-center gap-4">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="flex items-center gap-4 w-full md:w-auto">
                             <button
                                 onClick={onBack}
                                 className="p-3 min-w-[44px] min-h-[44px] rounded-lg hover:bg-surface active:bg-surface/80 active:scale-95 transition-all text-text-secondary hover:text-text-primary"
@@ -282,18 +282,18 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
                             >
                                 <ArrowLeft className="w-5 h-5" />
                             </button>
-                            <div>
+                            <div className="flex-1 md:flex-none">
                                 <h1 className="text-xl font-semibold">Plan Session</h1>
-                                <div className="text-sm flex items-center gap-2">
+                                <div className="text-sm flex flex-wrap items-center gap-2">
                                     <span className="text-text-muted">for</span>
-                                    <span className="text-white font-medium">{studentName || 'Student'}</span>
+                                    <span className="text-white font-medium truncate max-w-[150px]">{studentName || 'Student'}</span>
                                     <span className="text-xs px-2 py-0.5 rounded-md bg-white/5 text-text-muted font-mono">{studentId}</span>
                                 </div>
                             </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 justify-end w-full md:w-auto pl-[60px] md:pl-0">
                             {hasChanges && (
-                                <span className="text-xs text-orange-400">Unsaved changes</span>
+                                <span className="text-xs text-orange-400 whitespace-nowrap">Unsaved changes</span>
                             )}
                             <button
                                 onClick={handleSave}
@@ -329,7 +329,7 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
 
                                 {/* Settings Dropdown */}
                                 {showSettings && (
-                                    <div className="absolute top-full right-0 mt-2 w-72 bg-black/60 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] z-[100] overflow-hidden ring-1 ring-white/5">
+                                    <div className="absolute top-full right-0 mt-2 w-72 bg-neutral-900/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.8)] z-[100] overflow-hidden ring-1 ring-white/10">
                                         <div className="p-1">
                                             <div className="px-4 py-3 border-b border-white/5">
                                                 <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider">Plan Settings</h3>
@@ -382,7 +382,7 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
 
                     {/* Main Section: Custom Questions */}
                     <GlassCard
-                        className={`p-6 transition-all duration-200 ${(showTypeSelector || showCategorySelector) ? 'relative z-20' : 'relative z-10'} bg-black/40 backdrop-blur-xl border-white/10 shadow-xl`}
+                        className={`p-4 md:p-6 transition-all duration-200 ${(showTypeSelector || showCategorySelector) ? 'relative z-20' : 'relative z-10'} bg-black/40 backdrop-blur-xl border-white/10 shadow-xl`}
                         variant="base"
                     >
                         <div className="flex items-center gap-4 mb-6 pb-6 border-b border-white/5">
@@ -532,43 +532,27 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
                         </div>
 
                         {/* Add Buttons */}
-                        <div className="mt-4 flex gap-3">
+                        <div className="mt-4 space-y-3">
                             <button
                                 onClick={handleAddQuestion}
-                                className="flex-1 py-3 min-h-[44px] border-2 border-dashed border-purple-primary/30 rounded-xl text-purple-primary hover:bg-purple-primary/10 active:bg-purple-primary/20 active:scale-[0.98] transition-all flex items-center justify-center gap-3 px-4"
+                                className="w-full py-3 min-h-[44px] border-2 border-dashed border-purple-primary/30 rounded-xl text-purple-primary hover:bg-purple-primary/10 active:bg-purple-primary/20 active:scale-[0.98] transition-all flex items-center justify-center gap-3 px-4"
                             >
                                 <Plus className="w-5 h-5 flex-shrink-0" />
                                 <span className="font-medium">Add Custom Question</span>
                             </button>
 
-                            <div className="relative">
-                                <button
-                                    onClick={() => setShowTemplateSelector(!showTemplateSelector)}
-                                    className="h-full min-h-[44px] px-6 border-2 border-dashed border-blue-400/30 rounded-xl text-blue-400 hover:bg-blue-400/10 active:bg-blue-400/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-                                >
-                                    <MessageSquare className="w-5 h-5" />
-                                    Use Template
-                                </button>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div className="relative">
+                                    <button
+                                        onClick={() => { setShowTemplateSelector(!showTemplateSelector); setShowAIGenerator(false); }}
+                                        className="w-full h-full min-h-[44px] px-6 border-2 border-dashed border-blue-400/30 rounded-xl text-blue-400 hover:bg-blue-400/10 active:bg-blue-400/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <MessageSquare className="w-5 h-5" />
+                                        Use Template
+                                    </button>
 
-                                {showTemplateSelector && (
-                                    <div className="absolute top-full right-0 mt-2 w-80 bg-background-secondary border border-white/10 rounded-xl shadow-xl z-50 overflow-hidden ring-1 ring-white/10">
-                                        <div className="flex border-b border-white/10">
-                                            <button
-                                                onClick={() => setTemplateTab('templates')}
-                                                className={`flex-1 p-3 text-sm font-medium transition-colors ${templateTab === 'templates' ? 'bg-white/10 text-white' : 'text-text-muted hover:text-white hover:bg-white/5'}`}
-                                            >
-                                                Templates
-                                            </button>
-                                            <button
-                                                onClick={() => setTemplateTab('ai')}
-                                                className={`flex-1 p-3 text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${templateTab === 'ai' ? 'bg-purple-primary/20 text-purple-300' : 'text-text-muted hover:text-white hover:bg-white/5'}`}
-                                            >
-                                                <div className="w-3 h-3 rounded-full bg-purple-primary/50 animate-pulse" />
-                                                AI Generate
-                                            </button>
-                                        </div>
-
-                                        {templateTab === 'templates' ? (
+                                    {showTemplateSelector && (
+                                        <div className="absolute top-full right-0 mt-2 w-full md:w-80 bg-neutral-900/95 backdrop-blur-2xl border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden ring-1 ring-white/10">
                                             <div className="max-h-64 overflow-y-auto custom-scrollbar">
                                                 <div className="p-3">
                                                     <h4 className="text-xs font-medium text-text-muted uppercase tracking-wider mb-2">Select a Template</h4>
@@ -586,7 +570,22 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
                                                     </div>
                                                 </div>
                                             </div>
-                                        ) : (
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* AI Generate Button */}
+                                <div className="relative">
+                                    <button
+                                        onClick={() => { setShowAIGenerator(!showAIGenerator); setShowTemplateSelector(false); }}
+                                        className="w-full h-full min-h-[44px] px-6 border-2 border-dashed border-purple-primary/30 rounded-xl text-purple-300 hover:bg-purple-primary/10 active:bg-purple-primary/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <div className="w-3 h-3 rounded-full bg-purple-primary/50 animate-pulse" />
+                                        AI Generate
+                                    </button>
+
+                                    {showAIGenerator && (
+                                        <div className="absolute top-full right-0 mt-2 w-full md:w-80 bg-neutral-900/95 backdrop-blur-2xl border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden ring-1 ring-white/10">
                                             <div className="p-4 space-y-4">
                                                 <div>
                                                     <label className="block text-xs text-text-muted uppercase tracking-wider mb-2">
@@ -623,9 +622,9 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
                                                     )}
                                                 </button>
                                             </div>
-                                        )}
-                                    </div>
-                                )}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
@@ -648,7 +647,7 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
 
                     {/* New Section: Daily Wellness Tasks */}
                     <GlassCard
-                        className="p-6 bg-black/40 backdrop-blur-xl border-white/10 shadow-xl"
+                        className="p-4 md:p-6 bg-black/40 backdrop-blur-xl border-white/10 shadow-xl"
                         variant="base"
                     >
                         <div className="flex items-center gap-4 mb-6 pb-6 border-b border-white/5">
@@ -716,16 +715,18 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
                         </div>
                     </GlassCard>
 
-                    {/* Bottom Row: Focus (Full Width now) */}
                     <div className="w-full">
                         {/* Focus Topic Section */}
-                        <GlassCard className="p-5 flex flex-col justify-between bg-black/40 backdrop-blur-md border-white/10" variant="base">
-                            <div className="flex items-center gap-3 mb-6">
-                                <div className="w-10 h-10 rounded-full bg-orange-primary/20 flex items-center justify-center">
-                                    <Target className="w-5 h-5 text-orange-primary" />
+                        <GlassCard className="p-4 md:p-5 flex flex-col justify-between bg-black/40 backdrop-blur-md border-white/10" variant="base">
+                            <div className="flex flex-col md:flex-row md:items-center gap-3 mb-6">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-orange-primary/20 flex items-center justify-center flex-shrink-0">
+                                        <Target className="w-5 h-5 text-orange-primary" />
+                                    </div>
+                                    <h2 className="text-lg font-semibold text-white md:hidden">Session Focus Topic</h2>
                                 </div>
-                                <div>
-                                    <h2 className="text-lg font-semibold text-white">Session Focus Topic</h2>
+                                <div className="flex-1">
+                                    <h2 className="text-lg font-semibold text-white hidden md:block">Session Focus Topic</h2>
                                     <p className="text-sm text-text-muted">
                                         Guide the AI to explore a specific topic during the conversation
                                     </p>
@@ -757,12 +758,12 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
                                         <label className="block text-sm text-text-secondary">
                                             How strongly should the AI focus on this topic?
                                         </label>
-                                        <div className="flex gap-2">
+                                        <div className="flex flex-col md:flex-row gap-2">
                                             {(['gentle', 'moderate', 'focused'] as FocusIntensity[]).map((intensity) => (
                                                 <button
                                                     key={intensity}
                                                     onClick={() => handleFocusIntensityChange(intensity)}
-                                                    className={`flex-1 py-3 px-4 rounded-xl text-sm font-medium transition-all ${plan.focusIntensity === intensity
+                                                    className={`w-full md:flex-1 py-3 px-4 rounded-xl text-sm font-medium transition-all text-left md:text-center ${plan.focusIntensity === intensity
                                                         ? 'bg-orange-primary text-white shadow-lg shadow-orange-primary/30'
                                                         : 'bg-surface/50 text-text-secondary hover:bg-surface hover:text-white border border-white/10'
                                                         }`}
@@ -781,12 +782,12 @@ const SessionPlanningPage: React.FC<SessionPlanningPageProps> = ({
 
                                 {/* Example Topics */}
                                 <div className="flex flex-wrap gap-2 mt-2">
-                                    <span className="text-xs text-text-muted">Suggestions:</span>
+                                    <span className="text-xs text-text-muted w-full md:w-auto mb-1 md:mb-0">Suggestions:</span>
                                     {['academic pressure', 'friendships', 'sleep problems', 'family dynamics', 'self-esteem'].map((topic) => (
                                         <button
                                             key={topic}
                                             onClick={() => handleFocusTopicChange(topic)}
-                                            className="px-2 py-1 text-xs bg-surface/30 text-text-secondary rounded-md hover:bg-surface hover:text-white transition-colors"
+                                            className="px-3 py-1.5 text-xs bg-surface/30 text-text-secondary rounded-lg hover:bg-surface hover:text-white transition-colors border border-white/5 active:scale-95"
                                         >
                                             {topic}
                                         </button>

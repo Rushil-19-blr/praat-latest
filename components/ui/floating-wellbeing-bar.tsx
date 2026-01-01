@@ -310,10 +310,10 @@ export const FloatingWellbeingBar: React.FC<FloatingWellbeingBarProps> = ({ clas
             {/* Tasks Container */}
             <div className="relative overflow-hidden pl-1 pr-1 pb-1">
                 <MotionDiv
-                    className="flex flex-col gap-3 min-h-[220px]"
+                    className="flex flex-col gap-3 min-h-[220px] touch-pan-y"
                     drag="x"
                     dragConstraints={{ left: 0, right: 0 }}
-                    dragElastic={0.2}
+                    dragElastic={0.05}
                     onDragEnd={(e, { offset, velocity }) => {
                         const swipeThreshold = 50;
                         if (offset.x > swipeThreshold) {
@@ -417,7 +417,7 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({ item, isChecked, isExpan
 
     return (
         <MotionDiv
-            layout
+            /* layout prop removed to prevent jitter on mobile */
             className={`
                 relative overflow-hidden rounded-2xl backdrop-blur-2xl border transition-all duration-300
                 ${isChecked ? 'accent-bg-subtle accent-border-subtle' : 'bg-blue-950/[0.02] border-white/5 hover:bg-blue-900/10'}
