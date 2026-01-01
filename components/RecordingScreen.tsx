@@ -141,8 +141,6 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
   const MotionDiv = motion.div as any;
   const MotionButton = motion.button as any;
   const MotionCanvas = motion.canvas as any;
-  const recordingStateRef = useRef<RecordingState>(recordingState);
-  const allClipsRef = useRef<Blob[]>([]); // Keep ref to always have latest clips
   const streamRef = useRef<MediaStream | null>(null);
 
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -1520,12 +1518,12 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
 
       <AnimatePresence>
         {showHelp && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowHelp(false)} className="fixed inset-0 bg-black/60 backdrop-blur-md z-40 flex items-center justify-center p-4" >
-            <motion.div
+          <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowHelp(false)} className="fixed inset-0 bg-black/60 backdrop-blur-md z-40 flex items-center justify-center p-4" >
+            <MotionDiv
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e: any) => e.stopPropagation()}
               className="w-full max-w-sm"
             >
               <GlassCard className="p-6 relative overflow-hidden" variant="purple">
@@ -1569,8 +1567,8 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
                   </button>
                 </div>
               </GlassCard>
-            </motion.div>
-          </motion.div>
+            </MotionDiv>
+          </MotionDiv>
         )}
       </AnimatePresence>
 
