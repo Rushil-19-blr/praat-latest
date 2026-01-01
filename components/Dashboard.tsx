@@ -521,7 +521,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                     border-radius: 16px;
                     padding: 16px 20px;
                     width: 100%;
-                    text-align: left;
+                    text-align: center;
                     color: #fbbf24;
                     font-size: 15px;
                     font-weight: 600;
@@ -530,6 +530,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartVoiceSession, onStartCalib
                     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
                     display: flex;
                     align-items: center;
+                    justify-content: center;
                     gap: 16px;
                     position: relative;
                     overflow: hidden;

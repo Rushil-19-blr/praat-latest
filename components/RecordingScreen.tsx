@@ -1179,6 +1179,8 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
         audioUrl: URL.createObjectURL(combinedWavBlob),
         aiSummary: biomarkers.ai_summary,
         date: new Date().toISOString(),
+        questionnaireAnswers: preAnalysisSession?.answers || {},
+        preAnalysisQuestions: preAnalysisSession?.questions?.map(q => ({ id: q.id, text: q.text })) || [],
         liveSessionAnswers: finalLiveSessionQA.map(qa => ({
           questionText: qa.questionText,
           studentAnswer: qa.studentAnswer

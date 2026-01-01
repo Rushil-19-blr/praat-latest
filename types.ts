@@ -21,6 +21,7 @@ export interface AnalysisData {
   aiSummary: string;
   date: string;
   questionnaireAnswers?: { [questionId: string]: string | number }; // Optional questionnaire answers
+  preAnalysisQuestions?: { id: string; text: string }[]; // Actual question text for report display
   liveSessionAnswers?: { questionText: string; studentAnswer: string }[]; // Live Gemini conversation Q&A
   selfReportScore?: number;
   counselorReport?: string; // Persisted generated report

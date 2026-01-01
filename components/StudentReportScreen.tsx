@@ -195,12 +195,24 @@ const generateAIReportWithGemini = async (student: Student, analysisData: Analys
     if (Object.keys(questionnaireAnswers).length > 0) {
       report += `### Questionnaire Summary\n\n`;
       const responses: string[] = [];
-      Object.entries(questionnaireAnswers).forEach(([index, answer]) => {
-        const questionIndex = parseInt(index);
-        if (questionIndex < QUESTIONS.length) {
-          const question = QUESTIONS[questionIndex];
-          // Shorten format: Q: ... A: ...
-          responses.push(`** Q${questionIndex + 1}:** ${question} \n > ${answer} \n`);
+      let qNum = 1;
+      Object.entries(questionnaireAnswers).forEach(([questionId, answer]) => {
+        // Try to find question text from preAnalysisQuestions, fall back to QUESTIONS array
+        let questionText: string | undefined;
+        if (analysisData.preAnalysisQuestions && analysisData.preAnalysisQuestions.length > 0) {
+          const question = analysisData.preAnalysisQuestions.find(q => q.id === questionId);
+          questionText = question?.text;
+        }
+        // Fallback: try parsing questionId as index for legacy data
+        if (!questionText) {
+          const questionIndex = parseInt(questionId);
+          if (!isNaN(questionIndex) && questionIndex < QUESTIONS.length) {
+            questionText = QUESTIONS[questionIndex];
+          }
+        }
+        if (questionText) {
+          responses.push(`** Q${qNum}:** ${questionText} \n > ${answer} \n`);
+          qNum++;
         }
       });
       report += responses.join('\n') + '\n\n';

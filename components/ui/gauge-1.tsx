@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useId } from "react"
 import type { CSSProperties, SVGProps } from "react"
 import { useMotionValue, useSpring } from "framer-motion"
 import { cn } from "@/lib/utils"
@@ -35,14 +35,14 @@ export interface GaugeProps extends Omit<SVGProps<SVGSVGElement>, "className"> {
     delay?: number
   }
   className?:
-    | string
-    | {
-        svgClassName?: string
-        primaryClassName?: string
-        secondaryClassName?: string
-        textClassName?: string
-        labelClassName?: string
-      }
+  | string
+  | {
+    svgClassName?: string
+    primaryClassName?: string
+    secondaryClassName?: string
+    textClassName?: string
+    labelClassName?: string
+  }
   label?: string
   unit?: string
   min?: number
@@ -79,11 +79,15 @@ export function Gauge({
   glowEffect = false,
   ...props
 }: GaugeProps) {
+  // Generate unique ID for this gauge instance to avoid gradient ID collisions
+  const uniqueId = useId().replace(/:/g, '')
+  const gradientId = `primaryGradient-${uniqueId}`
+
   const circleSize = 100
   const radius = circleSize / 2 - strokeWidth / 2
   const circumference = 2 * Math.PI * radius
   const percentToDegree = 360 / 100
-   
+
   const offsetFactor = equal ? 0.5 : 0
   const offsetFactorSecondary = 1 - offsetFactor
   const { formattedValue: animatedValue, rawValue: animatedRawValue } = useNumberCounter({
@@ -119,7 +123,7 @@ export function Gauge({
 
   // Use the animated raw value for circle calculations instead of the static value
   const strokePercent = animatedRawValue
-const gaugeConfig = getGaugeConfig()
+  const gaugeConfig = getGaugeConfig()
   const adjustedCircumference = circumference * gaugeConfig.circumferenceFactor
   const adjustedPercentToPx = adjustedCircumference / 100
   const primaryStrokeDasharray = () => {
@@ -160,7 +164,7 @@ const gaugeConfig = getGaugeConfig()
       const subtract = gapPercent * offsetFactorSecondary
       return `rotate(${360 - 90 - subtract * percentToDegree}deg) scaleY(-1)`
     }
-  } 
+  }
 
   const getColor = (colorProp: typeof primary, isSecondary = false) => {
     const defaultColors = isSecondary
@@ -232,7 +236,7 @@ const gaugeConfig = getGaugeConfig()
   }
 
   const glowStyles = glowEffect
-  ? {
+    ? {
       filter: `
         drop-shadow(0 0 2px ${primaryStroke}80)
         drop-shadow(0 0 6px ${primaryStroke}60)
@@ -240,9 +244,9 @@ const gaugeConfig = getGaugeConfig()
         drop-shadow(0 0 20px ${primaryStroke}20)
       `,
     }
-  : {}
+    : {}
 
-    const generateTickMarks = () => {
+  const generateTickMarks = () => {
     if (!tickMarks) return null
 
     const ticks = []
@@ -275,10 +279,10 @@ const gaugeConfig = getGaugeConfig()
         className={cn("", typeof className === "string" ? className : className?.svgClassName)}
         {...props}
       >
-       
-       {gradient && (
+
+        {gradient && (
           <defs>
-            <linearGradient id="primaryGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
               <stop offset="0%" stopColor={primaryStroke} stopOpacity="0.3" />
               <stop offset="100%" stopColor={primaryStroke} stopOpacity="1" />
             </linearGradient>
@@ -315,7 +319,7 @@ const gaugeConfig = getGaugeConfig()
           }}
           className={cn("", typeof className === "object" && className?.secondaryClassName)}
         />
-         
+
         <circle
           cx={circleSize / 2}
           cy={circleSize / 2}
@@ -324,7 +328,7 @@ const gaugeConfig = getGaugeConfig()
             ...circleStyles,
             strokeDasharray: primaryStrokeDasharray(),
             transform: primaryTransform(),
-            stroke: gradient ? "url(#primaryGradient)" : primaryStroke,
+            stroke: gradient ? `url(#${gradientId})` : primaryStroke,
             opacity: primaryOpacity(),
           }}
           className={cn("", typeof className === "object" && className?.primaryClassName)}
@@ -343,7 +347,7 @@ const gaugeConfig = getGaugeConfig()
 
         {showValue && (
           <g>
-             
+
             <text
               x={circleSize / 2}
               y={circleSize / 2}
@@ -368,7 +372,7 @@ const gaugeConfig = getGaugeConfig()
             y={circleSize / 2 + 20}
             textAnchor="middle"
             dominantBaseline="middle"
-             
+
             fontSize={8}
             fontWeight="400"
             className="fill-text-muted"

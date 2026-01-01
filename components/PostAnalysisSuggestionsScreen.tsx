@@ -90,7 +90,7 @@ const generateSuggestionsWithGemini = async (
     2. **BAN LIST**: Do NOT suggest "drink water", "eat healthy", "take a walk", or "meditate" UNLESS the user explicitly asked about health/fitness.
     3. **SPECIFICITY**: If they said "I failed math", suggest "Review math errors with teacher". If they said "I can't sleep", suggest "No screens 1hr before bed".
     4. **STRICT COUNT**: EXACTLY 6 suggestions (3 immediate, 3 long-term).
-    5. **LENGTH**: Keep it brief and actionable. No specific word limit, but avoid long paragraphs. No explanations needed.
+    5. **LENGTH**: Each suggestion MUST be 3-8 words MAX. Examples: "Review math with teacher", "Journal for 5 mins daily". NO EXPLANATIONS.
     
     OUTPUT FORMAT (JSON ONLY):
     {"immediate": ["action1", "action2", "action3"], "longTerm": ["habit1", "habit2", "habit3"]}
