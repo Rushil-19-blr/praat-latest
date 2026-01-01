@@ -19,8 +19,8 @@ const EnrollmentNumber: React.FC<EnrollmentNumberProps> = ({ onSubmit }) => {
   return (
     <div className="w-full max-w-[440px] mx-auto p-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <GlassCard className="p-10 md:p-12 !rounded-[40px] border-white/10 shadow-3xl text-center">
-        <h1 className="text-4xl font-bold tracking-tight text-white uppercase italic mb-2">ENROLLMENT NUMBER</h1>
-        <p className="text-[10px] font-black text-white/20 mb-10 uppercase tracking-[0.2em] leading-relaxed">
+        <h1 className="text-4xl font-bold tracking-tight text-white uppercase mb-2">ENROLLMENT NUMBER</h1>
+        <p className="text-xs font-bold text-white/50 mb-10 uppercase tracking-[0.2em] leading-relaxed">
           Please enter your <span className="text-purple-400">Enrollment Number</span> to continue.
         </p>
 
@@ -43,7 +43,7 @@ const EnrollmentNumber: React.FC<EnrollmentNumberProps> = ({ onSubmit }) => {
             type="submit"
             disabled={!enrollmentNumber.trim()}
             className={cn(
-              "w-full py-5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 shadow-2xl",
+              "w-full py-5 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all duration-300 shadow-2xl",
               enrollmentNumber.trim()
                 ? "bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-purple-500/30 hover:scale-[1.02] active:scale-[0.98]"
                 : "bg-white/5 text-white/10 cursor-not-allowed border border-white/5"

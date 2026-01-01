@@ -115,7 +115,7 @@ const PinCreationScreen: React.FC<PinCreationScreenProps> = ({ onSubmit }) => {
 
                 {/* Step 1: PIN Creation */}
                 <GlassCard className="p-8 md:p-10 !rounded-[40px] border-white/10 shadow-3xl">
-                    <h2 className="text-xl font-bold tracking-wider text-white/40 mb-8 text-center italic">STEP 1: CREATE YOUR IDENTITY CODE</h2>
+                    <h2 className="text-xl font-bold tracking-wider text-white/40 mb-8 text-center">STEP 1: CREATE YOUR IDENTITY CODE</h2>
 
                     <div className="relative mb-6">
                         <div className="flex items-center gap-3 justify-center mb-6">
@@ -142,7 +142,7 @@ const PinCreationScreen: React.FC<PinCreationScreenProps> = ({ onSubmit }) => {
                                         onChange={(e) => handlePinChange(e, i)}
                                         onKeyDown={(e) => handlePinKeyDown(e, i)}
                                         className={cn(
-                                            "w-full aspect-[4/5] text-4xl font-black text-center rounded-[20px] border transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-purple-500/50",
+                                            "w-full aspect-[4/5] text-4xl font-bold text-center rounded-[20px] border transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-purple-500/50",
                                             statusClasses
                                         )}
                                     />
@@ -156,7 +156,7 @@ const PinCreationScreen: React.FC<PinCreationScreenProps> = ({ onSubmit }) => {
                                 const randomCode = Math.floor(1000 + Math.random() * 9000).toString();
                                 setPin(randomCode.split(''));
                             }}
-                            className="w-full py-3 rounded-xl bg-white/[0.02] border border-white/5 text-[8px] font-black uppercase tracking-[0.2em] text-white/30 hover:bg-white/5 hover:border-white/10 hover:text-white/60 transition-all duration-300 mb-2"
+                            className="w-full py-3 rounded-xl bg-white/[0.02] border border-white/5 text-xs font-bold uppercase tracking-[0.2em] text-white/70 hover:bg-white/5 hover:border-white/10 hover:text-white/90 transition-all duration-300 mb-2"
                         >
                             Generate Random Identity Code
                         </button>
@@ -185,7 +185,7 @@ const PinCreationScreen: React.FC<PinCreationScreenProps> = ({ onSubmit }) => {
                 {/* Step 2: Password */}
                 <div className={cn("transition-all duration-500", pinAvailability === 'available' ? "opacity-100 translate-y-0" : "opacity-50 translate-y-4 pointer-events-none")}>
                     <GlassCard className="p-8 md:p-10 !rounded-[40px] border-white/10 shadow-3xl space-y-6">
-                        <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/20 mb-2 italic">STEP 2: CREATE PASSWORD</h2>
+                        <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-white/70 mb-2">STEP 2: CREATE PASSWORD</h2>
 
                         <div className="relative group">
                             <span className="absolute left-5 top-1/2 -translate-y-1/2 text-white/10 group-focus-within:text-purple-400 transition-colors">
@@ -197,7 +197,7 @@ const PinCreationScreen: React.FC<PinCreationScreenProps> = ({ onSubmit }) => {
                                 onChange={e => setPassword(e.target.value)}
                                 placeholder="Minimum 6 characters"
                                 disabled={pinAvailability !== 'available'}
-                                className="w-full bg-white/[0.03] border border-white/10 rounded-[22px] py-5 px-14 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all duration-300 placeholder:text-white/10 disabled:opacity-50"
+                                className="w-full bg-white/[0.03] border border-white/10 rounded-[22px] py-5 px-14 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all duration-300 placeholder:text-white/60 disabled:opacity-50"
                             />
                             <button
                                 type="button"
@@ -218,7 +218,7 @@ const PinCreationScreen: React.FC<PinCreationScreenProps> = ({ onSubmit }) => {
                                 onChange={e => setConfirmPassword(e.target.value)}
                                 placeholder="Verify Password"
                                 disabled={pinAvailability !== 'available'}
-                                className="w-full bg-white/[0.03] border border-white/10 rounded-[22px] py-5 px-14 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all duration-300 placeholder:text-white/10 disabled:opacity-50"
+                                className="w-full bg-white/[0.03] border border-white/10 rounded-[22px] py-5 px-14 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all duration-300 placeholder:text-white/60 disabled:opacity-50"
                             />
                         </div>
 
@@ -237,7 +237,7 @@ const PinCreationScreen: React.FC<PinCreationScreenProps> = ({ onSubmit }) => {
                     type="submit"
                     disabled={!isFormValid}
                     className={cn(
-                        "w-full py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-500 shadow-3xl",
+                        "w-full py-5 rounded-2xl text-xs font-bold uppercase tracking-[0.2em] transition-all duration-500 shadow-3xl",
                         isFormValid
                             ? "bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-purple-500/30 hover:scale-[1.02] active:scale-[0.98]"
                             : "bg-white/5 text-white/10 cursor-not-allowed border border-white/5"

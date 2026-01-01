@@ -106,7 +106,7 @@ const ConnectTheDots: React.FC<ConnectTheDotsProps> = ({ onConnect, isEnabled, s
   return (
     <div
       ref={containerRef}
-      className="flex flex-col items-center justify-center w-full max-w-[440px] mx-auto p-4 relative"
+      className="flex flex-col items-center justify-center w-full max-w-[440px] mx-auto p-4 relative select-none touch-none"
       onMouseMove={handleMouseMove}
       onTouchMove={handleTouchMove}
       onMouseUp={handleMouseLeaveAndUp}
@@ -115,8 +115,8 @@ const ConnectTheDots: React.FC<ConnectTheDotsProps> = ({ onConnect, isEnabled, s
     >
       <GlassCard className="w-full p-8 md:p-10 !rounded-[32px] border-white/10 shadow-2xl relative overflow-visible">
         <div className="text-center mb-10">
-          <h1 className="text-2xl font-black tracking-widest text-white uppercase italic">IDENTITY SELECT</h1>
-          <p className="text-[10px] font-bold text-white/40 mt-3 uppercase tracking-[0.2em] leading-relaxed">
+          <h1 className="text-2xl font-bold tracking-widest text-white uppercase">IDENTITY SELECT</h1>
+          <p className="text-xs font-bold text-white/70 mt-3 uppercase tracking-[0.2em] leading-relaxed">
             Drag from your <span className="text-purple-400">Class</span> to your <span className="text-indigo-400">Section</span>
           </p>
         </div>
@@ -126,14 +126,14 @@ const ConnectTheDots: React.FC<ConnectTheDotsProps> = ({ onConnect, isEnabled, s
 
           {/* Classes Column */}
           <div className="flex flex-col gap-4 z-10">
-            <p className="text-[9px] font-black text-white/20 uppercase tracking-widest mb-2 text-center">Grades</p>
+            <p className="text-xs font-bold text-white/70 uppercase tracking-widest mb-2 text-center">Grades</p>
             {CLASSES.map((classNum) => (
               <button
                 key={`class-${classNum}`}
                 onMouseDown={(e) => handleMouseDown(e, classNum)}
                 onTouchStart={(e) => handleTouchStart(e, classNum)}
                 className={cn(
-                  "w-20 h-14 flex items-center justify-center bg-white/[0.03] border border-white/10 rounded-2xl text-white text-xl font-black transition-all duration-300",
+                  "w-20 h-14 flex items-center justify-center bg-white/[0.03] border border-white/10 rounded-2xl text-white text-xl font-bold transition-all duration-300 select-none touch-none",
                   "hover:bg-purple-500/20 hover:border-purple-500/50 hover:scale-105 active:scale-95",
                   (startPos?.classNum === classNum || selectedClass === classNum) && "bg-purple-500 border-purple-400 shadow-lg shadow-purple-500/40"
                 )}
@@ -145,14 +145,14 @@ const ConnectTheDots: React.FC<ConnectTheDotsProps> = ({ onConnect, isEnabled, s
 
           {/* Sections Column */}
           <div className="flex flex-col gap-4 z-10">
-            <p className="text-[9px] font-black text-white/20 uppercase tracking-widest mb-2 text-center">Section</p>
+            <p className="text-xs font-bold text-white/70 uppercase tracking-widest mb-2 text-center">Section</p>
             {SECTIONS.map((section) => (
               <button
                 key={`section-${section}`}
                 data-section={section}
                 onMouseUp={() => handleMouseUp(section)}
                 className={cn(
-                  "w-20 h-14 flex items-center justify-center bg-white/[0.03] border border-white/10 rounded-2xl text-white text-xl font-black transition-all duration-300",
+                  "w-20 h-14 flex items-center justify-center bg-white/[0.03] border border-white/10 rounded-2xl text-white text-xl font-bold transition-all duration-300 select-none touch-none",
                   "hover:bg-indigo-500/20 hover:border-indigo-500/50 hover:scale-105 active:scale-95"
                 )}
               >

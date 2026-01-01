@@ -117,7 +117,7 @@ const SignInScreen: React.FC<SignInScreenProps> = ({ onSignIn, onCreateAccount }
 
           {/* 4-Digit Code */}
           <div className="space-y-4">
-            <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/60 ml-2 block">
+            <label className="text-xs font-bold uppercase tracking-[0.2em] text-white/70 ml-2 block">
               {userType === 'teacher' ? 'Admin Credential' : 'Core Identity Code'}
             </label>
             <div className="flex justify-between gap-3">
@@ -132,7 +132,7 @@ const SignInScreen: React.FC<SignInScreenProps> = ({ onSignIn, onCreateAccount }
                   value={digit}
                   onChange={(e) => handleCodeChange(index, e.target.value)}
                   onKeyDown={(e) => handleCodeKeyDown(index, e)}
-                  className="w-full aspect-[4/5] bg-white/[0.04] border border-white/10 rounded-[20px] text-4xl font-black text-center text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all duration-200 placeholder:text-white/10"
+                  className="w-full aspect-[4/5] bg-white/[0.04] border border-white/10 rounded-[20px] text-4xl font-bold text-center text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all duration-200 placeholder:text-white/10"
                   required
                 />
               ))}
@@ -141,7 +141,7 @@ const SignInScreen: React.FC<SignInScreenProps> = ({ onSignIn, onCreateAccount }
 
           {/* Password Input */}
           <div className="space-y-3">
-            <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/60 ml-2 block">
+            <label className="text-xs font-bold uppercase tracking-[0.2em] text-white/70 ml-2 block">
               Security Key
             </label>
             <div className="relative group">
@@ -151,7 +151,7 @@ const SignInScreen: React.FC<SignInScreenProps> = ({ onSignIn, onCreateAccount }
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder={userType === 'teacher' ? 'Enter admin secret' : 'Your secure key'}
-                className="w-full bg-white/[0.04] border border-white/10 rounded-[22px] py-5 px-6 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all duration-300 placeholder:text-white/30"
+                className="w-full bg-white/[0.04] border border-white/10 rounded-[22px] py-5 px-6 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all duration-300 placeholder:text-white/60"
                 required
               />
               <button
@@ -179,7 +179,7 @@ const SignInScreen: React.FC<SignInScreenProps> = ({ onSignIn, onCreateAccount }
         </form>
 
         <div className="mt-8 pt-6 border-t border-white/5 text-center">
-          <p className="text-[10px] font-bold text-white/50 uppercase tracking-[0.2em]">
+          <p className="text-xs font-bold text-white/70 uppercase tracking-[0.2em]">
             New to Awaaz?{' '}
             <button
               onClick={onCreateAccount}

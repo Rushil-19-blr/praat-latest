@@ -99,18 +99,22 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
-      // Check for unsaved changes in Session Planning
+      // Check for unsaved changes in Session Planning or Active Recording
       // We can't synchronously stop the popstate, but we can detect it and push state back if needed
       if (appState === 'SESSION_PLANNING' && isSessionPlanDirtyRef.current) {
         const confirmLeave = window.confirm("You have unsaved changes in your session plan. Are you sure you want to leave?");
         if (!confirmLeave) {
-          // User wants to stay.
-          // Since popstate already happened (URL changed), we must push the current state back
-          // to "undo" the navigation and stay on the page.
           window.history.pushState({ appState: 'SESSION_PLANNING' }, '', '#session-planning');
           return;
         }
-        // User confirmed leave, proceed with navigation logic below...
+      }
+
+      if (appState === 'RECORDING') {
+        const confirmLeave = window.confirm("An active recording is in progress. Navigating back will end the session and lose any unsaved analysis. Are you sure?");
+        if (!confirmLeave) {
+          window.history.pushState({ appState: 'RECORDING' }, '', '#recording');
+          return;
+        }
       }
 
       if (event.state && event.state.appState) {

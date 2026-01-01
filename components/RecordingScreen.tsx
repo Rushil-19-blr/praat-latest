@@ -16,7 +16,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { VoicePoweredOrb } from './ui/voice-powered-orb';
 import { speakText, stopSpeech, isSpeaking } from '../services/textToSpeech';
 import SmartOptions from './SmartOptions';
-import { generateCounselorReport } from '../services/reportService';
+import { generateCounselorReport, formatReportForDisplay } from '../services/reportService';
 import { saveSessionData, getStudentHistory, getCurrentStudentId, generateId } from '../services/personalizationService';
 import { getAffirmationsForSession } from '../services/affirmationService';
 import { getSessionPlan } from '../services/planningService';
@@ -138,6 +138,11 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
   const animationFrameRef = useRef<number | null>(null);
   const recordingStateRef = useRef<RecordingState>(recordingState);
   const allClipsRef = useRef<Blob[]>([]); // Keep ref to always have latest clips
+  const MotionDiv = motion.div as any;
+  const MotionButton = motion.button as any;
+  const MotionCanvas = motion.canvas as any;
+  const recordingStateRef = useRef<RecordingState>(recordingState);
+  const allClipsRef = useRef<Blob[]>([]); // Keep ref to always have latest clips
   const streamRef = useRef<MediaStream | null>(null);
 
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -178,7 +183,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
         streamRef.current.getTracks().forEach(track => track.stop());
         streamRef.current = null;
       }
-      if (timerRef.current) clearTimeout(timerRef.current as any);
+      if (timerRef.current) clearInterval(timerRef.current as any);
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
       stopSpeech(); // Clean up TTS on unmount
     };
@@ -554,7 +559,6 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
       const wavBlob = await webmBlobToWavMono16k(audioBlob);
       const featuresForAnalysis = await extractFeaturesWithPraat(wavBlob, BACKEND_URL);
       ensureRecordingQuality(featuresForAnalysis, wavBlob.size);
-      ensureRecordingQuality(featuresForAnalysis, wavBlob.size);
 
       // Print extracted Praat features to console
       console.log('=== Praat Extracted Features ===');
@@ -569,9 +573,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
       console.log('  F0 Range:', featuresForAnalysis.f0_range, 'Hz');
       console.log('  Jitter:', featuresForAnalysis.jitter, '%');
       console.log('  Shimmer:', featuresForAnalysis.shimmer, '%');
-      console.log('  Shimmer:', featuresForAnalysis.shimmer, '%');
       // HNR removed from logs
-      console.log('  F1 (First Formant):', featuresForAnalysis.f1, 'Hz');
       console.log('  F1 (First Formant):', featuresForAnalysis.f1, 'Hz');
       console.log('  F2 (Second Formant):', featuresForAnalysis.f2, 'Hz');
       console.log('  Speech Rate:', featuresForAnalysis.speech_rate, 'WPM');
@@ -784,7 +786,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
             clearLiveSessionQA();
           }
 
-          return report;
+          return formatReportForDisplay(report);
         } catch (err) {
           console.error('[Session] Failed to save session data:', err);
           return undefined;
@@ -1306,7 +1308,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
     <div className="min-h-screen w-full flex flex-col items-center justify-start p-4 pt-[100px] pb-[60px] relative overflow-y-auto">
       <Header />
 
-      <GlassCard className="w-full max-w-sm mx-auto p-4 z-10 mt-4" variant="purple">
+      <GlassCard className="w-full max-w-sm mx-auto p-4 z-10 mt-4 select-none" variant="purple">
         <div className="text-center">
           {recordingState === 'RECORDING' && (
             <p className="text-2xl font-mono text-white tabular-nums">
@@ -1345,14 +1347,14 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
           />
         </div>
 
-        <motion.button
+        <MotionButton
           onMouseDown={startRecording}
           onMouseUp={stopRecording}
           onMouseLeave={stopRecording}
           onTouchStart={startRecording}
           onTouchEnd={stopRecording}
           disabled={recordingState === 'ANALYZING' || !!permissionError && recordingState !== 'ERROR' || (audioBlob && recordingState === 'IDLE')}
-          className={`w-[180px] h-[180px] rounded-full flex items-center justify-center shadow-2xl transition-all duration-300 ${recordingState === 'ANALYZING' ? 'bg-orange-primary/15' : recordingState === 'ERROR' ? 'bg-error-red/15' : recordingState === 'RECORDING' ? 'bg-purple-primary/30' : 'bg-purple-primary/15'} backdrop-blur-xl z-10`}
+          className={`w-[180px] h-[180px] rounded-full flex items-center justify-center shadow-2xl transition-all duration-300 ${recordingState === 'ANALYZING' ? 'bg-orange-primary/15' : recordingState === 'ERROR' ? 'bg-error-red/15' : recordingState === 'RECORDING' ? 'bg-purple-primary/30' : 'bg-purple-primary/15'} backdrop-blur-xl z-10 select-none touch-none`}
           whileHover={(recordingState === 'IDLE' || recordingState === 'ERROR') && !audioBlob ? { scale: 1.05, boxShadow: '0 0 40px rgba(139, 92, 246, 0.6)' } : {}}
           whileTap={(recordingState === 'IDLE' || recordingState === 'ERROR') && !audioBlob ? { scale: 0.95 } : {}}
           animate={{
@@ -1366,7 +1368,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
           <motion.div animate={{ scale: recordingState === 'RECORDING' ? [1, 1.2, 1] : 1 }} transition={{ duration: 0.8, repeat: recordingState === 'RECORDING' ? Infinity : 0 }}>
             <MicrophoneFilled className="w-16 h-16 text-white" />
           </motion.div>
-        </motion.button>
+        </MotionButton>
       </div>
 
 
@@ -1400,7 +1402,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
 
             <div className="space-y-2">
               <div className="flex items-center space-x-2">
-                <motion.div
+                <MotionDiv
                   animate={{ scale: geminiConnected ? [1, 1.2, 1] : 1 }}
                   transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
                   className={`w-2 h-2 rounded-full ${geminiConnected ? 'bg-green-400' : 'bg-yellow-400'}`}
@@ -1452,18 +1454,18 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
               <h3 className="text-sm font-medium text-white mb-3">Repeat After Me</h3>
 
               {isPlayingStatement && (
-                <motion.div
+                <MotionDiv
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   className="flex items-center justify-center gap-2 mb-2"
                 >
-                  <motion.div
+                  <MotionDiv
                     animate={{ scale: [1, 1.2, 1] }}
                     transition={{ duration: 0.8, repeat: Infinity }}
                     className="w-2 h-2 bg-purple-400 rounded-full"
                   />
                   <span className="text-xs text-purple-300">Speaking...</span>
-                </motion.div>
+                </MotionDiv>
               )}
 
               <div className="bg-purple-500/20 rounded-lg p-4 border border-purple-400/30 min-h-[80px] flex items-center justify-center">
@@ -1492,7 +1494,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
       {/* End Session Button */}
       <AnimatePresence>
         {isSessionActive && audioClips.length > 0 && (
-          <motion.div
+          <MotionDiv
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
@@ -1512,7 +1514,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
                 </button>
               </div>
             </GlassCard>
-          </motion.div>
+          </MotionDiv>
         )}
       </AnimatePresence>
 

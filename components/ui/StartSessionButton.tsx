@@ -55,7 +55,7 @@ export const StartSessionButton: React.FC<StartSessionButtonProps> = ({ onStart,
     const circumference = 2 * Math.PI * radius;
 
     return (
-        <div className={`relative flex flex-col items-center justify-center gap-8 ${className}`}>
+        <div className={`relative flex flex-col items-center justify-center gap-8 ${className} select-none`}>
             <div className="relative group touch-none">
                 {/* Pulse Effect Background */}
                 <div className={`absolute inset-0 rounded-full bg-purple-500/30 blur-2xl transition-all duration-500

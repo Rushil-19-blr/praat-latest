@@ -32,6 +32,9 @@ const VoiceCalibrationScreen: React.FC<VoiceCalibrationScreenProps> = ({
   const [hasBaseline, setHasBaseline] = useState(false);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
 
+  const MotionDiv = motion.div as any;
+  const MotionButton = motion.button as any;
+  const MotionCanvas = motion.canvas as any;
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -343,7 +346,7 @@ const VoiceCalibrationScreen: React.FC<VoiceCalibrationScreenProps> = ({
       </div>
       <Header />
 
-      <GlassCard className="w-full max-w-sm mx-auto p-4 z-10 relative" variant="purple">
+      <GlassCard className="w-full max-w-sm mx-auto p-4 z-10 relative select-none" variant="purple">
         <div className="text-center">
           {recordingState === 'RECORDING' && (
             <div className="flex flex-col items-center gap-1 mb-2">
@@ -390,14 +393,14 @@ const VoiceCalibrationScreen: React.FC<VoiceCalibrationScreenProps> = ({
           />
         </div>
 
-        <motion.button
+        <MotionButton
           onMouseDown={startRecording}
           onMouseUp={stopRecording}
           onMouseLeave={stopRecording}
           onTouchStart={startRecording}
           onTouchEnd={stopRecording}
           disabled={recordingState === 'ANALYZING' || !!permissionError && recordingState !== 'ERROR'}
-          className={`w-[180px] h-[180px] rounded-full flex items-center justify-center shadow-2xl transition-all duration-300 ${recordingState === 'ANALYZING' ? 'bg-orange-primary/15' : recordingState === 'ERROR' ? 'bg-error-red/15' : recordingState === 'RECORDING' ? 'bg-purple-primary/30' : recordingState === 'COMPLETE' ? 'bg-success-green/15' : 'bg-purple-primary/15'} backdrop-blur-xl z-10`}
+          className={`w-[180px] h-[180px] rounded-full flex items-center justify-center shadow-2xl transition-all duration-300 ${recordingState === 'ANALYZING' ? 'bg-orange-primary/15' : recordingState === 'ERROR' ? 'bg-error-red/15' : recordingState === 'RECORDING' ? 'bg-purple-primary/30' : recordingState === 'COMPLETE' ? 'bg-success-green/15' : 'bg-purple-primary/15'} backdrop-blur-xl z-10 select-none touch-none`}
           whileHover={(recordingState === 'IDLE' || recordingState === 'ERROR') ? { scale: 1.05, boxShadow: '0 0 40px rgba(139, 92, 246, 0.6)' } : {}}
           whileTap={(recordingState === 'IDLE' || recordingState === 'ERROR') ? { scale: 0.95 } : {}}
           animate={{
@@ -412,25 +415,25 @@ const VoiceCalibrationScreen: React.FC<VoiceCalibrationScreenProps> = ({
           <motion.div animate={{ scale: recordingState === 'RECORDING' ? [1, 1.2, 1] : 1 }} transition={{ duration: 0.8, repeat: recordingState === 'RECORDING' ? Infinity : 0 }}>
             <MicrophoneFilled className="w-16 h-16 text-white" />
           </motion.div>
-        </motion.button>
+        </MotionButton>
       </div>
 
       <AnimatePresence>
         {recordingState === 'RECORDING' && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="absolute bottom-[60px] w-full max-w-xs" >
-            <canvas ref={waveformCanvasRef} width="280" height="80" className="mx-auto rounded-xl"></canvas>
-          </motion.div>
+          <MotionDiv initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="absolute bottom-[60px] w-full max-w-xs" >
+            <MotionCanvas ref={waveformCanvasRef} width="280" height="80" className="mx-auto rounded-xl"></MotionCanvas>
+          </MotionDiv>
         )}
       </AnimatePresence>
 
       <AnimatePresence>
         {showHelp && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowHelp(false)} className="fixed inset-0 bg-black/60 backdrop-blur-md z-40 flex items-center justify-center p-4" >
-            <motion.div
+          <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowHelp(false)} className="fixed inset-0 bg-black/60 backdrop-blur-md z-40 flex items-center justify-center p-4" >
+            <MotionDiv
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e: any) => e.stopPropagation()}
               className="w-full max-w-sm"
             >
               <GlassCard className="p-6 relative overflow-hidden" variant="purple">
@@ -493,8 +496,8 @@ const VoiceCalibrationScreen: React.FC<VoiceCalibrationScreenProps> = ({
                   </button>
                 </div>
               </GlassCard>
-            </motion.div>
-          </motion.div>
+            </MotionDiv>
+          </MotionDiv>
         )}
       </AnimatePresence>
 

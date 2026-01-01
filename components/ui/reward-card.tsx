@@ -66,7 +66,7 @@ export const SlideToUnlock = ({
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <span
                   className={cn(
-                    "text-[10px] font-black uppercase tracking-[0.2em] text-white/30 pl-8 transition-opacity duration-300",
+                    "text-xs font-bold uppercase tracking-[0.2em] text-white/70 pl-8 transition-opacity duration-300",
                     shimmer && "animate-shimmer bg-[linear-gradient(110deg,rgba(255,255,255,0.2),45%,rgba(255,255,255,0.5),55%,rgba(255,255,255,0.2))] bg-[length:200%_100%] bg-clip-text text-transparent"
                   )}
                 >
