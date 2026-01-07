@@ -12,13 +12,44 @@ warnings.filterwarnings('ignore')
 
 app = Flask(__name__)
 
-# Configure CORS - Allow all origins in development, or specify allowed origins via environment variable
-# In production, set ALLOWED_ORIGINS to your Vercel domain, e.g., "https://your-app.vercel.app"
-allowed_origins = os.environ.get('ALLOWED_ORIGINS', '*')
-if allowed_origins != '*':
-    # Split by comma for multiple origins
-    allowed_origins = [origin.strip() for origin in allowed_origins.split(',')]
-CORS(app, origins=allowed_origins, supports_credentials=True)
+# Configure CORS - Dynamically allow origins to support credentials
+# This is necessary because Access-Control-Allow-Origin: * cannot be used with Access-Control-Allow-Credentials: true
+def get_allowed_origins():
+    origins = os.environ.get('ALLOWED_ORIGINS', '*')
+    if origins == '*':
+        return '*'
+    return [origin.strip() for origin in origins.split(',')]
+
+# Use a more robust CORS setup that can handle dynamic Vercel previews
+# while maintaining support for local development
+CORS(app, 
+     resources={r"/*": {"origins": ["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173", "https://*.vercel.app"]}},
+     supports_credentials=True)
+
+# Add a before_request handler to dynamically allow the requesting origin if it matches our patterns
+@app.after_request
+def add_cors_headers(response):
+    origin = request.headers.get('Origin')
+    if not origin:
+        return response
+        
+    # List of trusted patterns (regexp-style matching is better but simple string checks for now)
+    trusted_origins = [
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:5173"
+    ]
+    
+    # Also allow any vercel.app subdomain
+    is_trusted = origin in trusted_origins or origin.endswith('.vercel.app')
+    
+    if is_trusted:
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS, PUT, DELETE'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        
+    return response
 
 # Stream Chat configuration
 STREAM_API_KEY = "kt3cr78evu5y"
