@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { StreamChat } from 'stream-chat';
 import { Chat, Channel, ChannelList, MessageList, MessageInput, Thread, Window } from 'stream-chat-react';
 import 'stream-chat-react/dist/css/v2/index.css';
+import { BACKEND_URL } from '../config';
 
 // Initialize Stream Chat client
 // API Key: kt3cr78evu5y
@@ -51,8 +52,7 @@ export const StreamChatProvider: React.FC<StreamChatProviderProps> = ({ children
   const connectUser = async (userId: string, userName?: string) => {
     try {
       // Get JWT token from backend server
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
-      const response = await fetch(`${backendUrl}/stream-chat-token`, {
+      const response = await fetch(`${BACKEND_URL}/stream-chat-token`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -97,8 +97,7 @@ export const StreamChatProvider: React.FC<StreamChatProviderProps> = ({ children
       // First, ensure the student user exists in Stream Chat
       // This is critical for the channel to work properly
       try {
-        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
-        const studentResponse = await fetch(`${backendUrl}/stream-chat-token`, {
+        const studentResponse = await fetch(`${BACKEND_URL}/stream-chat-token`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -108,7 +107,7 @@ export const StreamChatProvider: React.FC<StreamChatProviderProps> = ({ children
             userName: `Student ${studentId}`,
           }),
         });
-        
+
         if (!studentResponse.ok) {
           console.warn('Failed to create student user in Stream Chat, continuing anyway:', await studentResponse.text());
         } else {
@@ -143,11 +142,11 @@ export const StreamChatProvider: React.FC<StreamChatProviderProps> = ({ children
       // Watch the channel to load its state and ensure we're subscribed
       // This also ensures the channel is properly initialized for both members
       await channel.watch();
-      
+
       // Ensure both members are in the channel
       const currentMembers = channel.state?.members || {};
       const memberIds = Object.keys(currentMembers);
-      
+
       if (!memberIds.includes(teacherId)) {
         try {
           await channel.addMembers([teacherId]);
@@ -167,7 +166,7 @@ export const StreamChatProvider: React.FC<StreamChatProviderProps> = ({ children
 
       // Force a refresh of the channel state to ensure it's ready for messaging
       await channel.watch();
-      
+
       console.log('Channel ready for messaging:', channelId, 'Members:', Object.keys(channel.state?.members || {}));
 
       return channel;

@@ -12,11 +12,12 @@ import type {
     PreAnalysisCategory
 } from '../types';
 import { generatePersonalizedQuestions, generateId } from './personalizationService';
+import { HybridStorageService } from './hybridStorageService';
 
 const PLANS_KEY = 'awaaz_session_plans';
 
 export const FALLBACK_QUESTIONS: PreAnalysisQuestion[] = [
-    { id: 'fb1', text: "What is one thing you are looking forward to this week?", type: 'open-ended', category: 'general' },
+    { id: 'fb1', text: "What is one thing you are looking forward to this week?", type: 'multiple-choice', options: ["Friendships", "Sports", "Holidays", "Other"], category: 'general' },
     { id: 'fb2', text: "How is your energy level today?", type: 'scale-1-5', category: 'general' },
     { id: 'fb3', text: "Is there anything specifically bothering you right now?", type: 'yes-no', category: 'stress' },
     { id: 'fb4', text: "Have you been able to spend time with friends or family?", type: 'yes-no', category: 'social' },
@@ -27,7 +28,8 @@ export const FALLBACK_QUESTIONS: PreAnalysisQuestion[] = [
 
 export const getAllSessionPlans = (): Record<string, SessionPlan> => {
     try {
-        return JSON.parse(localStorage.getItem(PLANS_KEY) || '{}');
+        const raw = HybridStorageService.get(PLANS_KEY);
+        return raw ? JSON.parse(raw) : {};
     } catch (e) {
         console.error('[PlanningService] Error reading all plans:', e);
         return {};
@@ -59,7 +61,7 @@ export const saveSessionPlan = (plan: SessionPlan): void => {
             ...plan,
             updatedAt: new Date().toISOString()
         };
-        localStorage.setItem(PLANS_KEY, JSON.stringify(plans));
+        HybridStorageService.set(PLANS_KEY, plans);
         console.log('[PlanningService] Plan saved for student:', plan.studentId);
     } catch (e) {
         console.error('[PlanningService] Error saving plan:', e);
@@ -70,7 +72,7 @@ export const deleteSessionPlan = (studentId: string): void => {
     try {
         const plans = getAllSessionPlans();
         delete plans[studentId];
-        localStorage.setItem(PLANS_KEY, JSON.stringify(plans));
+        HybridStorageService.set(PLANS_KEY, plans);
         console.log('[PlanningService] Plan deleted for student:', studentId);
     } catch (e) {
         console.error('[PlanningService] Error deleting plan:', e);
@@ -99,6 +101,7 @@ export const createEmptyPlan = (studentId: string, studentName?: string): Sessio
     customQuestions: [],
     focusTopic: '',
     focusIntensity: 'gentle',
+    assignedTasks: [],
     isActive: true,
     useForNextSessionOnly: false,
 });
@@ -279,9 +282,11 @@ export const generateAndSavePlan = async (plan: SessionPlan): Promise<void> => {
 const counselorToPreAnalysis = (q: CounselorQuestion): PreAnalysisQuestion => ({
     id: q.id,
     text: q.text,
-    type: q.type === 'scale-1-10' || q.type === 'open-ended'
-        ? 'multiple-choice'  // Fallback for unsupported types
-        : q.type as 'scale-1-5' | 'yes-no' | 'multiple-choice',
+    type: q.type === 'scale-1-10'
+        ? 'multiple-choice'
+        : q.type === 'open-ended'
+            ? 'open-ended'
+            : q.type as 'scale-1-5' | 'yes-no' | 'multiple-choice',
     options: q.type === 'scale-1-10'
         ? ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']
         : q.options,

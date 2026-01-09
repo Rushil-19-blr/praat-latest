@@ -1,11 +1,12 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Student, RiskLevel } from '../types';
-import { UserCircle, ChevronLeft, MessageCircle, Pencil, Calendar } from './Icons';
+import { UserCircle, ChevronLeft, MessageCircle, ChatBubble, Pencil, Calendar } from './Icons';
 import GlassCard from './GlassCard';
 import TeacherChatModal from './TeacherChatModal';
 import { Gauge } from './ui/gauge-1';
 import { LiquidButton } from './ui/liquid-button';
+import { HybridStorageService } from '../services/hybridStorageService';
 
 // HACK: Cast motion components to 'any' to bypass type errors.
 const MotionDiv = motion.div as any;
@@ -80,7 +81,7 @@ const StudentWidget: React.FC<{
     onEditNickname: (studentId: string) => void;
     onPlanSession?: (studentId: string) => void;
     isHighAlert?: boolean;
-}> = ({ student, onClick, onChatClick, onEditNickname, onPlanSession, isHighAlert = false }) => {
+}> = React.memo(({ student, onClick, onChatClick, onEditNickname, onPlanSession, isHighAlert = false }) => {
     const hasAnalysis = student.analysisHistory.length > 1; // Only show if more than 1 analysis
     const hasPendingAnalysis = student.analysisHistory.length === 1; // Check for pending first analysis
     const latestAnalysis = hasAnalysis ? student.analysisHistory[student.analysisHistory.length - 1] : null;
@@ -146,7 +147,7 @@ const StudentWidget: React.FC<{
                     className={`absolute top-3 right-3 w-8 h-8 ${isHighAlert ? 'bg-red-500/20 hover:bg-red-500/40' : 'bg-purple-primary/20 hover:bg-purple-primary/40'} rounded-full flex items-center justify-center transition-colors z-10`}
                     title="Chat with student"
                 >
-                    <MessageCircle className={`w-4 h-4 ${isHighAlert ? 'text-red-400' : 'text-purple-primary'}`} />
+                    <ChatBubble className={`w-4 h-4 ${isHighAlert ? 'text-red-400' : 'text-purple-primary'}`} />
                 </button>
 
                 {/* Edit button in top left corner */}
@@ -195,8 +196,8 @@ const StudentWidget: React.FC<{
                     </div>
                 ) : (
                     <div className="flex flex-col items-center justify-center gap-2 flex-1">
-                        <p className="text-text-muted text-sm text-center">{hasPendingAnalysis ? "Analysis Pending" : "No analysis yet"}</p>
-                        <p className="text-text-muted/70 text-xs text-center">
+                        <p className="text-white/50 text-sm text-center">{hasPendingAnalysis ? "Analysis Pending" : "No analysis yet"}</p>
+                        <p className="text-white/30 text-xs text-center">
                             {hasPendingAnalysis
                                 ? "First analysis completed.\nAwaiting second session."
                                 : "Student has not completed\nvoice analysis"}
@@ -206,7 +207,7 @@ const StudentWidget: React.FC<{
             </GlassCard>
         </motion.div>
     );
-};
+});
 
 
 // --- High Alerts Section Component (Stress > 80%) ---
@@ -338,6 +339,14 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
     const [selectedStudentForChat, setSelectedStudentForChat] = useState<string | null>(null);
     const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
     const [nicknameInput, setNicknameInput] = useState<string>('');
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    const handleRefresh = useCallback(() => {
+        setIsRefreshing(true);
+        onRefresh();
+        // Simulate loading state for animation
+        setTimeout(() => setIsRefreshing(false), 1500);
+    }, [onRefresh]);
 
     // Teacher ID (hardcoded - same as admin code)
     const teacherId = '9999';
@@ -355,7 +364,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
         } else {
             delete nicknames[studentId];
         }
-        localStorage.setItem('studentNicknames', JSON.stringify(nicknames));
+        HybridStorageService.set('studentNicknames', nicknames);
     }, [getNicknames]);
 
     const handleEditNickname = useCallback((studentId: string) => {
@@ -459,61 +468,26 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
                         <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-black"></span>
                     </button>
                     <motion.div
-                        animate={{
-                            scale: [1, 1.05, 1],
-                            rotate: [0, 3, -3, 0],
-                        }}
-                        whileHover={{
-                            scale: 1.15,
-                        }}
-                        whileTap={{
-                            scale: 0.9,
-                            rotate: 360,
-                        }}
-                        transition={{
-                            scale: {
-                                duration: 2.5,
-                                repeat: Infinity,
-                                ease: "easeInOut",
-                            },
-                            rotate: {
-                                duration: 4,
-                                repeat: Infinity,
-                                ease: "easeInOut",
-                            },
-                            whileHover: {
-                                duration: 0.3,
-                            },
-                            whileTap: {
-                                rotate: {
-                                    duration: 0.5,
-                                    ease: "easeOut",
-                                },
-                                scale: {
-                                    duration: 0.1,
-                                }
-                            }
-                        }}
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
                     >
                         <LiquidButton
-                            onClick={onRefresh}
+                            onClick={handleRefresh}
                             title="Refresh Data"
-                            className="w-10 h-10 rounded-full flex items-center justify-center p-0 relative"
+                            className={`w-10 h-10 rounded-full flex items-center justify-center p-0 relative transition-all duration-300 ${isRefreshing ? 'shadow-[0_0_20px_rgba(168,85,247,0.6)] border-purple-500/50' : ''}`}
                         >
                             <motion.svg
-                                className="w-5 h-5"
+                                className={`w-5 h-5 ${isRefreshing ? 'text-purple-200' : 'text-white'}`}
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
                                 animate={{
-                                    rotate: [0, 360],
+                                    rotate: isRefreshing ? 360 : 0
                                 }}
                                 transition={{
-                                    rotate: {
-                                        duration: 4,
-                                        repeat: Infinity,
-                                        ease: "linear",
-                                    }
+                                    duration: 1,
+                                    repeat: isRefreshing ? Infinity : 0,
+                                    ease: "linear"
                                 }}
                             >
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -552,14 +526,14 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
                                 onEditNickname={handleEditNickname}
                             />
 
-                            <h2 className="text-xl font-bold uppercase text-text-muted tracking-wider mb-4 px-2">All Classes</h2>
+                            <h2 className="text-xl font-bold uppercase text-white/50 tracking-wider mb-4 px-2">All Classes</h2>
                             {classSummaries.length === 0 ? (
                                 <div className="text-center py-12">
                                     <div className="w-16 h-16 bg-surface rounded-full flex items-center justify-center mx-auto mb-4">
-                                        <UserCircle className="w-8 h-8 text-text-muted" />
+                                        <UserCircle className="w-8 h-8 text-white/40" />
                                     </div>
                                     <h3 className="text-3xl font-semibold text-text-primary mb-2">No Students Yet</h3>
-                                    <p className="text-xl font-normal text-text-muted mb-4">Students will appear here once they complete their first voice analysis session.</p>
+                                    <p className="text-xl font-normal text-white/50 mb-4">Students will appear here once they complete their first voice analysis session.</p>
                                     <button
                                         onClick={onRefresh}
                                         className="px-4 py-2 bg-purple-primary text-white rounded-lg hover:bg-purple-dark transition-colors text-sm font-medium"
@@ -610,7 +584,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ students, onSelectS
 
 
                             <div>
-                                <h2 className="text-xl font-bold uppercase text-text-muted tracking-wider mb-4 px-2">ALL STUDENTS IN CLASS</h2>
+                                <h2 className="text-xl font-bold uppercase text-white/50 tracking-wider mb-4 px-2">ALL STUDENTS IN CLASS</h2>
                                 <MotionDiv
                                     variants={containerVariants}
                                     initial="hidden"
