@@ -132,10 +132,14 @@ const ScaleSlider = ({ value, onChange }: { value: number | null, onChange: (val
         />
 
         {/* Markers */}
-        <div className="absolute top-4 left-0 w-full flex justify-between px-1">
+        <div className="absolute top-4 left-0 w-full h-4 pointer-events-none">
           {[1, 2, 3, 4, 5].map((num) => (
-            <div key={num} className="flex flex-col items-center gap-1">
-              <div className={`w-1 h-2 rounded-full ${num === numericValue ? 'bg-purple-500' : 'bg-surface'}`} />
+            <div
+              key={num}
+              className="absolute top-0 flex flex-col items-center gap-1 transition-all duration-300"
+              style={{ left: `${((num - 1) / 4) * 100}%`, transform: 'translateX(-50%)' }}
+            >
+              <div className={`w-1 h-2 rounded-full transition-colors duration-300 ${num <= numericValue ? 'bg-purple-500' : 'bg-surface'}`} />
             </div>
           ))}
         </div>
