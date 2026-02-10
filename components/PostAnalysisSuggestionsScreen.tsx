@@ -3,15 +3,19 @@ import type { AnalysisData, Biomarker } from '../types';
 import GlassCard from './GlassCard';
 import { ChevronLeft } from './Icons';
 import { motion } from 'framer-motion';
+import { useSwipeable } from 'react-swipeable';
 import { LiquidButton } from './ui/liquid-button';
 import { InfinityLoader } from '@/components/ui/infinity-loader';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { StorageService } from '../services/storageService';
 
 interface PostAnalysisSuggestionsScreenProps {
   analysisData: AnalysisData;
   onBack: () => void;
   onClose: () => void;
 }
+
+const MotionDiv = motion.div as any;
 
 const positiveAffirmations = [
   "Thank you for taking this step toward understanding yourself better",
@@ -31,7 +35,7 @@ const generateSuggestionsWithGemini = async (
   stressLevel: number,
   biomarkers: Biomarker[],
   aiSummary?: string,
-  questionnaireAnswers?: { [questionIndex: number]: string },
+  questionnaireAnswers?: { [questionId: string]: string | number },
   liveSessionAnswers?: { questionText: string; studentAnswer: string }[]
 ): Promise<{ immediate: string[]; longTerm: string[]; nextSession: number }> => {
   try {
@@ -72,45 +76,26 @@ const generateSuggestionsWithGemini = async (
       studentContext += `\n\n⚠️ CRITICAL INSTRUCTION: The student mentioned SPECIFIC problems above. You MUST include at least 2 suggestions that DIRECTLY address their specific concerns with practical, actionable advice. Do NOT give generic wellness tips if specific issues were mentioned.`;
     }
 
-    const prompt = `You are a wellness expert AND personal mentor providing hyper-personalized stress management suggestions.
-
-STRESS LEVEL: ${stressLevel}/100 (${stressCategory} stress)
-AI ANALYSIS SUMMARY: ${aiSummary || 'No additional summary available'}
-PROBLEMATIC BIOMARKERS: ${biomarkerDetails || 'None detected'}${studentContext}
-
-CRITICAL REQUIREMENTS - YOU MUST FOLLOW THESE EXACTLY:
-1. Generate EXACTLY 6 suggestions TOTAL - NO MORE, NO LESS
-2. Maximum 3 "Immediate Actions" (things they can do right now)
-3. Maximum 3 "Long-term Wellness" (ongoing practices for better stress management)
-4. The sum of immediate + longTerm MUST equal exactly 6
-5. If you provide 3 immediate actions, provide exactly 3 long-term suggestions
-6. If you provide 2 immediate actions, provide exactly 4 long-term suggestions (but this is not preferred - aim for 3+3)
-7. If you provide 1 immediate action, provide exactly 5 long-term suggestions (but this is not preferred - aim for 3+3)
-
-LENGTH REQUIREMENTS - CRITICAL:
-- Each suggestion MUST be SHORT and CONCISE (maximum 8-10 words)
-- Be direct and straight to the point
-- No lengthy explanations or detailed instructions
-- Focus on the core action only
-
-PERSONALIZATION GUIDELINES:
-- High stress (67+): Focus on immediate relief techniques and professional support
-- Moderate stress (34-66): Focus on breathing exercises, physical activity, and routine building
-- Low stress (<34): Focus on maintenance and prevention strategies
-- Personalize based on problematic biomarkers mentioned above
-- Make suggestions actionable, specific, and relevant to the stress level
-
-OUTPUT FORMAT:
-Return ONLY valid JSON with no markdown, no explanations, no additional text. Format:
-{"immediate": ["suggestion1", "suggestion2", "suggestion3"], "longTerm": ["suggestion1", "suggestion2", "suggestion3"]}
-
-Example (for high stress):
-{
-  "immediate": ["Practice box breathing for 2 minutes", "Drink warm herbal tea", "Stretch neck and shoulders"],
-  "longTerm": ["Get 7-9 hours of sleep nightly", "Exercise 3-4 times per week", "Consider therapy or counseling"]
-}
-
-Generate personalized suggestions now - REMEMBER: EXACTLY 6 TOTAL (max 3 immediate, max 3 long-term), KEEP EACH SUGGESTION SHORT (8-10 words max):`;
+    const prompt = `You are a strict personal mentor. Your goal is to solve the user's SPECIFIC problems.
+    
+    CONTEXT ANALYSIS:
+    - Stress Level: ${stressLevel}/100 (${stressCategory})
+    - Biomarkers: ${biomarkerDetails || 'None'}
+    
+    USER'S EXACT WORDS (LIVE CONVERSATION):
+    ${studentContext || "No specific conversation recorded."}
+    
+    CRITICAL INSTRUCTION - READ CAREFULLY:
+    1. **IGNORE GENERIC ADVICE**: If the user mentioned "math", "exams", "parents", "sleep", or "friends", your suggestions MUST be about that.
+    2. **BAN LIST**: Do NOT suggest "drink water", "eat healthy", "take a walk", or "meditate" UNLESS the user explicitly asked about health/fitness.
+    3. **SPECIFICITY**: If they said "I failed math", suggest "Review math errors with teacher". If they said "I can't sleep", suggest "No screens 1hr before bed".
+    4. **STRICT COUNT**: EXACTLY 6 suggestions (3 immediate, 3 long-term).
+    5. **LENGTH**: Each suggestion MUST be 3-8 words MAX. Examples: "Review math with teacher", "Journal for 5 mins daily". NO EXPLANATIONS.
+    
+    OUTPUT FORMAT (JSON ONLY):
+    {"immediate": ["action1", "action2", "action3"], "longTerm": ["habit1", "habit2", "habit3"]}
+    
+    Generate personalized (NOT generic) suggestions now:`;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
@@ -233,9 +218,9 @@ const getFallbackSuggestions = (
       "Appreciate your positive state"
     ];
     longTerm = [
-      "Maintain 7-9 hour sleep schedule",
-      "Engage in regular physical activity",
-      "Practice daily gratitude journaling"
+      "Keep a consistent wake-up time", // More specific than "sleep schedule"
+      "Engage in 20 mins of daily cardio",
+      "Start a specific gratitude journal"
     ];
   }
 
@@ -271,6 +256,14 @@ const PostAnalysisSuggestionsScreen: React.FC<PostAnalysisSuggestionsScreenProps
   const [loading, setLoading] = useState(true);
   const [showLoader, setShowLoader] = useState(true);
   const [loaderComplete, setLoaderComplete] = useState(false);
+
+  const handlers = useSwipeable({
+    onSwipedRight: () => {
+      onBack();
+    },
+    trackMouse: true,
+  });
+
   const stressLevel = analysisData.stressLevel;
   const affirmation = positiveAffirmations[Math.floor(Math.random() * positiveAffirmations.length)];
 
@@ -342,22 +335,24 @@ const PostAnalysisSuggestionsScreen: React.FC<PostAnalysisSuggestionsScreenProps
 
   // Save suggestions to localStorage for the todo list
   useEffect(() => {
-    const userData = localStorage.getItem('userData');
+    const userData = StorageService.getItem<any>('userData');
     if (userData) {
       try {
-        const parsedUserData = JSON.parse(userData);
-        const studentCode = parsedUserData.accountNumber;
+        const studentCode = userData.accountNumber;
+
+        // Generate unique IDs for this session's suggestions
+        const timestamp = Date.now();
 
         // Combine immediate and long-term suggestions
         const allSuggestions = [
           ...suggestions.immediate.map((s, idx) => ({
-            id: `immediate-${idx}`,
+            id: `immediate-${timestamp}-${idx}`,
             label: s,
             type: 'immediate' as const,
             completed: false
           })),
           ...suggestions.longTerm.map((s, idx) => ({
-            id: `longterm-${idx}`,
+            id: `longterm-${timestamp}-${idx}`,
             label: s,
             type: 'longterm' as const,
             completed: false
@@ -372,7 +367,7 @@ const PostAnalysisSuggestionsScreen: React.FC<PostAnalysisSuggestionsScreenProps
           date: new Date().toISOString(),
           nextSession: suggestions.nextSession
         };
-        localStorage.setItem(suggestionsKey, JSON.stringify(suggestionsData));
+        StorageService.setItem(suggestionsKey, suggestionsData, studentCode, 'state');
 
         // Dispatch custom event to notify todo list to refresh
         window.dispatchEvent(new Event('suggestionsUpdated'));
@@ -386,7 +381,7 @@ const PostAnalysisSuggestionsScreen: React.FC<PostAnalysisSuggestionsScreenProps
     <header className="fixed top-0 left-0 right-0 h-[60px] flex items-center justify-between px-4 z-20 max-w-2xl mx-auto bg-background-primary/95 backdrop-blur-sm">
       <button
         onClick={onBack}
-        className="glass-base w-11 h-11 rounded-full flex items-center justify-center transition-all hover:bg-purple-primary/20"
+        className="glass-base w-11 h-11 rounded-full flex items-center justify-center transition-all hover:bg-purple-primary/20 active:bg-purple-primary/30 active:scale-95"
       >
         <ChevronLeft className="w-5 h-5 text-white" />
       </button>
@@ -422,26 +417,26 @@ const PostAnalysisSuggestionsScreen: React.FC<PostAnalysisSuggestionsScreenProps
   };
 
   return (
-    <div className="min-h-screen w-full p-4 pt-[80px] pb-10 max-w-2xl mx-auto">
+    <div className="min-h-screen w-full p-4 pt-[80px] pb-10 max-w-2xl mx-auto" {...handlers}>
       <Header />
 
-      <motion.div
+      <MotionDiv
         className="space-y-6"
         variants={containerVariants}
         initial="hidden"
         animate="visible"
       >
         {/* Top Banner - Positive Affirmation */}
-        <motion.div variants={itemVariants}>
+        <MotionDiv variants={itemVariants}>
           <div className="bg-purple-dark rounded-2xl p-5">
             <p className="text-base font-medium text-white text-center leading-relaxed">
               {affirmation}
             </p>
           </div>
-        </motion.div>
+        </MotionDiv>
 
         {/* Main Section - Personalized Suggestions */}
-        <motion.div variants={itemVariants}>
+        <MotionDiv variants={itemVariants}>
           <div className="bg-surface rounded-2xl p-6">
             <h2 className="text-2xl font-bold text-white mb-6 text-left">Personalized Suggestions</h2>
 
@@ -480,18 +475,18 @@ const PostAnalysisSuggestionsScreen: React.FC<PostAnalysisSuggestionsScreenProps
               </>
             )}
           </div>
-        </motion.div>
+        </MotionDiv>
 
         {/* Close/Finish Button */}
-        <motion.div variants={itemVariants} className="pt-4">
+        <MotionDiv variants={itemVariants} className="pt-4">
           <LiquidButton
             onClick={onClose}
             className="w-full h-14 rounded-2xl flex items-center justify-center font-medium"
           >
             Return to Dashboard
           </LiquidButton>
-        </motion.div>
-      </motion.div>
+        </MotionDiv>
+      </MotionDiv>
     </div>
   );
 };

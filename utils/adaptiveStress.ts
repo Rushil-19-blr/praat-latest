@@ -1,4 +1,5 @@
 import { MeasureValues } from './stressAnalysis';
+import { StorageService } from '../services/storageService';
 
 const ADAPTIVE_FEATURES = ['jitter', 'shimmer', 'f0Mean', 'f0Range', 'speechRate'] as const;
 type AdaptiveFeature = (typeof ADAPTIVE_FEATURES)[number];
@@ -42,16 +43,8 @@ const clampBias = (value: number) => clamp(value, -15, 15);
 
 const getCurrentStudentId = (): string => {
   if (typeof window === 'undefined') return 'default';
-  try {
-    const raw = localStorage.getItem('userData');
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      return parsed?.accountNumber || 'default';
-    }
-  } catch {
-    // ignore
-  }
-  return 'default';
+  const userData = StorageService.getItem<any>('userData');
+  return userData?.accountNumber || 'default';
 };
 
 const getStorageKey = (studentId?: string) => `${STORAGE_PREFIX}:${studentId || getCurrentStudentId()}`;
@@ -59,25 +52,21 @@ const getStorageKey = (studentId?: string) => `${STORAGE_PREFIX}:${studentId || 
 export const loadAdaptiveState = (studentId?: string): AdaptiveStressState => {
   if (typeof window === 'undefined') return { ...DEFAULT_STATE };
   const key = getStorageKey(studentId);
-  try {
-    const raw = localStorage.getItem(key);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      return {
-        ...DEFAULT_STATE,
-        ...parsed,
-        weights: { ...DEFAULT_STATE.weights, ...(parsed?.weights || {}) },
-      };
-    }
-  } catch {
-    // ignore parse issues
+  const parsed = StorageService.getItem<any>(key);
+  if (parsed) {
+    return {
+      ...DEFAULT_STATE,
+      ...parsed,
+      weights: { ...DEFAULT_STATE.weights, ...(parsed?.weights || {}) },
+    };
   }
   return { ...DEFAULT_STATE };
 };
 
 export const saveAdaptiveState = (state: AdaptiveStressState, studentId?: string) => {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(getStorageKey(studentId), JSON.stringify(state));
+  const id = studentId || getCurrentStudentId();
+  StorageService.setItem(getStorageKey(id), state, id, 'state');
 };
 
 export const computeAdaptiveDeltas = (

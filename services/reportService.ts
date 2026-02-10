@@ -29,19 +29,20 @@ export const generateCounselorReport = async (
 
         const historySummary = summarizeHistoryForAI(history);
 
-        const prompt = `Generate a detailed counselor report for a student wellbeing session.
+        const prompt = `Generate a CONCISE, ACTION-ORIENTED counselor report for a student wellbeing session.
+KEEP IT BRIEF. Use bullet points. Avoid flowery language.
 
 SESSION DATA:
 - Session ID: ${session.sessionId}
 - Date: ${session.date}
-- Stress Level: ${session.analysisData?.stressLevel || 'N/A'}%
-- Voice Analysis Summary: ${session.analysisData?.aiSummary || 'N/A'}
+- Stress Level: ${session.voiceAnalysis?.stressLevel || 'N/A'}%
+- Voice Analysis Summary: ${session.voiceAnalysis?.aiSummary || 'N/A'}
 
 PRE-ANALYSIS ANSWERS:
-${JSON.stringify(session.preAnalysisAnswers?.answers || {}, null, 2)}
+${JSON.stringify(session.preAnalysisSession?.answers || {}, null, 2)}
 
 LIVE SESSION Q&A (what the student said during the conversation):
-${session.liveSessionAnswers?.map(qa => `
+${session.liveSessionQuestions?.map(qa => `
 Q: ${qa.questionText}
 A: ${qa.studentAnswer}
 `).join('\n') || 'No live Q&A recorded'}
@@ -49,13 +50,17 @@ A: ${qa.studentAnswer}
 STUDENT HISTORY:
 ${historySummary}
 
-Generate a comprehensive counselor report with the following sections:
-1. Pre-Analysis Summary: 2-3 sentences summarizing the pre-session check-in answers
-2. Live Session Summary: Key themes and topics discussed during the session
-3. Key Insights: 3-5 bullet points of important observations
-4. Concern Areas: Any areas that may need attention (can be empty if none)
-5. Recommendations: 2-3 specific follow-up actions for the counselor
-6. Overall Assessment: A brief overall assessment of the student's wellbeing
+Generate a report with the following sections. BE CONCISE.
+
+1. Pre-Analysis Summary: 1-2 sentences. Directly state key issues mentioned (e.g., "Student reported lack of sleep.").
+2. Live Session Summary: 1-2 sentences. Summarize the core topic of their conversation.
+3. Key Insights: 3-4 short bullet points. Combine voice analysis + their words.
+4. Reported Concerns: Bullet points of SPECIFIC problems mentioned by the student (e.g., "Failing math", "Fighting with friends"). CRITICAL: If they mentioned a specific problem, it MUST be here.
+5. Recommendations: 3 specific, actionable steps for the counselor/teacher.
+5. Advice: 3 specific, actionable steps for the counselor/teacher.
+6. Overall Assessment: 1 sentence summary of their status.
+
+IMPORTANT: If "LIVE SESSION Q&A" contains data, YOU MUST USE IT in "Reported Concerns". Do not ignore it.
 
 Return ONLY valid JSON in this exact format:
 {
@@ -93,7 +98,7 @@ Do not include markdown code blocks.`;
 
 // Default fallback report
 const getDefaultReport = (session: SessionData): CounselorReport => {
-    const stressLevel = session.analysisData?.stressLevel || 0;
+    const stressLevel = session.voiceAnalysis?.stressLevel || 0;
     const stressCategory = stressLevel > 70 ? 'elevated' : stressLevel > 40 ? 'moderate' : 'low';
 
     return {
@@ -121,17 +126,17 @@ export const formatReportForDisplay = (report: CounselorReport): string => {
 ## Counselor Report
 **Generated:** ${new Date(report.generatedAt).toLocaleString()}
 
-### Pre-Analysis Summary
+### Stress Snapshot (Pre-Analysis)
 ${report.preAnalysisSummary}
 
 ### Live Session Summary
 ${report.liveSessionSummary}
 
+### Reported Concerns (Student's Voice)
+${report.concernAreas.length > 0 ? report.concernAreas.map(c => `- ⚠️ ${c}`).join('\n') : 'No specific concerns reported.'}
+
 ### Key Insights
 ${report.keyInsights.map(i => `- ${i}`).join('\n')}
-
-### Concern Areas
-${report.concernAreas.length > 0 ? report.concernAreas.map(c => `- ⚠️ ${c}`).join('\n') : 'No significant concerns identified.'}
 
 ### Recommendations
 ${report.recommendations.map(r => `- ${r}`).join('\n')}

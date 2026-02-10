@@ -12,13 +12,44 @@ warnings.filterwarnings('ignore')
 
 app = Flask(__name__)
 
-# Configure CORS - Allow all origins in development, or specify allowed origins via environment variable
-# In production, set ALLOWED_ORIGINS to your Vercel domain, e.g., "https://your-app.vercel.app"
-allowed_origins = os.environ.get('ALLOWED_ORIGINS', '*')
-if allowed_origins != '*':
-    # Split by comma for multiple origins
-    allowed_origins = [origin.strip() for origin in allowed_origins.split(',')]
-CORS(app, origins=allowed_origins, supports_credentials=True)
+# Configure CORS - Dynamically allow origins to support credentials
+# This is necessary because Access-Control-Allow-Origin: * cannot be used with Access-Control-Allow-Credentials: true
+def get_allowed_origins():
+    origins = os.environ.get('ALLOWED_ORIGINS', '*')
+    if origins == '*':
+        return '*'
+    return [origin.strip() for origin in origins.split(',')]
+
+# Use a more robust CORS setup that can handle dynamic Vercel previews
+# while maintaining support for local development
+CORS(app, 
+     resources={r"/*": {"origins": ["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173", "https://*.vercel.app"]}},
+     supports_credentials=True)
+
+# Add a before_request handler to dynamically allow the requesting origin if it matches our patterns
+@app.after_request
+def add_cors_headers(response):
+    origin = request.headers.get('Origin')
+    if not origin:
+        return response
+        
+    # List of trusted patterns (regexp-style matching is better but simple string checks for now)
+    trusted_origins = [
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:5173"
+    ]
+    
+    # Also allow any vercel.app subdomain
+    is_trusted = origin in trusted_origins or origin.endswith('.vercel.app')
+    
+    if is_trusted:
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS, PUT, DELETE'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        
+    return response
 
 # Stream Chat configuration
 STREAM_API_KEY = "kt3cr78evu5y"
@@ -67,7 +98,7 @@ def extract_praat_features(samples: np.ndarray, sample_rate: int) -> dict:
 		# Extract Pitch (F0)
 		pitch = sound.to_pitch_ac(
 			time_step=0.01,
-			pitch_floor=75.0,
+			pitch_floor=50.0,
 			pitch_ceiling=600.0
 		)
 		
@@ -133,7 +164,7 @@ def extract_praat_features(samples: np.ndarray, sample_rate: int) -> dict:
 		
 		try:
 			# Create PointProcess using Praat script
-			point_process = parselmouth.praat.call(sound, "To PointProcess (periodic, cc)", 75.0, 600.0)
+			point_process = parselmouth.praat.call(sound, "To PointProcess (periodic, cc)", 50.0, 600.0)
 			
 			if point_process:
 				n_pulses = parselmouth.praat.call(point_process, "Get number of points")
@@ -230,10 +261,13 @@ def generate_stream_token():
 		userId = data["userId"]
 		userName = data.get("userName", f"User {userId}")
 		
-		# Create or update user in Stream Chat
+		# Create or update user in Stream Chat with proper role
+		# Give teachers (ID 9999) admin role so they can create channels
+		role = "admin" if userId == "9999" else "user"
 		stream_client.update_user({
 			"id": userId,
 			"name": userName,
+			"role": role,
 		})
 		
 		# Generate JWT token
@@ -245,6 +279,48 @@ def generate_stream_token():
 			"userName": userName
 		})
 	except Exception as e:
+		return jsonify({"error": str(e)}), 500
+
+
+@app.route("/stream-chat-channel", methods=["POST"])
+def create_stream_channel():
+	"""Create a Stream Chat channel server-side (with admin permissions)."""
+	try:
+		data = request.get_json()
+		if not data:
+			return jsonify({"error": "Request body required"}), 400
+		
+		teacher_id = data.get("teacherId")
+		student_id = data.get("studentId")
+		
+		if not teacher_id or not student_id:
+			return jsonify({"error": "teacherId and studentId are required"}), 400
+		
+		channel_id = f"teacher-{teacher_id}-student-{student_id}"
+		
+		# Ensure both users exist
+		stream_client.update_user({"id": teacher_id, "name": f"Teacher {teacher_id}", "role": "admin"})
+		stream_client.update_user({"id": student_id, "name": f"Student {student_id}"})
+		
+		# Create channel server-side with admin permissions
+		channel = stream_client.channel("messaging", channel_id, {
+			"members": [teacher_id, student_id],
+			"created_by_id": teacher_id,
+		})
+		channel.create(teacher_id)
+		
+		return jsonify({
+			"channelId": channel_id,
+			"success": True
+		})
+	except Exception as e:
+		# Channel may already exist, which is fine
+		if "already exists" in str(e).lower():
+			return jsonify({
+				"channelId": f"teacher-{data.get('teacherId')}-student-{data.get('studentId')}",
+				"success": True,
+				"existed": True
+			})
 		return jsonify({"error": str(e)}), 500
 
 

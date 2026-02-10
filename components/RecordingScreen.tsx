@@ -16,7 +16,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { VoicePoweredOrb } from './ui/voice-powered-orb';
 import { speakText, stopSpeech, isSpeaking } from '../services/textToSpeech';
 import SmartOptions from './SmartOptions';
-import { generateCounselorReport } from '../services/reportService';
+import { generateCounselorReport, formatReportForDisplay } from '../services/reportService';
 import { saveSessionData, getStudentHistory, getCurrentStudentId, generateId } from '../services/personalizationService';
 import { getAffirmationsForSession } from '../services/affirmationService';
 import { getSessionPlan } from '../services/planningService';
@@ -77,9 +77,26 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
   const [isPlayingStatement, setIsPlayingStatement] = useState(false);
 
   // Retrieve active session plan (if any)
-  const activeSessionPlan = React.useMemo(() => {
-    const studentId = getCurrentStudentId();
-    return getSessionPlan(studentId);
+  const [activeSessionPlan, setActiveSessionPlan] = useState<SessionPlan | null>(null);
+
+  useEffect(() => {
+    const loadPlan = () => {
+      const studentId = getCurrentStudentId();
+      const plan = getSessionPlan(studentId);
+      setActiveSessionPlan(plan);
+    };
+
+    loadPlan();
+
+    const handleStorageUpdate = (e: CustomEvent<{ key: string, data: any }>) => {
+      if (e.detail.key === 'awaaz_session_plans') {
+        console.log('[RecordingScreen] Received session plan update, refreshing active plan...');
+        loadPlan();
+      }
+    };
+
+    window.addEventListener('storage_key_updated', handleStorageUpdate as EventListener);
+    return () => window.removeEventListener('storage_key_updated', handleStorageUpdate as EventListener);
   }, []);
 
   // Gemini Live integration - only active in 'ai' mode
@@ -121,6 +138,10 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
   const animationFrameRef = useRef<number | null>(null);
   const recordingStateRef = useRef<RecordingState>(recordingState);
   const allClipsRef = useRef<Blob[]>([]); // Keep ref to always have latest clips
+  const MotionDiv = motion.div as any;
+  const MotionButton = motion.button as any;
+  const MotionCanvas = motion.canvas as any;
+  const streamRef = useRef<MediaStream | null>(null);
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -128,12 +149,19 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
 
 
   const getMicrophonePermission = useCallback(async () => {
-    if (stream) return;
+    if (streamRef.current) return;
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        audio: { sampleRate: 44100, channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: false }
+        audio: {
+          sampleRate: 44100,
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: false // Match VoiceCalibrationScreen behavior
+        }
       });
       setStream(mediaStream);
+      streamRef.current = mediaStream;
       setPermissionError(null);
     } catch (err) {
       if (err instanceof Error) {
@@ -144,19 +172,22 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
         }
       }
     }
-  }, [stream]);
+  }, []);
 
   useEffect(() => {
     getMicrophonePermission();
     return () => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
       }
-      if (timerRef.current) clearTimeout(timerRef.current as any);
+      if (timerRef.current) clearInterval(timerRef.current as any);
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
       stopSpeech(); // Clean up TTS on unmount
     };
-  }, [getMicrophonePermission, stream]);
+  }, [getMicrophonePermission]);
+
+
 
   // Clean up TTS and disconnect Gemini when switching modes
   useEffect(() => {
@@ -324,7 +355,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
     // Only if mic is NOT muted
     if (!isMicMutedRef.current) {
       const averageVolume = barHeights.reduce((a, b) => a + b, 0) / barHeights.length;
-      if (averageVolume > 0.02) { // Lowered threshold for better sensitivity
+      if (averageVolume > 0.005) { // Lowered threshold for better sensitivity
         lastVoiceActivityTimeRef.current = Date.now();
 
         // If user starts speaking, clear options immediately
@@ -385,13 +416,28 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
 
       try {
         const ai = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.API_KEY || '');
-        const model = ai.getGenerativeModel({ model: 'gemini-2.0-flash' });
+
+        // Helper to generate content with fallback
+        const generateWithFallback = async (promptText: string) => {
+          const request = { contents: [{ role: 'user', parts: [{ text: promptText }] }] };
+          try {
+            // Try Gemini 2.5 Flash first (Verified available)
+            const modelFlash = ai.getGenerativeModel({ model: 'gemini-2.5-flash' }, { apiVersion: 'v1beta' });
+            return await modelFlash.generateContent(request);
+          } catch (flashError) {
+            console.warn('[SmartOptions] Gemini 2.5 Flash failed, falling back to 2.0 Flash:', flashError);
+            // Fallback to Gemini 2.0 Flash (Verified available)
+            const modelFallback = ai.getGenerativeModel({ model: 'gemini-2.0-flash' }, { apiVersion: 'v1beta' });
+            return await modelFallback.generateContent(request);
+          }
+        };
+
         const prompt = `Based on this question/statement from a supportive companion for students: "${lastAgentResponse}"
         
         Generate 3 simple, short, natural 1-sentence options (maximum 5 words each) that a student (10-18 years old) might say to reply.
         Return ONLY a JSON array of strings. Do not include markdown code blocks.`;
 
-        const result = await model.generateContent(prompt);
+        const result = await generateWithFallback(prompt);
         const text = result.response.text();
         // console.log('[SmartOptions] Raw API response:', text);
         const cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
@@ -418,12 +464,12 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
 
       // Strict check: Must be silence > 2s and options must exist
       if (timeSinceVoice > 2000 && generatedSmartOptionsRef.current.length > 0) {
-        console.log('[SmartOptions] 7s silence - showing options:', generatedSmartOptionsRef.current);
+        console.log('[SmartOptions] 10s silence - showing options:', generatedSmartOptionsRef.current);
         setSmartOptions(generatedSmartOptionsRef.current);
       } else {
         console.log('[SmartOptions] Not showing - user recently spoke or no options');
       }
-    }, 7000); // 7 seconds delay
+    }, 10000); // 10 seconds delay
 
     return () => {
       if (optionsTimeoutRef.current) {
@@ -432,6 +478,17 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
       }
     };
   }, [lastAgentResponse, shouldUseGemini]);
+
+  // Ensure options are cleared when recording stops
+  useEffect(() => {
+    if (recordingState !== 'RECORDING') {
+      setSmartOptions([]);
+      if (optionsTimeoutRef.current) {
+        clearTimeout(optionsTimeoutRef.current);
+        optionsTimeoutRef.current = null;
+      }
+    }
+  }, [recordingState]);
 
   const handleOptionSelect = (option: string) => {
     setSmartOptions([]);
@@ -462,7 +519,18 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
     }
 
     // Create new MediaRecorder for this clip
-    mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+    // Create new MediaRecorder for this clip - matching VoiceCalibrationScreen implementation
+    const mimeType = 'audio/webm';
+    console.log('[Recorder] Selected mimeType:', mimeType);
+
+    try {
+      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType });
+    } catch (e) {
+      console.error('[Recorder] Failed to create MediaRecorder:', e);
+      setRecordingState('ERROR');
+      setPermissionError("Your browser doesn't support the required audio recording format.");
+      return;
+    }
 
     mediaRecorderRef.current.ondataavailable = (event) => {
       if (event.data && event.data.size > 0) {
@@ -474,18 +542,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
     // Start with a timeslice to ensure data is captured regularly
     mediaRecorderRef.current.start(100); // Collect data every 100ms
 
-    // Create audio context for visualization (only if not exists or closed)
-    if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
-      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-    }
-
-    const source = audioContextRef.current.createMediaStreamSource(stream);
-    analyserRef.current = audioContextRef.current.createAnalyser();
-    analyserRef.current.fftSize = 512;
-    analyserRef.current.smoothingTimeConstant = 0.8;
-    source.connect(analyserRef.current);
-
-    animationFrameRef.current = requestAnimationFrame(drawWaveform);
+    // Audio context/analyser is initialized in useEffect now
 
     // Start duration counter
     timerRef.current = setInterval(() => {
@@ -494,10 +551,11 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
   };
 
   const analyzeAudioWithPraatAndGemini = async (audioBlob: Blob) => {
+    const debugStart = performance.now();
+
     try {
       const wavBlob = await webmBlobToWavMono16k(audioBlob);
       const featuresForAnalysis = await extractFeaturesWithPraat(wavBlob, BACKEND_URL);
-      ensureRecordingQuality(featuresForAnalysis, wavBlob.size);
       ensureRecordingQuality(featuresForAnalysis, wavBlob.size);
 
       // Print extracted Praat features to console
@@ -513,9 +571,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
       console.log('  F0 Range:', featuresForAnalysis.f0_range, 'Hz');
       console.log('  Jitter:', featuresForAnalysis.jitter, '%');
       console.log('  Shimmer:', featuresForAnalysis.shimmer, '%');
-      console.log('  Shimmer:', featuresForAnalysis.shimmer, '%');
       // HNR removed from logs
-      console.log('  F1 (First Formant):', featuresForAnalysis.f1, 'Hz');
       console.log('  F1 (First Formant):', featuresForAnalysis.f1, 'Hz');
       console.log('  F2 (Second Formant):', featuresForAnalysis.f2, 'Hz');
       console.log('  Speech Rate:', featuresForAnalysis.speech_rate, 'WPM');
@@ -608,7 +664,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
 
       // Get AI summary from Gemini (just for explanation, not for feature extraction)
       const ai = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.API_KEY);
-      const model = ai.getGenerativeModel({ model: 'gemini-2.5-pro' }, { apiVersion: 'v1beta' });
+      const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' }, { apiVersion: 'v1beta' });
 
       const baselineString = baselineData ?
         `The user's personal CALM BASELINE voice biomarkers are: ${JSON.stringify(baselineDataObj, null, 2)}` :
@@ -692,6 +748,9 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
         date: new Date().toISOString(),
       };
 
+      const debugDuration = performance.now() - debugStart;
+
+
       // Save session data and generate counselor report
       const saveSessionAndReport = async (): Promise<string | undefined> => {
         try {
@@ -725,7 +784,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
             clearLiveSessionQA();
           }
 
-          return report;
+          return formatReportForDisplay(report);
         } catch (err) {
           console.error('[Session] Failed to save session data:', err);
           return undefined;
@@ -742,6 +801,9 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
       setRecordingState('COMPLETE');
       onAnalysisComplete(analysisResult);
     } catch (error) {
+      console.error('[RecordingScreen] Analysis Error:', error);
+      const debugDuration = performance.now() - debugStart;
+
       setRecordingState('ERROR');
       if (error instanceof Error) {
         if (error.message.includes('Not enough clear speech') || error.message.includes('did not extract')) {
@@ -880,11 +942,26 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
   };
 
   const endSession = async () => {
+    const debugStart = performance.now();
     // Disconnect Gemini Live immediately when ending the session
-    try { disconnectGemini(); } catch { }
+    // Capture final Q&A including any pending user input
+    let finalLiveSessionQA = liveSessionQA; // Default to current state
+    try {
+      const disconnectedQA = disconnectGemini();
+      if (disconnectedQA && Array.isArray(disconnectedQA)) {
+        console.log('[RecordingScreen] Received updated Q&A from disconnect:', disconnectedQA.length);
+        finalLiveSessionQA = disconnectedQA;
+      }
+    } catch (e) {
+      console.warn('Error disconnecting gemini:', e);
+    }
+
     // Use ref to get the most up-to-date clips
     const clipsToAnalyze = allClipsRef.current;
     if (clipsToAnalyze.length === 0) return;
+
+    const totalClipSize = clipsToAnalyze.reduce((sum, clip) => sum + clip.size, 0);
+
 
     setRecordingState('ANALYZING');
 
@@ -947,7 +1024,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
 
       // Calculate stress level using the stress analysis algorithm
       const { calculateStressLevel } = await import('../utils/stressAnalysis');
-      const baselineDataObj = baselineData ? JSON.parse(baselineData) : null;
+      const baselineDataObj = typeof baselineData === 'string' ? JSON.parse(baselineData) : baselineData;
 
       // Convert to MeasureValues format
       const measureValues = {
@@ -1005,9 +1082,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
 
       biomarkers.stress_level = adjustedScore;
 
-      // Get AI summary from Gemini (just for explanation, not for feature extraction)
       const ai = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.API_KEY);
-      const model = ai.getGenerativeModel({ model: 'gemini-2.5-pro' }, { apiVersion: 'v1beta' });
 
       const baselineString = baselineData ?
         `The user's personal CALM BASELINE voice biomarkers are: ${JSON.stringify(baselineDataObj, null, 2)}` :
@@ -1043,7 +1118,22 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
         "ai_summary": "<2-3 sentence explanation>"
       }`;
 
-      const response = await model.generateContent(prompt);
+      // Helper to generate content with fallback
+      const generateWithFallback = async (promptText: string) => {
+        const request = { contents: [{ role: 'user', parts: [{ text: promptText }] }] };
+        try {
+          // Try Gemini 2.5 Flash first (Verified available)
+          const modelFlash = ai.getGenerativeModel({ model: 'gemini-2.5-flash' }, { apiVersion: 'v1beta' });
+          return await modelFlash.generateContent(request);
+        } catch (flashError) {
+          console.warn('[RecordingScreen] Gemini 2.5 Flash failed, falling back to 2.0 Flash:', flashError);
+          // Fallback to Gemini 2.0 Flash (Verified available)
+          const modelFallback = ai.getGenerativeModel({ model: 'gemini-2.0-flash' }, { apiVersion: 'v1beta' });
+          return await modelFallback.generateContent(request);
+        }
+      };
+
+      const response = await generateWithFallback(prompt);
       const responseText = response.response.text();
 
       // Clean to valid JSON
@@ -1089,11 +1179,55 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
         audioUrl: URL.createObjectURL(combinedWavBlob),
         aiSummary: biomarkers.ai_summary,
         date: new Date().toISOString(),
-        liveSessionAnswers: liveSessionQA.map(qa => ({
+        questionnaireAnswers: preAnalysisSession?.answers || {},
+        preAnalysisQuestions: preAnalysisSession?.questions?.map(q => ({ id: q.id, text: q.text })) || [],
+        liveSessionAnswers: finalLiveSessionQA.map(qa => ({
           questionText: qa.questionText,
           studentAnswer: qa.studentAnswer
         })),
       };
+
+      const debugDuration = performance.now() - debugStart;
+
+
+      // Save session data and generate counselor report (Fix for missing data persistence)
+      try {
+        const studentId = getCurrentStudentId();
+        const history = getStudentHistory(studentId);
+
+        // Create session data with voice analysis
+        const sessionData: SessionData = {
+          sessionId: generateId(),
+          date: new Date().toISOString(),
+          preAnalysisSession: preAnalysisSession || undefined,
+          liveSessionQuestions: finalLiveSessionQA,
+          voiceAnalysis: {
+            stressLevel: analysisResult.stressLevel,
+            biomarkers: analysisResult.biomarkers,
+            aiSummary: analysisResult.aiSummary
+          }
+        };
+
+        // Generate counselor report
+        console.log('[Session] Generating counselor report...');
+        const report = await generateCounselorReport(sessionData, history);
+        sessionData.counselorReport = report;
+
+        // Add report to result so it can be shown in UI immediately
+        // Note: Casting report to any if needed to match AnalysisData type, assuming compatibility
+        (analysisResult as any).counselorReport = report;
+
+        // Save complete session data
+        saveSessionData(sessionData, studentId);
+        console.log('[Session] Session data saved with report:', sessionData.sessionId);
+
+        // Clear live session Q&A for next session
+        if (clearLiveSessionQA) {
+          clearLiveSessionQA();
+        }
+      } catch (err) {
+        console.error('[Session] Failed to save session data:', err);
+      }
 
       // Reset session state
       setIsSessionActive(false);
@@ -1103,6 +1237,9 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
       setRecordingState('COMPLETE');
       onAnalysisComplete(analysisResult);
     } catch (error) {
+      console.error('[RecordingScreen] Analysis Error:', error);
+      const debugDuration = performance.now() - debugStart;
+
       setRecordingState('ERROR');
       if (error instanceof Error) {
         if (error.message.includes('Not enough clear speech')) {
@@ -1182,7 +1319,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
     <div className="min-h-screen w-full flex flex-col items-center justify-start p-4 pt-[100px] pb-[60px] relative overflow-y-auto">
       <Header />
 
-      <GlassCard className="w-full max-w-sm mx-auto p-4 z-10 mt-4" variant="purple">
+      <GlassCard className="w-full max-w-sm mx-auto p-4 z-10 mt-4 select-none" variant="purple">
         <div className="text-center">
           {recordingState === 'RECORDING' && (
             <p className="text-2xl font-mono text-white tabular-nums">
@@ -1221,14 +1358,14 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
           />
         </div>
 
-        <motion.button
+        <MotionButton
           onMouseDown={startRecording}
           onMouseUp={stopRecording}
           onMouseLeave={stopRecording}
           onTouchStart={startRecording}
           onTouchEnd={stopRecording}
           disabled={recordingState === 'ANALYZING' || !!permissionError && recordingState !== 'ERROR' || (audioBlob && recordingState === 'IDLE')}
-          className={`w-[180px] h-[180px] rounded-full flex items-center justify-center shadow-2xl transition-all duration-300 ${recordingState === 'ANALYZING' ? 'bg-orange-primary/15' : recordingState === 'ERROR' ? 'bg-error-red/15' : recordingState === 'RECORDING' ? 'bg-purple-primary/30' : 'bg-purple-primary/15'} backdrop-blur-xl z-10`}
+          className={`w-[180px] h-[180px] rounded-full flex items-center justify-center shadow-2xl transition-all duration-300 ${recordingState === 'ANALYZING' ? 'bg-orange-primary/15' : recordingState === 'ERROR' ? 'bg-error-red/15' : recordingState === 'RECORDING' ? 'bg-purple-primary/30' : 'bg-purple-primary/15'} backdrop-blur-xl z-10 select-none touch-none`}
           whileHover={(recordingState === 'IDLE' || recordingState === 'ERROR') && !audioBlob ? { scale: 1.05, boxShadow: '0 0 40px rgba(139, 92, 246, 0.6)' } : {}}
           whileTap={(recordingState === 'IDLE' || recordingState === 'ERROR') && !audioBlob ? { scale: 0.95 } : {}}
           animate={{
@@ -1242,7 +1379,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
           <motion.div animate={{ scale: recordingState === 'RECORDING' ? [1, 1.2, 1] : 1 }} transition={{ duration: 0.8, repeat: recordingState === 'RECORDING' ? Infinity : 0 }}>
             <MicrophoneFilled className="w-16 h-16 text-white" />
           </motion.div>
-        </motion.button>
+        </MotionButton>
       </div>
 
 
@@ -1276,7 +1413,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
 
             <div className="space-y-2">
               <div className="flex items-center space-x-2">
-                <motion.div
+                <MotionDiv
                   animate={{ scale: geminiConnected ? [1, 1.2, 1] : 1 }}
                   transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
                   className={`w-2 h-2 rounded-full ${geminiConnected ? 'bg-green-400' : 'bg-yellow-400'}`}
@@ -1328,18 +1465,18 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
               <h3 className="text-sm font-medium text-white mb-3">Repeat After Me</h3>
 
               {isPlayingStatement && (
-                <motion.div
+                <MotionDiv
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   className="flex items-center justify-center gap-2 mb-2"
                 >
-                  <motion.div
+                  <MotionDiv
                     animate={{ scale: [1, 1.2, 1] }}
                     transition={{ duration: 0.8, repeat: Infinity }}
                     className="w-2 h-2 bg-purple-400 rounded-full"
                   />
                   <span className="text-xs text-purple-300">Speaking...</span>
-                </motion.div>
+                </MotionDiv>
               )}
 
               <div className="bg-purple-500/20 rounded-lg p-4 border border-purple-400/30 min-h-[80px] flex items-center justify-center">
@@ -1368,7 +1505,7 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
       {/* End Session Button */}
       <AnimatePresence>
         {isSessionActive && audioClips.length > 0 && (
-          <motion.div
+          <MotionDiv
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
@@ -1388,28 +1525,63 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({
                 </button>
               </div>
             </GlassCard>
-          </motion.div>
+          </MotionDiv>
         )}
       </AnimatePresence>
 
       <AnimatePresence>
         {showHelp && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowHelp(false)} className="fixed inset-0 bg-black/60 backdrop-blur-md z-40 flex items-center justify-center p-4" >
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} onClick={(e) => e.stopPropagation()} className="w-full" >
-              <GlassCard className="p-5 max-w-md mx-auto">
-                <div className="text-center">
-                  <MicrophoneWithWaves className="w-7 h-7 text-purple-primary mx-auto mb-2" />
-                  <h3 className="text-base font-bold text-white mb-2">How it Works</h3>
-                  <ol className="text-sm text-text-muted space-y-1">
-                    <li>1. Find a quiet, relaxed environment</li>
-                    <li>2. Tap the button to start recording</li>
-                    <li>3. Speak calmly and naturally for 10s</li>
-                    <li>4. Your results will be compared to your baseline</li>
-                  </ol>
+          <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowHelp(false)} className="fixed inset-0 bg-black/60 backdrop-blur-md z-40 flex items-center justify-center p-4" >
+            <MotionDiv
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              onClick={(e: any) => e.stopPropagation()}
+              className="w-full max-w-sm"
+            >
+              <GlassCard className="p-6 relative overflow-hidden" variant="purple">
+                {/* Decorative background glow */}
+                <div className="absolute -top-10 -right-10 w-32 h-32 bg-purple-500/20 rounded-full blur-3xl pointer-events-none" />
+
+                <div className="text-center relative z-10">
+                  <div className="w-16 h-16 rounded-full bg-purple-500/10 flex items-center justify-center mx-auto mb-4 border border-purple-500/20">
+                    <MicrophoneWithWaves className="w-8 h-8 text-purple-primary" />
+                  </div>
+
+                  <h3 className="text-xl font-bold text-white mb-2">How it Works</h3>
+                  <p className="text-sm text-text-muted mb-6 leading-relaxed">
+                    We analyze your voice patterns to help you track your stress levels over time.
+                  </p>
+
+                  <div className="space-y-4 mb-8 text-left">
+                    <div className="flex items-start gap-3">
+                      <div className="w-6 h-6 rounded-full bg-surface/50 flex items-center justify-center text-xs font-mono text-purple-300 border border-white/5 mt-0.5">1</div>
+                      <p className="text-sm text-gray-300 flex-1">Find a quiet, relaxed environment.</p>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="w-6 h-6 rounded-full bg-surface/50 flex items-center justify-center text-xs font-mono text-purple-300 border border-white/5 mt-0.5">2</div>
+                      <p className="text-sm text-gray-300 flex-1">Tap the button to start recording.</p>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="w-6 h-6 rounded-full bg-surface/50 flex items-center justify-center text-xs font-mono text-purple-300 border border-white/5 mt-0.5">3</div>
+                      <p className="text-sm text-gray-300 flex-1">Speak calmly and naturally for 10s.</p>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="w-6 h-6 rounded-full bg-surface/50 flex items-center justify-center text-xs font-mono text-purple-300 border border-white/5 mt-0.5">4</div>
+                      <p className="text-sm text-gray-300 flex-1">Your results will be compared to your baseline.</p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => setShowHelp(false)}
+                    className="w-full py-3 bg-purple-primary hover:bg-purple-600 text-white font-medium rounded-xl transition-all shadow-lg shadow-purple-500/25"
+                  >
+                    Got it
+                  </button>
                 </div>
               </GlassCard>
-            </motion.div>
-          </motion.div>
+            </MotionDiv>
+          </MotionDiv>
         )}
       </AnimatePresence>
 
